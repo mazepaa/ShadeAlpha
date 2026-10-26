@@ -6,8 +6,10 @@ import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.View;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -17,12 +19,12 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 /**
- * Делает фон шторки прозрачнее. Вместо перехвата setViewAlpha (его может встроить оптимизатор R8,
- * и тогда хук не срабатывает) перехватывается ScrimView.onDraw: содержимое скрима рисуется
- * в слое с альфой, равной проценту из Settings.System.
- *   shade_alpha_top_percent    -> scrim_behind        (верх / фон шторки)
- *   shade_alpha_bottom_percent -> scrim_notifications (низ / уведомления)
- * 100 = как в системе, 0 = полностью прозрачно.
+ * ТЕСТОВАЯ сборка: три способа сделать скрим прозрачнее, переключаются на лету через
+ * Settings.System["shade_alpha_mode"]:
+ *   0 = слой: ScrimView.onDraw рисуется в saveLayerAlpha (два прохода, как в 1.0)
+ *   1 = альфа view: View.setAlpha(f) у самого скрима (один проход, если hasOverlappingRendering=false)
+ *   2 = альфа скрима: умножение аргумента ScrimView.setViewAlpha (как «снижение альфы цвета» в Iconify)
+ * Верх -> scrim_behind, низ -> scrim_notifications. 100 = как в системе.
  */
 public class ShadeAlpha implements IXposedHookLoadPackage {
 
@@ -36,8 +38,12 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private static final ConcurrentHashMap<Integer, String> NAMES = new ConcurrentHashMap<>();
     private static final Set<String> SEEN = new HashSet<>();
+    private static final Set<View> ALPHA_SET =
+            Collections.newSetFromMap(new WeakHashMap<View, Boolean>());
+
     private static volatile float fTop = 1f;
     private static volatile float fBottom = 1f;
+    private static volatile int mode = Keys.MODE_VIEW_ALPHA;
     private static volatile long lastRead = 0;
 
     @Override
@@ -65,21 +71,25 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                                 if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
                                 View v = (View) param.thisObject;
                                 String id = idName(v);
-                                float f;
-                                if ("scrim_behind".equals(id)) {
-                                    f = factor(v.getContext(), true);
-                                } else if ("scrim_notifications".equals(id)) {
-                                    f = factor(v.getContext(), false);
-                                } else {
-                                    logOnce(id, -1f);
+                                boolean top = "scrim_behind".equals(id);
+                                boolean bottom = "scrim_notifications".equals(id);
+                                if (!top && !bottom) {
+                                    logOnce("draw:" + id, -1f);
                                     return;
                                 }
-                                logOnce(id, f);
-                                if (f >= 0.999f) return;
-                                Canvas c = (Canvas) param.args[0];
-                                int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(),
-                                        Math.round(255 * f));
-                                param.setObjectExtra(EXTRA, Integer.valueOf(count));
+                                float f = factor(v.getContext(), top);
+                                logOnce("draw:" + id, f);
+                                if (mode == Keys.MODE_VIEW_ALPHA) {
+                                    applyViewAlpha(v, f);
+                                } else {
+                                    resetViewAlpha(v);
+                                    if (mode == Keys.MODE_LAYER && f < 0.999f) {
+                                        Canvas c = (Canvas) param.args[0];
+                                        int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(),
+                                                Math.round(255 * f));
+                                        param.setObjectExtra(EXTRA, Integer.valueOf(count));
+                                    }
+                                }
                             } catch (Throwable t) {
                                 XposedBridge.log(TAG + ": before onDraw failed: " + t);
                             }
@@ -97,12 +107,58 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             }
                         }
                     });
-            int n = hooks == null ? 0 : hooks.size();
-            XposedBridge.log(TAG + ": hooked onDraw, methods=" + n);
-            if (n == 0) XposedBridge.log(TAG + ": WARNING: ScrimView has no onDraw to hook");
+            XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": hook failed: " + t);
+            XposedBridge.log(TAG + ": onDraw hook failed: " + t);
         }
+
+        try {
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(
+                    scrim, "setViewAlpha", new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            try {
+                                if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
+                                View v = (View) param.thisObject;
+                                String id = idName(v);
+                                boolean top = "scrim_behind".equals(id);
+                                boolean bottom = "scrim_notifications".equals(id);
+                                if (!top && !bottom) return;
+                                float a = (Float) param.args[0];
+                                // если эта строка появилась в журнале, метод НЕ встроен и режим 2 может работать
+                                logOnce("setViewAlpha:" + id, a);
+                                float f = factor(v.getContext(), top);
+                                if (mode == Keys.MODE_SCRIM_ALPHA) {
+                                    param.args[0] = a * f;
+                                }
+                            } catch (Throwable t) {
+                                XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t);
+                            }
+                        }
+                    });
+            XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t);
+        }
+    }
+
+    private static void applyViewAlpha(View v, float f) {
+        if (f >= 0.999f) {
+            resetViewAlpha(v);
+            return;
+        }
+        if (Math.abs(v.getAlpha() - f) > 0.001f) v.setAlpha(f);
+        synchronized (ALPHA_SET) {
+            ALPHA_SET.add(v);
+        }
+    }
+
+    private static void resetViewAlpha(View v) {
+        boolean had;
+        synchronized (ALPHA_SET) {
+            had = ALPHA_SET.remove(v);
+        }
+        if (had && v.getAlpha() != 1f) v.setAlpha(1f);
     }
 
     private static String idName(View v) {
@@ -120,10 +176,10 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         return n;
     }
 
-    private static void logOnce(String id, float factor) {
+    private static void logOnce(String key, float value) {
         synchronized (SEEN) {
-            if (SEEN.add(id)) {
-                XposedBridge.log(TAG + ": first draw of scrim id=" + id + " factor=" + factor);
+            if (SEEN.add(key)) {
+                XposedBridge.log(TAG + ": first " + key + " value=" + value);
             }
         }
     }
@@ -134,11 +190,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             lastRead = now;
             float nt = read(c, Keys.TOP);
             float nb = read(c, Keys.BOTTOM);
-            if (nt != fTop || nb != fBottom) {
-                XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb);
+            int nm = readMode(c);
+            if (nt != fTop || nb != fBottom || nm != mode) {
+                XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb + " mode=" + nm);
             }
             fTop = nt;
             fBottom = nb;
+            mode = nm;
         }
         return top ? fTop : fBottom;
     }
@@ -149,6 +207,15 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             return Math.max(0, Math.min(100, p)) / 100f;
         } catch (Throwable e) {
             return 1f;
+        }
+    }
+
+    private static int readMode(Context c) {
+        try {
+            int m = Settings.System.getInt(c.getContentResolver(), Keys.MODE, Keys.MODE_VIEW_ALPHA);
+            return Math.max(0, Math.min(2, m));
+        } catch (Throwable e) {
+            return Keys.MODE_VIEW_ALPHA;
         }
     }
 }

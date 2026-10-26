@@ -21,7 +21,7 @@ import android.widget.TextView;
 
 import java.util.Locale;
 
-/** Язык RU/EN, два ползунка (верх / низ шторки), сброс и перезапуск SystemUI. */
+/** Язык RU/EN, два ползунка (верх / низ шторки), тестовый режим, сброс и перезапуск SystemUI. */
 public class SettingsActivity extends Activity {
 
     private static final String PREFS = "ui";
@@ -122,6 +122,36 @@ public class SettingsActivity extends Activity {
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom part (notifications)"),
                 Keys.BOTTOM);
 
+        // Тестовый режим
+        root.addView(text(t("Режим (тест)", "Mode (test)"), 16, true), lp(24));
+        final String[] labels = {
+                t("0: слой (saveLayerAlpha)", "0: layer (saveLayerAlpha)"),
+                t("1: альфа view (лёгкий)", "1: view alpha (light)"),
+                t("2: альфа скрима (как в Iconify)", "2: scrim alpha (Iconify-like)")
+        };
+        final int[] ids = new int[3];
+        RadioGroup modes = new RadioGroup(this);
+        modes.setOrientation(RadioGroup.VERTICAL);
+        for (int i = 0; i < 3; i++) {
+            RadioButton rb = new RadioButton(this);
+            rb.setText(labels[i]);
+            rb.setId(View.generateViewId());
+            ids[i] = rb.getId();
+            modes.addView(rb);
+        }
+        int curMode = prefs.getInt(Keys.MODE, -1);
+        if (curMode < 0) curMode = readSystem(Keys.MODE, Keys.MODE_VIEW_ALPHA);
+        modes.check(ids[Math.max(0, Math.min(2, curMode))]);
+        modes.setOnCheckedChangeListener((g, id) -> {
+            for (int i = 0; i < 3; i++) {
+                if (ids[i] == id) save(Keys.MODE, i);
+            }
+        });
+        root.addView(modes, lp(4));
+        root.addView(text(
+                t("После смены режима нажми «Перезапустить SystemUI».",
+                        "After changing the mode tap \"Restart SystemUI\"."), 13, false), lp(4));
+
         // Кнопки
         Button reset = new Button(this);
         reset.setText(t("Сбросить (100%)", "Reset (100%)"));
@@ -194,8 +224,9 @@ public class SettingsActivity extends Activity {
         prefs.edit().putInt(key, p).apply();
         new Thread(() -> {
             final boolean ok = writeSetting(key, p);
+            final String shown = Keys.MODE.equals(key) ? t("режим ", "mode ") + p : p + "%";
             runOnUiThread(() -> status.setText(ok
-                    ? t("Сохранено: ", "Saved: ") + p + "%"
+                    ? t("Сохранено: ", "Saved: ") + shown
                     : t("Не удалось записать в систему. Выдай разрешение ниже или root этому приложению.",
                     "Could not write to the system. Grant the permission below or root access to this app.")));
         }).start();
@@ -204,7 +235,7 @@ public class SettingsActivity extends Activity {
     /** При возврате в приложение (например, после выдачи разрешения) досылает сохранённые значения. */
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

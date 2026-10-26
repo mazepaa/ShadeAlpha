@@ -33,6 +33,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // тестовая сборка ставится рядом с релизной (другой пакет)
+            applicationIdSuffix '.test'
+        }
         release {
             debuggable false
             minifyEnabled true
@@ -47,7 +51,7 @@ android {
     // Итоговый файл всегда называется ShadeAlpha.apk
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "ShadeAlpha.apk"
+            outputFileName = variant.buildType.name == 'release' ? "ShadeAlpha.apk" : "ShadeAlpha-test.apk"
         }
     }
 

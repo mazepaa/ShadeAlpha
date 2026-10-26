@@ -4,16 +4,16 @@
 
 [![Download APK](https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/mazepaa/ShadeAlpha/releases/latest) [![Telegram](https://img.shields.io/badge/Telegram-@mazepaa-blue?style=for-the-badge&logo=telegram)](https://t.me/mazepaa)
 
-<table align="center" style="width: 100%;">
+<table align="center">
   <tr>
     <th align="center">100%</th>
     <th align="center">50%</th>
     <th align="center">0%</th>
   </tr>
   <tr>
-    <td align="center" valign="middle"><img src="screenshots/alpha-100.png" style="width: 100%; max-width: 250px; height: auto; display: block; margin: 0 auto;" /></td>
-    <td align="center" valign="middle"><img src="screenshots/alpha-50.png" style="width: 100%; max-width: 250px; height: auto; display: block; margin: 0 auto;" /></td>
-    <td align="center" valign="middle"><img src="screenshots/alpha-0.png" style="width: 100%; max-width: 250px; height: auto; display: block; margin: 0 auto;" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/alpha-100.png" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/alpha-50.png" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/alpha-0.png" width="100%" /></td>
   </tr>
 </table>
 

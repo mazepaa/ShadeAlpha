@@ -11,9 +11,9 @@
     <th align="center">0% (Transparent / Прозрачно)</th>
   </tr>
   <tr>
-    <td align="center" valign="middle"><img src="screenshots/alpha-100.png" width="280" height="600" /></td>
-    <td align="center" valign="middle"><img src="screenshots/alpha-50.png" width="280" height="600" /></td>
-    <td align="center" valign="middle"><img src="screenshots/alpha-0.png" width="280" height="600" /></td>
+    <td align="center"><img src="screenshots/alpha-100.png" style="width: 280px; height: 600px; display: block; margin: 0 auto;" /></td>
+    <td align="center"><img src="screenshots/alpha-50.png" style="width: 280px; height: 600px; display: block; margin: 0 auto;" /></td>
+    <td align="center"><img src="screenshots/alpha-0.png" style="width: 280px; height: 600px; display: block; margin: 0 auto;" /></td>
   </tr>
 </table>
 

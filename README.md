@@ -37,6 +37,10 @@ An LSPosed module that makes the notification shade translucent (no blur). The t
 
 - A hook inside the SystemUI process intercepts `ScrimView.onDraw` and draws the shade background in a layer with the chosen transparency: top → `scrim_behind`, bottom → `scrim_notifications`.
 - The two values are stored in `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`).
+- **Rendering modes:** Due to different SystemUI implementations on custom ROMs, the app includes 3 rendering modes (switchable on the fly):
+  - **Mode 0 (Layer):** Uses `saveLayerAlpha`. Maximum compatibility, but slightly higher GPU load. Use only if other modes fail.
+  - **Mode 1 (View Alpha):** Uses `View.setAlpha`. Standard Android method, fast and smooth.
+  - **Mode 2 (Scrim Alpha):** Multiplies `ScrimView.setViewAlpha`. Modifies color alpha directly. The lightest mode for GPU, but requires ROM support.
 - The app **has no internet access**. Root is only used for two commands: `settings put system <key> <number>` and `killall com.android.systemui`. Instead of root you can grant the "Modify system settings" permission (it is only needed for saving the values; the Restart SystemUI button still needs root, otherwise reboot the phone).
 
 ## Troubleshooting
@@ -80,6 +84,10 @@ An LSPosed module that makes the notification shade translucent (no blur). The t
 
 - Хук в процессе SystemUI перехватывает `ScrimView.onDraw` и рисует фон шторки в слое с нужной прозрачностью: верх → `scrim_behind`, низ → `scrim_notifications`.
 - Два числа хранятся в `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`).
+- **Режимы отрисовки:** Из-за разных реализаций SystemUI на кастомных прошивках, в приложении есть 3 режима (переключаются на лету):
+  - **Режим 0 (Слой):** Использует `saveLayerAlpha`. Максимальная совместимость, но чуть выше нагрузка на GPU. Используй, если другие не работают.
+  - **Режим 1 (View Alpha):** Использует `View.setAlpha`. Стандартный метод Android, быстрый и плавный.
+  - **Режим 2 (Scrim Alpha):** Умножает `ScrimView.setViewAlpha`. Меняет прозрачность цвета напрямую. Самый легкий для GPU, но требует поддержки от прошивки.
 - Приложение **не имеет доступа в интернет**. Root нужен только для двух команд: `settings put system <ключ> <число>` и `killall com.android.systemui`. Вместо root можно выдать разрешение «Изменение системных настроек» (оно нужно только для записи значений; кнопке «Перезапустить SystemUI» всё равно нужен root, иначе перезагрузи телефон).
 
 ## Если что-то пошло не так

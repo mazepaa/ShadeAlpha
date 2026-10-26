@@ -23,6 +23,7 @@ android {
 
     signingConfigs {
         release {
+            signingConfig signingConfigs.debug
             if (keystorePropsFile.exists()) {
                 storeFile rootProject.file(keystoreProps['storeFile'])
                 storePassword keystoreProps['storePassword']
@@ -37,6 +38,7 @@ android {
             // тестовая сборка ставится рядом с релизной (другой пакет)
         }
         release {
+            signingConfig signingConfigs.debug
             debuggable false
             minifyEnabled true
             shrinkResources true

@@ -50,7 +50,7 @@ android {
     // Итоговый файл всегда называется ShadeAlpha.apk
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = variant.buildType.name == 'release' ? "ShadeAlpha.apk" : "ShadeAlpha-test.apk"
+            outputFileName = variant.buildType.name == 'release' ? "ShadeAlpha.apk" : "ShadeAlpha.apk"
         }
     }
 

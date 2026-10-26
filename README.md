@@ -4,9 +4,18 @@
 
 [![Download APK](https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/mazepaa/ShadeAlpha/releases/latest) [![Telegram](https://img.shields.io/badge/Telegram-@mazepaa-blue?style=for-the-badge&logo=telegram)](https://t.me/mazepaa)
 
-| 100% (Stock / Сток) | 50% | 0% (Transparent / Прозрачно) |
-| :---: | :---: | :---: |
-| <img src="screenshots/alpha-100.png" width="300" /> | <img src="screenshots/alpha-50.png" width="300" /> | <img src="screenshots/alpha-0.png" width="300" /> |
+<table align="center">
+  <tr>
+    <th align="center">100% (Stock / Сток)</th>
+    <th align="center">50%</th>
+    <th align="center">0% (Transparent / Прозрачно)</th>
+  </tr>
+  <tr>
+    <td align="center" valign="middle"><img src="screenshots/alpha-100.png" width="280" height="600" /></td>
+    <td align="center" valign="middle"><img src="screenshots/alpha-50.png" width="280" height="600" /></td>
+    <td align="center" valign="middle"><img src="screenshots/alpha-0.png" width="280" height="600" /></td>
+  </tr>
+</table>
 
 An LSPosed module that makes the notification shade translucent (no blur). The top part (panels) and the bottom part (notifications) have separate sliders. Russian and English UI.
 

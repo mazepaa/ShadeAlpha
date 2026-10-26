@@ -43,6 +43,7 @@ An LSPosed module that makes the notification shade translucent (no blur). The t
 - The shade background is drawn in a separate full-screen layer, so a small extra GPU load is possible.
 - At very low values the text can be hard to read on light wallpapers and apps.
 - Tested only on Android 16 (Evolution X). On other ROMs the SystemUI ids and classes may differ.
+- The module hooks `ScrimView`. It may not work on ROMs where SystemUI (Quick Settings) is fully rewritten using Jetpack Compose.
 
 ---
 
@@ -85,3 +86,4 @@ An LSPosed module that makes the notification shade translucent (no blur). The t
 - Фон шторки рисуется в отдельном слое на весь экран: возможна небольшая нагрузка на GPU.
 - При очень низких значениях текст может плохо читаться на светлых обоях и приложениях.
 - Проверено только на Android 16 (Evolution X). На других прошивках id и классы SystemUI могут отличаться.
+- Модуль хукает `ScrimView`. Он может не работать на прошивках, где SystemUI (быстрые настройки) полностью переписан на Jetpack Compose.

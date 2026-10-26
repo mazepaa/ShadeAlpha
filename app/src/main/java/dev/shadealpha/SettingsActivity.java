@@ -92,8 +92,8 @@ public class SettingsActivity extends Activity {
 
         root.addView(text(t("Прозрачность шторки", "Shade transparency"), 24, true), lp(0));
         root.addView(text(
-                t("100% — как в системе, меньше — прозрачнее.",
-                        "100% = stock look, lower = more transparent."), 14, false), lp(4));
+                t("100% — стандартный вид системы. Чем ниже значение, тем прозрачнее шторка.",
+                        "100% = default system appearance. Lower values make the shade more transparent."), 14, false), lp(4));
 
         // Язык
         root.addView(text(t("Язык", "Language"), 16, true), lp(20));
@@ -118,16 +118,16 @@ public class SettingsActivity extends Activity {
         root.addView(group, lp(4));
 
         // Ползунки
-        topBar = addSlider(root, t("Верхняя часть (панели)", "Top part (panels)"), Keys.TOP);
-        bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom part (notifications)"),
+        topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
+        bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"),
                 Keys.BOTTOM);
 
-        // Тестовый режим
-        root.addView(text(t("Режим отрисовки", "Mode (test)"), 16, true), lp(24));
+        // Режим отрисовки
+        root.addView(text(t("Режим отрисовки", "Rendering mode"), 16, true), lp(24));
         final String[] labels = {
-                t("0: Слой (макс. совместимость, выше нагрузка)", "0: layer (saveLayerAlpha)"),
-                t("1: View Alpha (быстрый, плавный)", "1: view alpha (light)"),
-                t("2: Scrim Alpha (самый лёгкий, мин. нагрузка)", "2: scrim alpha (Iconify-like)")
+                t("0: Слой (лучше совместимость, выше нагрузка)", "0: Layer (best compatibility, higher system load)"),
+                t("1: View alpha (лёгкий и плавный режим)", "1: View alpha (lightweight and smooth)"),
+                t("2: Scrim alpha (минимальная нагрузка)", "2: Scrim alpha (lowest system load)")
         };
         final int[] ids = new int[3];
         RadioGroup modes = new RadioGroup(this);
@@ -150,11 +150,11 @@ public class SettingsActivity extends Activity {
         root.addView(modes, lp(4));
         root.addView(text(
                 t("После смены режима нажми «Перезапустить SystemUI».",
-                        "After changing the mode tap \"Restart SystemUI\"."), 13, false), lp(4));
+                        "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
         // Кнопки
         Button reset = new Button(this);
-        reset.setText(t("Сбросить (100%)", "Reset (100%)"));
+        reset.setText(t("Сбросить до 100%", "Reset to 100%"));
         reset.setOnClickListener(v -> {
             topBar.setProgress(100);
             bottomBar.setProgress(100);
@@ -281,7 +281,7 @@ public class SettingsActivity extends Activity {
                 ? t("Разрешение на изменение системных настроек выдано.",
                 "Permission to modify system settings is granted.")
                 : t("Если нет root: нужно разрешение «Изменение системных настроек».",
-                "Without root you need the \"Modify system settings\" permission."));
+                "Without root, the app needs the \"Modify system settings\" permission."));
         permButton.setText(t("Выдать разрешение", "Grant permission"));
         permButton.setVisibility(ok ? View.GONE : View.VISIBLE);
     }

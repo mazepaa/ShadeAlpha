@@ -1,0 +1,11 @@
+# Секреты подписи: никогда не публиковать
+keystore.properties
+*.jks
+*.keystore
+
+# Сборка и IDE
+.gradle/
+build/
+local.properties
+.idea/
+*.iml

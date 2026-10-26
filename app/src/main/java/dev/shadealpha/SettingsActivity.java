@@ -1,0 +1,257 @@
+package dev.shadealpha;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Insets;
+import android.graphics.Typeface;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.ScrollView;
+import android.widget.SeekBar;
+import android.widget.TextView;
+
+import java.util.Locale;
+
+/** Язык RU/EN, два ползунка (верх / низ шторки), сброс и перезапуск SystemUI. */
+public class SettingsActivity extends Activity {
+
+    private static final String PREFS = "ui";
+    private static final String KEY_LANG = "lang";
+
+    private SharedPreferences prefs;
+    private String lang;
+    private TextView permText;
+    private TextView status;
+    private Button permButton;
+    private SeekBar topBar;
+    private SeekBar bottomBar;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String def = "ru".equals(Locale.getDefault().getLanguage()) ? "ru" : "en";
+        lang = prefs.getString(KEY_LANG, def);
+        setTitle(t("Прозрачность шторки", "Shade transparency"));
+        buildUi();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshPermission();
+        syncToSystem();
+    }
+
+    private String t(String ru, String en) {
+        return "ru".equals(lang) ? ru : en;
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    private TextView text(String s, int sp, boolean bold) {
+        TextView tv = new TextView(this);
+        tv.setText(s);
+        tv.setTextSize(sp);
+        if (bold) tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
+        return tv;
+    }
+
+    private LinearLayout.LayoutParams lp(int topDp) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.topMargin = dp(topDp);
+        return p;
+    }
+
+    private void buildUi() {
+        final ScrollView scroll = new ScrollView(this);
+        final LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(20), dp(24), dp(20), dp(24));
+        scroll.addView(root, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // targetSdk 35: окно рисуется под системными панелями, добавляем отступы
+        scroll.setOnApplyWindowInsetsListener((v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+            root.setPadding(dp(20), bars.top + dp(24), dp(20), bars.bottom + dp(24));
+            return WindowInsets.CONSUMED;
+        });
+
+        root.addView(text(t("Прозрачность шторки", "Shade transparency"), 24, true), lp(0));
+        root.addView(text(
+                t("100% — как в системе, меньше — прозрачнее.",
+                        "100% = stock look, lower = more transparent."), 14, false), lp(4));
+
+        // Язык
+        root.addView(text(t("Язык", "Language"), 16, true), lp(20));
+        RadioGroup group = new RadioGroup(this);
+        group.setOrientation(RadioGroup.HORIZONTAL);
+        final RadioButton ru = new RadioButton(this);
+        ru.setText("Русский");
+        ru.setId(View.generateViewId());
+        final RadioButton en = new RadioButton(this);
+        en.setText("English");
+        en.setId(View.generateViewId());
+        group.addView(ru);
+        group.addView(en);
+        group.check("ru".equals(lang) ? ru.getId() : en.getId());
+        group.setOnCheckedChangeListener((g, id) -> {
+            String nl = id == ru.getId() ? "ru" : "en";
+            if (!nl.equals(lang)) {
+                prefs.edit().putString(KEY_LANG, nl).apply();
+                recreate();
+            }
+        });
+        root.addView(group, lp(4));
+
+        // Ползунки
+        topBar = addSlider(root, t("Верхняя часть (панели)", "Top part (panels)"), Keys.TOP);
+        bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom part (notifications)"),
+                Keys.BOTTOM);
+
+        // Кнопки
+        Button reset = new Button(this);
+        reset.setText(t("Сбросить (100%)", "Reset (100%)"));
+        reset.setOnClickListener(v -> {
+            topBar.setProgress(100);
+            bottomBar.setProgress(100);
+            save(Keys.TOP, 100);
+            save(Keys.BOTTOM, 100);
+        });
+        root.addView(reset, lp(24));
+
+        Button restart = new Button(this);
+        restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
+        restart.setOnClickListener(v -> new Thread(() -> {
+            final int code = runRoot("killall com.android.systemui || pkill -f com.android.systemui");
+            runOnUiThread(() -> status.setText(code == 0
+                    ? t("SystemUI перезапущен.", "SystemUI restarted.")
+                    : t("Не удалось перезапустить (нужен root).", "Restart failed (root required).")));
+        }).start());
+        root.addView(restart, lp(8));
+
+        status = text("", 14, false);
+        root.addView(status, lp(12));
+
+        // Разрешение на запись системных настроек (альтернатива root)
+        permText = text("", 13, false);
+        permButton = new Button(this);
+        permButton.setOnClickListener(v -> startActivity(new Intent(
+                Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                Uri.parse("package:" + getPackageName()))));
+        root.addView(permText, lp(24));
+        root.addView(permButton, lp(4));
+
+        setContentView(scroll);
+    }
+
+    private SeekBar addSlider(LinearLayout root, String label, final String key) {
+        final TextView value = text("", 16, false);
+        final SeekBar bar = new SeekBar(this);
+        bar.setMax(100);
+        int cur = prefs.getInt(key, -1);
+        if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));
+        bar.setProgress(cur);
+        value.setText(cur + "%");
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+                value.setText(p + "%");
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar s) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar s) {
+                save(key, s.getProgress());
+            }
+        });
+        root.addView(text(label, 16, true), lp(24));
+        root.addView(value, lp(2));
+        root.addView(bar, lp(4));
+        return bar;
+    }
+
+    // ---------- сохранение ----------
+
+    /** Запоминает значение в самом приложении и передаёт его системе (для хука в SystemUI). */
+    private void save(final String key, final int p) {
+        prefs.edit().putInt(key, p).apply();
+        new Thread(() -> {
+            final boolean ok = writeSetting(key, p);
+            runOnUiThread(() -> status.setText(ok
+                    ? t("Сохранено: ", "Saved: ") + p + "%"
+                    : t("Не удалось записать в систему. Выдай разрешение ниже или root этому приложению.",
+                    "Could not write to the system. Grant the permission below or root access to this app.")));
+        }).start();
+    }
+
+    /** При возврате в приложение (например, после выдачи разрешения) досылает сохранённые значения. */
+    private void syncToSystem() {
+        new Thread(() -> {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM}) {
+                int want = prefs.getInt(key, -1);
+                if (want < 0) continue;
+                if (readSystem(key, -1) != want) writeSetting(key, want);
+            }
+        }).start();
+    }
+
+    private int readSystem(String key, int def) {
+        try {
+            return Settings.System.getInt(getContentResolver(), key, def);
+        } catch (Throwable e) {
+            return def;
+        }
+    }
+
+    private boolean writeSetting(String key, int p) {
+        // 1) напрямую, если выдано разрешение «Изменение системных настроек»
+        try {
+            if (Settings.System.canWrite(this)) {
+                Settings.System.putInt(getContentResolver(), key, p);
+                if (readSystem(key, -1) == p) return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        // 2) через root
+        runRoot("settings put system " + key + " " + p);
+        return readSystem(key, -1) == p;
+    }
+
+    private int runRoot(String cmd) {
+        try {
+            Process pr = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
+            return pr.waitFor();
+        } catch (Throwable e) {
+            return -1;
+        }
+    }
+
+    private void refreshPermission() {
+        if (permText == null) return;
+        boolean ok = Settings.System.canWrite(this);
+        permText.setText(ok
+                ? t("Разрешение на изменение системных настроек выдано.",
+                "Permission to modify system settings is granted.")
+                : t("Если нет root: нужно разрешение «Изменение системных настроек».",
+                "Without root you need the \"Modify system settings\" permission."));
+        permButton.setText(t("Выдать разрешение", "Grant permission"));
+        permButton.setVisibility(ok ? View.GONE : View.VISIBLE);
+    }
+}

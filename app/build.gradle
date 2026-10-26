@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Данные подписи лежат в keystore.properties (в репозиторий и в чат НЕ выкладывать).
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+android {
+    namespace 'dev.shadealpha'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'dev.shadealpha'
+        minSdk 31
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    // Итоговый файл всегда называется ShadeAlpha.apk
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "ShadeAlpha.apk"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Xposed API берётся из локального модуля-заглушки, внешние репозитории не нужны.
+    compileOnly project(':xposed-stub')
+}

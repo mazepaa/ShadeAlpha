@@ -3,6 +3,7 @@
 **English** | [Русский](#русский)
 
 [![Download APK](https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/mazepaa/ShadeAlpha/releases/latest) [![Telegram](https://img.shields.io/badge/Telegram-@mazepaa-blue?style=for-the-badge&logo=telegram)](https://t.me/mazepaa)
+
 | 100% (Stock / Сток) | 50% | 0% (Transparent / Прозрачно) |
 | :---: | :---: | :---: |
 | <img src="screenshots/alpha-100.png" width="300" /> | <img src="screenshots/alpha-50.png" width="300" /> | <img src="screenshots/alpha-0.png" width="300" /> |

@@ -125,9 +125,9 @@ public class SettingsActivity extends Activity {
         // Тестовый режим
         root.addView(text(t("Режим отрисовки", "Mode (test)"), 16, true), lp(24));
         final String[] labels = {
-                t("0: Слой (Макс. совместимость)", "0: layer (saveLayerAlpha)"),
-                t("1: Альфа View (Самый быстрый)", "1: view alpha (light)"),
-                t("2: Альфа скрима (Если не работают другие)", "2: scrim alpha (Iconify-like)")
+                t("0: Слой (макс. совместимость, выше нагрузка)", "0: layer (saveLayerAlpha)"),
+                t("1: View Alpha (быстрый, плавный)", "1: view alpha (light)"),
+                t("2: Scrim Alpha (самый лёгкий, мин. нагрузка)", "2: scrim alpha (Iconify-like)")
         };
         final int[] ids = new int[3];
         RadioGroup modes = new RadioGroup(this);

@@ -35,7 +35,6 @@ android {
     buildTypes {
         debug {
             // тестовая сборка ставится рядом с релизной (другой пакет)
-            applicationIdSuffix '.test'
         }
         release {
             debuggable false

@@ -2,8 +2,7 @@
 
 **English** | [Русский](#русский)
 
-[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/mazepaa/ShadeAlpha/releases/latest)
-
+[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/mazepaa/ShadeAlpha/releases/latest) [![Telegram](https://img.shields.io/badge/Telegram-@mazepaa-blue?style=for-the-badge&logo=telegram)](https://t.me/mazepaa)
 | 100% (Stock / Сток) | 50% | 0% (Transparent / Прозрачно) |
 | :---: | :---: | :---: |
 | ![100%](screenshots/alpha-100.png) | ![50%](screenshots/alpha-50.png) | ![0%](screenshots/alpha-0.png) |

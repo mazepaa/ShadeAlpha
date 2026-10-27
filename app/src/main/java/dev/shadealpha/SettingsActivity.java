@@ -93,32 +93,13 @@ public class SettingsActivity extends Activity {
             return WindowInsets.CONSUMED;
         });
 
-        root.addView(text(t("Прозрачность шторки", "Shade transparency"), 24, true), lp(0));
+        boolean active = Keys.isModuleActive(); TextView statusText = text("", 14, true); statusText.setText(active ? t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus() : t("Статус: Не активен ❌", "Status: Inactive ❌")); statusText.setTextColor(active ? 0xFF4CAF50 : 0xFFF44336); root.addView(statusText, lp(0)); root.addView(text(t("Язык", "Language"), 16, true), lp(16)); RadioGroup group = new RadioGroup(this); group.setOrientation(RadioGroup.HORIZONTAL); final RadioButton ru = new RadioButton(this); ru.setText("Русский"); ru.setId(View.generateViewId()); final RadioButton en = new RadioButton(this); en.setText("English"); en.setId(View.generateViewId()); group.addView(ru); group.addView(en); group.check("ru".equals(lang) ? ru.getId() : en.getId()); group.setOnCheckedChangeListener((g, id) -> { String nl = id == ru.getId() ? "ru" : "en"; if (!nl.equals(lang)) { prefs.edit().putString(KEY_LANG, nl).apply(); recreate(); } }); root.addView(group, lp(4));
         root.addView(text(
                 t("100% — стандартный вид системы. Чем ниже значение, тем прозрачнее шторка.",
                         "100% = default system appearance. Lower values make the shade more transparent."), 14, false), lp(4));
 
         // Язык
-        root.addView(text(t("Язык", "Language"), 16, true), lp(20));
-        RadioGroup group = new RadioGroup(this);
-        group.setOrientation(RadioGroup.HORIZONTAL);
-        final RadioButton ru = new RadioButton(this);
-        ru.setText("Русский");
-        ru.setId(View.generateViewId());
-        final RadioButton en = new RadioButton(this);
-        en.setText("English");
-        en.setId(View.generateViewId());
-        group.addView(ru);
-        group.addView(en);
-        group.check("ru".equals(lang) ? ru.getId() : en.getId());
-        group.setOnCheckedChangeListener((g, id) -> {
-            String nl = id == ru.getId() ? "ru" : "en";
-            if (!nl.equals(lang)) {
-                prefs.edit().putString(KEY_LANG, nl).apply();
-                recreate();
-            }
-        });
-        root.addView(group, lp(4));
+        
 
         // Ползунки
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
@@ -326,34 +307,7 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
-    private String modesHelpText() {
-        return t(
-                "Режим отрисовки — это способ, которым модуль делает шторку прозрачной. "
-                        + "На экране результат у всех режимов одинаковый, различаются нагрузка "
-                        + "на видеочип и совместимость с твоей прошивкой.\n\n"
-                        + "0 — слой.\nФон шторки рисуется во временный слой, который затем накладывается "
-                        + "с нужной прозрачностью. Это два прохода GPU, поэтому нагрузка выше. "
-                        + "Запасной вариант.\n\n"
-                        + "1 — альфа view (лёгкий).\nПрозрачность задаётся самому элементу фона шторки. "
-                        + "Один проход, нагрузка минимальная.\n\n"
-                        + "2 — альфа скрима.\nМодуль подменяет значение прозрачности, которое система "
-                        + "сама передаёт фону шторки. Тоже один проход, но на некоторых прошивках система "
-                        + "не вызывает нужный метод, и тогда эффекта не будет.\n\n"
-                        + "Как выбрать: начни с режима 1. Если прозрачность не меняется, попробуй 2, "
-                        + "затем 0. После смены режима нажми «Перезапустить SystemUI».",
-                "The rendering mode is the way the module makes the shade transparent. "
-                        + "The result on screen is the same in every mode; they differ in GPU load "
-                        + "and in compatibility with your ROM.\n\n"
-                        + "0 - layer.\nThe shade background is drawn into a temporary layer, which is then "
-                        + "composited with the chosen transparency. That is two GPU passes, so the "
-                        + "load is higher. A fallback option.\n\n"
-                        + "1 - view alpha (light).\nThe transparency is applied to the shade background "
-                        + "element itself. One pass, minimal load.\n\n"
-                        + "2 - scrim alpha.\nThe module replaces the transparency value that the system "
-                        + "passes to the shade background. Also one pass, but on some ROMs the system "
-                        + "never calls the method involved, so there will be no effect.\n\n"
-                        + "How to choose: start with mode 1. If the transparency does not change, "
-                        + "try 2, then 0. After changing the mode tap \"Restart SystemUI\".");
+    private String modesHelpText() { return t("Режим 1 (Рекомендуется) - самый быстрый и оптимизированный. Не нагружает систему.\n\nРежим 2 - легкий для видеокарты.\n\nРежим 0 - максимальная совместимость, но выше нагрузка.", "Mode 1 (Recommended) - fastest and optimized. Does not load the system.\n\nMode 2 - light for GPU.\n\nMode 0 - max compatibility, but higher load."); }
     }
 }
 

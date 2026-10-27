@@ -300,7 +300,7 @@ public class SettingsActivity extends Activity {
 
         TextView help = new TextView(this);
         help.setText("?");
-        help.setTextSize(15);
+        help.setTextSize(13);
         help.setTypeface(help.getTypeface(), Typeface.BOLD);
         help.setGravity(Gravity.CENTER);
         help.setContentDescription(t("Справка", "Help"));
@@ -310,8 +310,8 @@ public class SettingsActivity extends Activity {
         ring.setStroke(dp(1), help.getCurrentTextColor());
         help.setBackground(ring);
 
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(28), dp(28));
-        p.setMarginStart(dp(10));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(22), dp(22));
+        p.setMarginStart(dp(4));
         help.setLayoutParams(p);
         help.setOnClickListener(v -> showHelp(helpTitle, helpText));
         row.addView(help);

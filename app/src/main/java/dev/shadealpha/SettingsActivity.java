@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -95,6 +96,14 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Анимация "пружинки"
+    private void animateClick(View v, Runnable action) {
+        v.animate().scaleX(0.92f).scaleY(0.92f).setDuration(80).withEndAction(() -> {
+            v.animate().scaleX(1f).scaleY(1f).setDuration(80).start();
+            action.run();
+        }).start();
+    }
+
     private void showAboutSheet() {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
@@ -102,7 +111,6 @@ public class SettingsActivity extends AppCompatActivity {
         root.setPadding(dp(24), dp(32), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Исправление: берем иконку из самого приложения
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
@@ -116,7 +124,6 @@ public class SettingsActivity extends AppCompatActivity {
         version.setTextColor(Color.GRAY);
         root.addView(version);
 
-        // Кнопки ссылок
         LinearLayout linksRow = new LinearLayout(this);
         linksRow.setOrientation(LinearLayout.HORIZONTAL);
         linksRow.setGravity(Gravity.CENTER);
@@ -124,21 +131,20 @@ public class SettingsActivity extends AppCompatActivity {
 
         MaterialButton btnTg = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnTg.setText("Telegram");
-        btnTg.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK))));
+        btnTg.setOnClickListener(v -> animateClick(v, () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK)))));
         LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp1.setMarginEnd(dp(8));
         linksRow.addView(btnTg, lp1);
 
         MaterialButton btnGh = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnGh.setText("GitHub");
-        btnGh.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK))));
+        btnGh.setOnClickListener(v -> animateClick(v, () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK)))));
         LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp2.setMarginStart(dp(8));
         linksRow.addView(btnGh, lp2);
 
         root.addView(linksRow);
 
-        // Разработчик (Карточка) - Добавлено двоеточие
         MaterialCardView devCard = new MaterialCardView(this);
         devCard.setRadius(dp(16));
         devCard.setCardElevation(0);
@@ -154,7 +160,6 @@ public class SettingsActivity extends AppCompatActivity {
 
         root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // Описание - Убран текст про интернет
         TextView desc = text(t(
             "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной.",
             "LSPosed module making the notification shade translucent."), 14, false);
@@ -180,7 +185,7 @@ public class SettingsActivity extends AppCompatActivity {
             return WindowInsets.CONSUMED;
         });
 
-        // Шапка
+        // Шапка с жестким выравниванием
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -189,35 +194,37 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         headerRow.addView(title, titleLp);
 
-        // Кнопка RU/EN
+        // Кнопка RU/EN (фиксированная высота 36dp)
         TextView langBtn = text(lang.equals("ru") ? "RU" : "EN", 16, true);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
         bg.setCornerRadius(dp(12));
         bg.setColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimaryContainer, 0x22888888));
         langBtn.setBackground(bg);
-        langBtn.setPadding(dp(12), dp(6), dp(12), dp(6));
+        langBtn.setGravity(Gravity.CENTER);
         langBtn.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimaryContainer, 0xFF000000));
         langBtn.setOnClickListener(v -> {
             String nl = lang.equals("ru") ? "en" : "ru";
             prefs.edit().putString(KEY_LANG, nl).apply();
             recreate();
         });
-        LinearLayout.LayoutParams langLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        langLp.setMarginEnd(dp(12));
+        LinearLayout.LayoutParams langLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
+        langLp.setMarginEnd(dp(8));
         headerRow.addView(langBtn, langLp);
 
-        // Кнопка меню (три точки) - опускаем ниже с помощью padding
-        TextView menuBtn = text("⋮", 28, true);
+        // Кнопка меню (фиксированная высота 36dp, идеально по центру)
+        TextView menuBtn = text("⋮", 24, true);
         menuBtn.setIncludeFontPadding(false);
         menuBtn.setGravity(Gravity.CENTER);
-        menuBtn.setPadding(dp(4), dp(12), dp(4), 0); 
+        TypedValue outValue = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true);
+        menuBtn.setBackgroundResource(outValue.resourceId);
         menuBtn.setOnClickListener(v -> showAboutSheet());
-        headerRow.addView(menuBtn);
+        LinearLayout.LayoutParams menuLp = new LinearLayout.LayoutParams(dp(36), dp(36));
+        headerRow.addView(menuBtn, menuLp);
 
         root.addView(headerRow, lp(0));
 
-        // Статус Root
         boolean hasRoot = checkRoot();
         TextView statusText = text("", 14, true);
         if (hasRoot) {

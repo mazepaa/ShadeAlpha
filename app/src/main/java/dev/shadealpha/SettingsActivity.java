@@ -1,4 +1,4 @@
-﻿package dev.shadealpha;
+package dev.shadealpha;
 
 import android.app.Activity;
 import android.content.Intent;

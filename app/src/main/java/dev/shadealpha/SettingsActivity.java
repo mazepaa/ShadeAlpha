@@ -2,6 +2,7 @@ package dev.shadealpha;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -12,15 +13,17 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -92,35 +95,75 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    private void showPopupMenu(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor);
-        popup.getMenu().add(0, 1, 1, t("О модуле", "About"));
-        popup.getMenu().add(0, 2, 2, "Telegram (@mazepaa)");
-        popup.getMenu().add(0, 3, 3, "GitHub");
-        
-        popup.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 1) {
-                new MaterialAlertDialogBuilder(this)
-                        .setTitle(t("О модуле ShadeAlpha", "About ShadeAlpha"))
-                        .setMessage(t(
-                            "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной.\n\n" +
-                            "Версия: 1.0.1\n" +
-                            "Разработчик: mazepaa\n\n" +
-                            "Приложение не имеет доступа в интернет. Для работы требуется Root и LSPosed.",
-                            "An LSPosed module that makes the notification shade translucent.\n\n" +
-                            "Version: 1.0.1\n" +
-                            "Developer: mazepaa\n\n" +
-                            "The app has no internet access. Requires Root and LSPosed."))
-                        .setPositiveButton(t("ОК", "OK"), null)
-                        .show();
-            } else if (item.getItemId() == 2) {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK)));
-            } else if (item.getItemId() == 3) {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK)));
-            }
-            return true;
-        });
-        popup.show();
+    // ====== НОВОЕ КРАСИВОЕ ОКНО "О ПРИЛОЖЕНИИ" ======
+    private void showAboutSheet() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(24), dp(32), dp(24), dp(32));
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        // Иконка (используем стандартную заглушку, если нет своей)
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(android.R.drawable.ic_menu_compass); // Замени на свою иконку R.mipmap.ic_launcher
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
+        root.addView(icon, iconLp);
+
+        TextView title = text("ShadeAlpha", 24, true);
+        title.setPadding(0, dp(16), 0, dp(4));
+        root.addView(title);
+
+        TextView version = text("v1.0.1", 14, false);
+        version.setTextColor(Color.GRAY);
+        root.addView(version);
+
+        // Кнопки ссылок
+        LinearLayout linksRow = new LinearLayout(this);
+        linksRow.setOrientation(LinearLayout.HORIZONTAL);
+        linksRow.setGravity(Gravity.CENTER);
+        linksRow.setPadding(0, dp(24), 0, dp(24));
+
+        MaterialButton btnTg = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnTg.setText("Telegram");
+        btnTg.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK))));
+        LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp1.setMarginEnd(dp(8));
+        linksRow.addView(btnTg, lp1);
+
+        MaterialButton btnGh = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnGh.setText("GitHub");
+        btnGh.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK))));
+        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp2.setMarginStart(dp(8));
+        linksRow.addView(btnGh, lp2);
+
+        root.addView(linksRow);
+
+        // Разработчик (Карточка)
+        MaterialCardView devCard = new MaterialCardView(this);
+        devCard.setRadius(dp(16));
+        devCard.setCardElevation(0);
+        devCard.setCardBackgroundColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceVariant, 0xFF222222));
+        LinearLayout devLayout = new LinearLayout(this);
+        devLayout.setOrientation(LinearLayout.HORIZONTAL);
+        devLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
+        devLayout.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView devName = text(t("Разработчик\nmazepaa", "Developer\nmazepaa"), 16, true);
+        devLayout.addView(devName);
+        devCard.addView(devLayout);
+
+        root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextView desc = text(t(
+            "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной. Приложение не имеет доступа в интернет.",
+            "LSPosed module making the notification shade translucent. No internet access."), 14, false);
+        desc.setPadding(0, dp(24), 0, 0);
+        desc.setGravity(Gravity.CENTER);
+        root.addView(desc);
+
+        dialog.setContentView(root);
+        dialog.show();
     }
 
     private void buildUi() {
@@ -161,13 +204,15 @@ public class SettingsActivity extends AppCompatActivity {
             recreate();
         });
         LinearLayout.LayoutParams langLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        langLp.setMarginEnd(dp(8));
+        langLp.setMarginEnd(dp(12));
         headerRow.addView(langBtn, langLp);
 
-        // Кнопка меню (три точки)
+        // Кнопка меню (три точки) - исправлено выравнивание
         TextView menuBtn = text("⋮", 28, true);
-        menuBtn.setPadding(dp(8), dp(0), dp(8), dp(12));
-        menuBtn.setOnClickListener(this::showPopupMenu);
+        menuBtn.setIncludeFontPadding(false);
+        menuBtn.setGravity(Gravity.CENTER);
+        menuBtn.setPadding(0, 0, 0, dp(8)); // Чуть поднимаем, чтобы визуально было по центру
+        menuBtn.setOnClickListener(v -> showAboutSheet());
         headerRow.addView(menuBtn);
 
         root.addView(headerRow, lp(0));

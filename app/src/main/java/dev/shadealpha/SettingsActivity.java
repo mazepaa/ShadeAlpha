@@ -95,7 +95,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // ====== НОВОЕ КРАСИВОЕ ОКНО "О ПРИЛОЖЕНИИ" ======
     private void showAboutSheet() {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
@@ -103,9 +102,9 @@ public class SettingsActivity extends AppCompatActivity {
         root.setPadding(dp(24), dp(32), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Иконка (используем стандартную заглушку, если нет своей)
+        // Исправление: берем иконку из самого приложения
         ImageView icon = new ImageView(this);
-        icon.setImageResource(android.R.drawable.ic_menu_compass); // Замени на свою иконку R.mipmap.ic_launcher
+        icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
         root.addView(icon, iconLp);
 
@@ -139,7 +138,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         root.addView(linksRow);
 
-        // Разработчик (Карточка)
+        // Разработчик (Карточка) - Добавлено двоеточие
         MaterialCardView devCard = new MaterialCardView(this);
         devCard.setRadius(dp(16));
         devCard.setCardElevation(0);
@@ -149,15 +148,16 @@ public class SettingsActivity extends AppCompatActivity {
         devLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
         devLayout.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView devName = text(t("Разработчик\nmazepaa", "Developer\nmazepaa"), 16, true);
+        TextView devName = text(t("Разработчик:\nmazepaa", "Developer:\nmazepaa"), 16, true);
         devLayout.addView(devName);
         devCard.addView(devLayout);
 
         root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        // Описание - Убран текст про интернет
         TextView desc = text(t(
-            "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной. Приложение не имеет доступа в интернет.",
-            "LSPosed module making the notification shade translucent. No internet access."), 14, false);
+            "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной.",
+            "LSPosed module making the notification shade translucent."), 14, false);
         desc.setPadding(0, dp(24), 0, 0);
         desc.setGravity(Gravity.CENTER);
         root.addView(desc);
@@ -207,11 +207,11 @@ public class SettingsActivity extends AppCompatActivity {
         langLp.setMarginEnd(dp(12));
         headerRow.addView(langBtn, langLp);
 
-        // Кнопка меню (три точки) - исправлено выравнивание
+        // Кнопка меню (три точки) - опускаем ниже с помощью padding
         TextView menuBtn = text("⋮", 28, true);
         menuBtn.setIncludeFontPadding(false);
         menuBtn.setGravity(Gravity.CENTER);
-        menuBtn.setPadding(0, 0, 0, dp(8)); // Чуть поднимаем, чтобы визуально было по центру
+        menuBtn.setPadding(dp(4), dp(12), dp(4), 0); 
         menuBtn.setOnClickListener(v -> showAboutSheet());
         headerRow.addView(menuBtn);
 

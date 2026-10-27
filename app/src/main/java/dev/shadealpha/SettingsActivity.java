@@ -182,7 +182,6 @@ public class SettingsActivity extends AppCompatActivity {
         devLayout.addView(devName);
         devCard.addView(devLayout);
 
-        // Добавляем физику нажатия и клик с тостом <3
         addPressPhysics(devCard);
         devCard.setOnClickListener(v -> {
             Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show();
@@ -199,7 +198,8 @@ public class SettingsActivity extends AppCompatActivity {
 
         dialog.setContentView(root);
         
-        View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        // ИСПРАВЛЕНО: Приводим к ViewGroup
+        ViewGroup bottomSheet = (ViewGroup) dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bottomSheet != null) {
             bottomSheet.setClipChildren(false);
             bottomSheet.setClipToPadding(false);

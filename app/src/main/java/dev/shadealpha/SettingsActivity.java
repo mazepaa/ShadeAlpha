@@ -10,6 +10,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -43,7 +44,6 @@ public class SettingsActivity extends Activity {
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String def = "ru".equals(Locale.getDefault().getLanguage()) ? "ru" : "en";
         lang = prefs.getString(KEY_LANG, def);
-        setTitle(t("Прозрачность шторки", "Shade transparency"));
         buildUi();
     }
 
@@ -100,65 +100,46 @@ public class SettingsActivity extends Activity {
             return WindowInsets.CONSUMED;
         });
 
-        // Раздельные статусы
-        boolean active = Keys.isModuleActive();
-        boolean hasRoot = checkRoot();
-        
-        StringBuilder sb = new StringBuilder();
-        int statusColor = 0xFF4CAF50;
+        // Шапка с заголовком и кнопкой языка
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        if (active) {
-            sb.append(t("LSPosed: Активен ✅\n", "LSPosed: Active ✅\n"));
-        } else {
-            sb.append(t("LSPosed: Не активен ❌\n", "LSPosed: Inactive ❌\n"));
-            statusColor = 0xFFF44336;
-        }
+        TextView title = text(t("Прозрачность шторки", "Shade transparency"), 24, true);
+        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        headerRow.addView(title, titleLp);
 
-        if (hasRoot) {
-            sb.append(t("Root: Выдан ✅", "Root: Granted ✅"));
-        } else {
-            sb.append(t("Root: Нет доступа ❌", "Root: Denied ❌"));
-            statusColor = 0xFFF44336;
-        }
-
-        TextView statusText = text(sb.toString(), 14, true);
-        statusText.setTextColor(statusColor);
-        root.addView(statusText, lp(0));
-
-        if (!active) {
-            TextView hint = text(t("Включите модуль в LSPosed (Scope: System UI + ShadeAlpha) и перезапустите приложение.", 
-                    "Enable module in LSPosed (Scope: System UI + ShadeAlpha) and restart the app."), 12, false);
-            hint.setTextColor(0xFF888888);
-            root.addView(hint, lp(4));
-        }
-
-        // Заголовок
-        root.addView(text(t("Прозрачность шторки", "Shade transparency"), 24, true), lp(16));
-        root.addView(text(
-                t("100% — стандартный вид системы. Чем ниже значение, тем прозрачнее шторка.",
-                        "100% = default system appearance. Lower values make the shade more transparent."), 14, false), lp(4));
-
-        // Язык
-        root.addView(text(t("Язык", "Language"), 16, true), lp(16));
-        RadioGroup group = new RadioGroup(this);
-        group.setOrientation(RadioGroup.HORIZONTAL);
-        final RadioButton ru = new RadioButton(this);
-        ru.setText("Русский");
-        ru.setId(View.generateViewId());
-        final RadioButton en = new RadioButton(this);
-        en.setText("English");
-        en.setId(View.generateViewId());
-        group.addView(ru);
-        group.addView(en);
-        group.check("ru".equals(lang) ? ru.getId() : en.getId());
-        group.setOnCheckedChangeListener((g, id) -> {
-            String nl = id == ru.getId() ? "ru" : "en";
-            if (!nl.equals(lang)) {
-                prefs.edit().putString(KEY_LANG, nl).apply();
-                recreate();
-            }
+        TextView langBtn = text(lang.equals("ru") ? "RU" : "EN", 16, true);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setCornerRadius(dp(8));
+        bg.setColor(0x22888888); // Полупрозрачный серый фон
+        langBtn.setBackground(bg);
+        langBtn.setPadding(dp(12), dp(6), dp(12), dp(6));
+        langBtn.setOnClickListener(v -> {
+            String nl = lang.equals("ru") ? "en" : "ru";
+            prefs.edit().putString(KEY_LANG, nl).apply();
+            recreate();
         });
-        root.addView(group, lp(4));
+        headerRow.addView(langBtn);
+
+        root.addView(headerRow, lp(0));
+
+        // Статус Root
+        boolean hasRoot = checkRoot();
+        TextView statusText = text("", 14, true);
+        if (hasRoot) {
+            statusText.setText(t("Root: Выдан ✅", "Root: Granted ✅"));
+            TypedValue typedValue = new TypedValue();
+            getTheme().resolveAttribute(android.R.attr.colorAccent, typedValue, true);
+            int accentColor = typedValue.data;
+            if (accentColor == 0) accentColor = 0xFF4CAF50; // Fallback зеленый
+            statusText.setTextColor(accentColor);
+        } else {
+            statusText.setText(t("Root: Нет доступа ❌", "Root: Denied ❌"));
+            statusText.setTextColor(0xFFF44336);
+        }
+        root.addView(statusText, lp(8));
 
         // Ползунки
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
@@ -171,9 +152,9 @@ public class SettingsActivity extends Activity {
                 modesHelpText()), lp(24));
 
         final String[] labels = {
-                t("0: Совместимость (выше нагрузка)", "0: Compatibility (higher load)"),
-                t("1: Быстрый (View.setAlpha)", "1: Fast (View.setAlpha)"),
-                t("2: Самый легкий (Scrim.setViewAlpha)", "2: Lightest (Scrim.setViewAlpha)")
+                t("1: Совместимость", "1: Compatibility"),
+                t("2: Быстрый", "2: Fast"),
+                t("3: Самый легкий", "3: Lightest")
         };
         final int[] ids = new int[3];
         RadioGroup modes = new RadioGroup(this);
@@ -205,16 +186,6 @@ public class SettingsActivity extends Activity {
             runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
         }).start());
         root.addView(showShade, lp(24));
-
-        Button reset = new Button(this);
-        reset.setText(t("Сбросить до 100%", "Reset to 100%"));
-        reset.setOnClickListener(v -> {
-            topBar.setProgress(100);
-            bottomBar.setProgress(100);
-            save(Keys.TOP, 100);
-            save(Keys.BOTTOM, 100);
-        });
-        root.addView(reset, lp(8));
 
         Button restart = new Button(this);
         restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
@@ -274,7 +245,7 @@ public class SettingsActivity extends Activity {
         prefs.edit().putInt(key, p).apply();
         new Thread(() -> {
             final boolean ok = writeSetting(key, p);
-            final String shown = Keys.MODE.equals(key) ? t("режим ", "mode ") + p : p + "%";
+            final String shown = Keys.MODE.equals(key) ? t("режим ", "mode ") + (p + 1) : p + "%";
             runOnUiThread(() -> status.setText(ok
                     ? t("Сохранено: ", "Saved: ") + shown
                     : t("Ошибка записи. Выдайте разрешение или root.", "Write error. Grant permission or root.")));
@@ -369,20 +340,20 @@ public class SettingsActivity extends Activity {
     private String modesHelpText() {
         return t(
                 "Режим отрисовки определяет, как именно модуль делает фон прозрачным. На глаз разницы нет, но есть разница в нагрузке на батарею и GPU.\n\n" +
-                "🟢 Режим 2 (ScrimView.setViewAlpha) — Самый легкий\n" +
-                "Прямо меняет прозрачность цвета фона. Не создает лишних слоев, минимальная нагрузка. Работает, если ваша прошивка поддерживает этот метод.\n\n" +
-                "🟡 Режим 1 (View.setAlpha) — Быстрый\n" +
-                "Применяет прозрачность ко всему элементу. Может быть чуть тяжелее, так как иногда требует создания промежуточного слоя (Layer), но отлично работает как альтернатива.\n\n" +
-                "🔴 Режим 0 (saveLayerAlpha) — Максимальная совместимость\n" +
+                "🟢 Режим 3 (ScrimView.setViewAlpha) — Самый легкий\n" +
+                "Прямо меняет прозрачность цвета фона. Не создает лишних слоев, минимальная нагрузка.\n\n" +
+                "🟡 Режим 2 (View.setAlpha) — Быстрый\n" +
+                "Применяет прозрачность ко всему элементу. Может быть чуть тяжелее, так как иногда требует создания промежуточного слоя, но отлично работает как альтернатива.\n\n" +
+                "🔴 Режим 1 (saveLayerAlpha) — Максимальная совместимость\n" +
                 "Принудительно создает слой для отрисовки. Самый надежный, но и самый тяжелый (двойная отрисовка). Используйте только если остальные не работают.\n\n" +
                 "После смены режима обязательно нажми «Перезапустить SystemUI».",
                 
                 "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery and GPU load.\n\n" +
-                "🟢 Mode 2 (ScrimView.setViewAlpha) - Lightest\n" +
-                "Directly changes the background color's alpha. Creates no extra layers, minimal load. Works if your ROM supports this method.\n\n" +
-                "🟡 Mode 1 (View.setAlpha) - Fast\n" +
+                "🟢 Mode 3 (ScrimView.setViewAlpha) - Lightest\n" +
+                "Directly changes the background color's alpha. Creates no extra layers, minimal load.\n\n" +
+                "🟡 Mode 2 (View.setAlpha) - Fast\n" +
                 "Applies transparency to the whole View. Might be slightly heavier as it sometimes requires an intermediate layer, but works great as an alternative.\n\n" +
-                "🔴 Mode 0 (saveLayerAlpha) - Max Compatibility\n" +
+                "🔴 Mode 1 (saveLayerAlpha) - Max Compatibility\n" +
                 "Forces the creation of a rendering layer. Most reliable, but the heaviest (double rendering). Use only if the others fail.\n\n" +
                 "After changing the mode, be sure to tap \"Restart SystemUI\".");
     }

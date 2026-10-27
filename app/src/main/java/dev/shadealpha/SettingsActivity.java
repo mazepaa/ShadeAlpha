@@ -18,6 +18,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.radiobutton.MaterialRadioButton;
@@ -38,7 +39,10 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Применяем динамические цвета (Monet)
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
+        
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String def = "ru".equals(Locale.getDefault().getLanguage()) ? "ru" : "en";
         lang = prefs.getString(KEY_LANG, def);
@@ -98,7 +102,6 @@ public class SettingsActivity extends AppCompatActivity {
             return WindowInsets.CONSUMED;
         });
 
-        // Шапка с заголовком и кнопкой языка
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -123,7 +126,6 @@ public class SettingsActivity extends AppCompatActivity {
         headerRow.addView(langBtn);
         root.addView(headerRow, lp(0));
 
-        // Статус Root
         boolean hasRoot = checkRoot();
         TextView statusText = text("", 14, true);
         if (hasRoot) {
@@ -135,11 +137,9 @@ public class SettingsActivity extends AppCompatActivity {
         }
         root.addView(statusText, lp(8));
 
-        // Ползунки
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
 
-        // Режим отрисовки
         root.addView(headerWithHelp(
                 t("Режим отрисовки", "Rendering mode"),
                 t("Режимы отрисовки", "Rendering modes"),
@@ -174,7 +174,6 @@ public class SettingsActivity extends AppCompatActivity {
                 t("После смены режима нажми «Перезапустить SystemUI».", 
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
-        // Кнопки
         MaterialButton showShade = new MaterialButton(this);
         showShade.setText(t("Показать шторку", "Show shade"));
         showShade.setOnClickListener(v -> new Thread(() -> {
@@ -202,7 +201,9 @@ public class SettingsActivity extends AppCompatActivity {
         
         slider.setValueFrom(0f);
         slider.setValueTo(100f);
-        slider.setStepSize(1f);
+        slider.setStepSize(5f); // Шаг 5%
+        slider.setTickVisible(false); // Убираем точки
+        slider.setLabelBehavior(Slider.LABEL_VISIBILITY_GONE); // Убираем всплывающую цифру над ползунком
 
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));

@@ -119,7 +119,9 @@ public class SettingsActivity extends AppCompatActivity {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(24), dp(56), dp(24), dp(32));
+        
+        // Уменьшили верхний отступ с 56 до 50dp (чуть ниже)
+        root.setPadding(dp(24), dp(50), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         
         root.setClipChildren(false);
@@ -198,7 +200,6 @@ public class SettingsActivity extends AppCompatActivity {
 
         dialog.setContentView(root);
         
-        // ИСПРАВЛЕНО: Приводим к ViewGroup
         ViewGroup bottomSheet = (ViewGroup) dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bottomSheet != null) {
             bottomSheet.setClipChildren(false);

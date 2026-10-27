@@ -21,6 +21,7 @@ import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.Locale;
 
@@ -144,7 +145,7 @@ public class SettingsActivity extends Activity {
         final String[] labels = {
                 t("0: Совместимость (чуть выше нагрузка)", "0: Compatibility (slightly higher load)"),
                 t("1: Быстрый (рекомендуется)", "1: Fast (recommended)"),
-                t("2: Легкий (минимальная нагрузка)", "2: Lightweight (minimal load)")
+                t("2: Самый легкий (минимальная нагрузка)", "2: Lightest (minimal load)")
         };
         final int[] ids = new int[3];
         RadioGroup modes = new RadioGroup(this);
@@ -193,7 +194,7 @@ public class SettingsActivity extends Activity {
             final int code = runRoot("killall com.android.systemui || pkill -f com.android.systemui");
             runOnUiThread(() -> status.setText(code == 0
                     ? t("SystemUI перезапущен.", "SystemUI restarted.")
-                    : t("Не удалось перезапустить (нужен root).", "Restart failed (root required).")));
+                    : t("ОШИБКА: Root не выдан или заблокирован!", "ERROR: Root denied or blocked!")));
         }).start());
         root.addView(restart, lp(8));
 
@@ -289,7 +290,13 @@ public class SettingsActivity extends Activity {
             Process pr = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
             return pr.waitFor();
         } catch (Throwable e) {
-            return -1;
+            // Пробуем альтернативный вызов для некоторых рут-менеджеров
+            try {
+                Process pr = Runtime.getRuntime().exec("su -c " + cmd);
+                return pr.waitFor();
+            } catch (Throwable e2) {
+                return -1;
+            }
         }
     }
 
@@ -339,22 +346,22 @@ public class SettingsActivity extends Activity {
 
     private String modesHelpText() {
         return t(
-                "Режим отрисовки определяет, как именно модуль делает фон прозрачным. На глаз разницы нет, но есть разница в нагрузке на батарею.\n\n" +
-                "🟢 Режим 1 (View.setAlpha) (Рекомендуется)\n" +
-                "Самый быстрый и оптимизированный способ. Не нагружает систему. Используй его по умолчанию.\n\n" +
-                "🟡 Режим 2 (ScrimView.setViewAlpha)\n" +
-                "Максимально легкий для видеокарты. Подходит, если Режим 1 на твоей прошивке работает криво.\n\n" +
-                "🔴 Режим 0 (saveLayerAlpha)\n" +
-                "Максимальная совместимость со старыми прошивками, но создает дополнительную нагрузку. Используй только если остальные не работают.\n\n" +
+                "Режим отрисовки определяет, как именно модуль делает фон прозрачным. На глаз разницы нет, но есть разница в нагрузке на батарею и GPU.\n\n" +
+                "🟢 Режим 2 (ScrimView.setViewAlpha) — Самый легкий\n" +
+                "Прямо меняет прозрачность цвета фона. Не создает лишних слоев, минимальная нагрузка. Работает, если ваша прошивка поддерживает этот метод.\n\n" +
+                "🟡 Режим 1 (View.setAlpha) — Быстрый\n" +
+                "Применяет прозрачность ко всему элементу. Может быть чуть тяжелее, так как иногда требует создания промежуточного слоя (Layer), но отлично работает как альтернатива.\n\n" +
+                "🔴 Режим 0 (saveLayerAlpha) — Максимальная совместимость\n" +
+                "Принудительно создает слой для отрисовки. Самый надежный, но и самый тяжелый (двойная отрисовка). Используйте только если остальные не работают.\n\n" +
                 "После смены режима обязательно нажми «Перезапустить SystemUI».",
                 
-                "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery load.\n\n" +
-                "🟢 Mode 1 (View.setAlpha) (Recommended)\n" +
-                "The fastest and most optimized method. Does not load the system. Use it by default.\n\n" +
-                "🟡 Mode 2 (ScrimView.setViewAlpha)\n" +
-                "Maximally light for the GPU. Suitable if Mode 1 works incorrectly on your ROM.\n\n" +
-                "🔴 Mode 0 (saveLayerAlpha)\n" +
-                "Maximum compatibility with old ROMs, but creates additional load. Use only if the others don't work.\n\n" +
+                "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery and GPU load.\n\n" +
+                "🟢 Mode 2 (ScrimView.setViewAlpha) - Lightest\n" +
+                "Directly changes the background color's alpha. Creates no extra layers, minimal load. Works if your ROM supports this method.\n\n" +
+                "🟡 Mode 1 (View.setAlpha) - Fast\n" +
+                "Applies transparency to the whole View. Might be slightly heavier as it sometimes requires an intermediate layer, but works great as an alternative.\n\n" +
+                "🔴 Mode 0 (saveLayerAlpha) - Max Compatibility\n" +
+                "Forces the creation of a rendering layer. Most reliable, but the heaviest (double rendering). Use only if the others fail.\n\n" +
                 "After changing the mode, be sure to tap \"Restart SystemUI\".");
     }
 }

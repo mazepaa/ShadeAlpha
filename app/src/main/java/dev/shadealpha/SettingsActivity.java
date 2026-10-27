@@ -1,9 +1,11 @@
 package dev.shadealpha;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
@@ -11,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -30,6 +33,8 @@ public class SettingsActivity extends AppCompatActivity {
 
     private static final String PREFS = "ui";
     private static final String KEY_LANG = "lang";
+    private static final String TG_LINK = "https://t.me/mazepaa";
+    private static final String GITHUB_LINK = "https://github.com/mazepaa/ShadeAlpha";
 
     private SharedPreferences prefs;
     private String lang;
@@ -87,6 +92,37 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    private void showPopupMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(0, 1, 1, t("О модуле", "About"));
+        popup.getMenu().add(0, 2, 2, "Telegram (@mazepaa)");
+        popup.getMenu().add(0, 3, 3, "GitHub");
+        
+        popup.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 1) {
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(t("О модуле ShadeAlpha", "About ShadeAlpha"))
+                        .setMessage(t(
+                            "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной.\n\n" +
+                            "Версия: 1.0.1\n" +
+                            "Разработчик: mazepaa\n\n" +
+                            "Приложение не имеет доступа в интернет. Для работы требуется Root и LSPosed.",
+                            "An LSPosed module that makes the notification shade translucent.\n\n" +
+                            "Version: 1.0.1\n" +
+                            "Developer: mazepaa\n\n" +
+                            "The app has no internet access. Requires Root and LSPosed."))
+                        .setPositiveButton(t("ОК", "OK"), null)
+                        .show();
+            } else if (item.getItemId() == 2) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK)));
+            } else if (item.getItemId() == 3) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK)));
+            }
+            return true;
+        });
+        popup.show();
+    }
+
     private void buildUi() {
         final ScrollView scroll = new ScrollView(this);
         final LinearLayout root = new LinearLayout(this);
@@ -101,6 +137,7 @@ public class SettingsActivity extends AppCompatActivity {
             return WindowInsets.CONSUMED;
         });
 
+        // Шапка
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -109,6 +146,7 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         headerRow.addView(title, titleLp);
 
+        // Кнопка RU/EN
         TextView langBtn = text(lang.equals("ru") ? "RU" : "EN", 16, true);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
@@ -122,9 +160,19 @@ public class SettingsActivity extends AppCompatActivity {
             prefs.edit().putString(KEY_LANG, nl).apply();
             recreate();
         });
-        headerRow.addView(langBtn);
+        LinearLayout.LayoutParams langLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        langLp.setMarginEnd(dp(8));
+        headerRow.addView(langBtn, langLp);
+
+        // Кнопка меню (три точки)
+        TextView menuBtn = text("⋮", 28, true);
+        menuBtn.setPadding(dp(8), dp(0), dp(8), dp(12));
+        menuBtn.setOnClickListener(this::showPopupMenu);
+        headerRow.addView(menuBtn);
+
         root.addView(headerRow, lp(0));
 
+        // Статус Root
         boolean hasRoot = checkRoot();
         TextView statusText = text("", 14, true);
         if (hasRoot) {
@@ -201,9 +249,9 @@ public class SettingsActivity extends AppCompatActivity {
         slider.setValueFrom(0f);
         slider.setValueTo(100f);
         slider.setStepSize(5f);
-        slider.setTickVisible(false); // Убираем деления
-        slider.setTrackStopIndicatorSize(0); // Убираем точку в конце
-        slider.setLabelBehavior(2); // Скрываем всплывающую цифру над ползунком
+        slider.setTickVisible(false);
+        slider.setTrackStopIndicatorSize(0);
+        slider.setLabelBehavior(2);
 
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));
@@ -301,7 +349,7 @@ public class SettingsActivity extends AppCompatActivity {
         help.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(24), dp(24));
-        p.setMarginStart(dp(4)); // Придвинули ближе (было 8)
+        p.setMarginStart(dp(4));
         help.setLayoutParams(p);
         help.setOnClickListener(v -> showHelp(helpTitle, helpText));
         row.addView(help);

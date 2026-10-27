@@ -22,7 +22,6 @@ import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -100,13 +99,12 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // Физика нажатия для кнопок (продавливание)
+    // Физика нажатия для кнопок (без вибрации)
     private void addPressPhysics(View v) {
         v.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
                     view.animate().scaleX(0.92f).scaleY(0.92f).setDuration(80).start();
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                     break;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
@@ -121,14 +119,15 @@ public class SettingsActivity extends AppCompatActivity {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(24), dp(32), dp(24), dp(32));
+        // Увеличили верхний отступ (было 32), чтобы было куда прыгать логотипу
+        root.setPadding(dp(24), dp(56), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
         
-        // Пружинка для логотипа
+        // Пружинка с вибрацией для логотипа
         icon.setOnClickListener(v -> {
             v.animate().cancel();
             v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -237,7 +236,7 @@ public class SettingsActivity extends AppCompatActivity {
         langLp.setMarginEnd(dp(12));
         headerRow.addView(langBtn, langLp);
 
-        // Кнопка меню (без смещения)
+        // Кнопка меню
         TextView menuBtn = text("⋮", 24, true);
         menuBtn.setIncludeFontPadding(false);
         menuBtn.setGravity(Gravity.CENTER);
@@ -259,7 +258,7 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             statusText.setText(t("Root: Нет доступа ❌", "Root: Denied ❌"));
             statusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
-            // Виброотклик при ошибке root при запуске
+            // Оставляем вибрацию для ошибки Root
             statusText.performHapticFeedback(HapticFeedbackConstants.REJECT);
         }
         root.addView(statusText, lp(8));
@@ -345,7 +344,7 @@ public class SettingsActivity extends AppCompatActivity {
             int p = (int) v;
             value.setText(p + "%");
             
-            // Виброотклик при каждом шаге (5%)
+            // Оставляем вибрацию для слайдера (тактильный отклик при прокрутке)
             if (fromUser && Math.abs(v - lastVal[0]) >= 4.9f) {
                 s.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 lastVal[0] = v;
@@ -364,7 +363,6 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public void onStartTrackingTouch(Slider slider) {
                 slider.animate().scaleY(1.05f).setDuration(100).start();
-                slider.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
             }
             @Override
             public void onStopTrackingTouch(Slider slider) {

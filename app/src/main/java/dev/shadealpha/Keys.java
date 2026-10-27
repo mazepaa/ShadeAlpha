@@ -15,5 +15,5 @@ final class Keys {
     }
 
     public static boolean isModuleActive() { return false; }
-    public static String getHookStatus() { return 'Нет данных'; }
+    public static String getHookStatus() { return "Нет данных"; }
 }

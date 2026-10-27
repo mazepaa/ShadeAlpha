@@ -1,16 +1,16 @@
 package dev.shadealpha;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Insets;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.app.AlertDialog;
-import android.graphics.drawable.GradientDrawable;
-import android.view.Gravity;
 import android.provider.Settings;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
@@ -24,7 +24,6 @@ import android.widget.TextView;
 
 import java.util.Locale;
 
-/** Язык RU/EN, два ползунка (верх / низ шторки), тестовый режим, сброс и перезапуск SystemUI. */
 public class SettingsActivity extends Activity {
 
     private static final String PREFS = "ui";
@@ -86,35 +85,85 @@ public class SettingsActivity extends Activity {
         scroll.addView(root, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // targetSdk 35: окно рисуется под системными панелями, добавляем отступы
         scroll.setOnApplyWindowInsetsListener((v, insets) -> {
             Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
             root.setPadding(dp(20), bars.top + dp(24), dp(20), bars.bottom + dp(24));
             return WindowInsets.CONSUMED;
         });
 
-        boolean active = Keys.isModuleActive(); TextView statusText = text("", 14, true); statusText.setText(active ? t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus() : t("Статус: Не активен ❌", "Status: Inactive ❌")); statusText.setTextColor(active ? 0xFF4CAF50 : 0xFFF44336); root.addView(statusText, lp(0)); 
+        // Статус модуля
+        boolean active = Keys.isModuleActive();
+        TextView statusText = text("", 14, true);
+        if (active) {
+            statusText.setText(t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus());
+            statusText.setTextColor(0xFF4CAF50);
+        } else {
+            statusText.setText(t("Статус: Не активен ❌\nВключите модуль в LSPosed (System UI)", "Status: Inactive ❌\nEnable module in LSPosed (System UI)"));
+            statusText.setTextColor(0xFFF44336);
+        }
+        root.addView(statusText, lp(0));
+
+        // Заголовок
+        root.addView(text(t("Прозрачность шторки", "Shade transparency"), 24, true), lp(16));
         root.addView(text(
                 t("100% — стандартный вид системы. Чем ниже значение, тем прозрачнее шторка.",
                         "100% = default system appearance. Lower values make the shade more transparent."), 14, false), lp(4));
 
-        // Язык
-        
+        // Язык (Перенесен наверх)
+        root.addView(text(t("Язык", "Language"), 16, true), lp(16));
+        RadioGroup group = new RadioGroup(this);
+        group.setOrientation(RadioGroup.HORIZONTAL);
+        final RadioButton ru = new RadioButton(this);
+        ru.setText("Русский");
+        ru.setId(View.generateViewId());
+        final RadioButton en = new RadioButton(this);
+        en.setText("English");
+        en.setId(View.generateViewId());
+        group.addView(ru);
+        group.addView(en);
+        group.check("ru".equals(lang) ? ru.getId() : en.getId());
+        group.setOnCheckedChangeListener((g, id) -> {
+            String nl = id == ru.getId() ? "ru" : "en";
+            if (!nl.equals(lang)) {
+                prefs.edit().putString(KEY_LANG, nl).apply();
+                recreate();
+            }
+        });
+        root.addView(group, lp(4));
 
         // Ползунки
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
-        bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"),
-                Keys.BOTTOM);
+        bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
+
+        // Пресеты
+        LinearLayout presets = new LinearLayout(this);
+        presets.setOrientation(LinearLayout.HORIZONTAL);
+        int[] presetValues = {25, 50, 75};
+        for (int val : presetValues) {
+            Button b = new Button(this);
+            b.setText(val + "%");
+            b.setOnClickListener(v -> {
+                topBar.setProgress(val);
+                bottomBar.setProgress(val);
+                save(Keys.TOP, val);
+                save(Keys.BOTTOM, val);
+            });
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            p.setMarginEnd(dp(4));
+            presets.addView(b, p);
+        }
+        root.addView(presets, lp(8));
 
         // Режим отрисовки
         root.addView(headerWithHelp(
-        t("Режим отрисовки", "Rendering mode"),
-        t("Режимы отрисовки", "Rendering modes"),
-        modesHelpText()), lp(24));
+                t("Режим отрисовки", "Rendering mode"),
+                t("Режимы отрисовки", "Rendering modes"),
+                modesHelpText()), lp(24));
+
         final String[] labels = {
-                t("0: Слой (лучше совместимость, выше нагрузка)", "0: Layer (best compatibility, higher system load)"),
-                t("1: View alpha (лёгкий и плавный режим)", "1: View alpha (lightweight and smooth)"),
-                t("2: Scrim alpha (минимальная нагрузка)", "2: Scrim alpha (lowest system load)")
+                t("0: Совместимость (чуть выше нагрузка)", "0: Compatibility (slightly higher load)"),
+                t("1: Быстрый (рекомендуется)", "1: Fast (recommended)"),
+                t("2: Легкий (минимальная нагрузка)", "2: Lightweight (minimal load)")
         };
         final int[] ids = new int[3];
         RadioGroup modes = new RadioGroup(this);
@@ -136,10 +185,17 @@ public class SettingsActivity extends Activity {
         });
         root.addView(modes, lp(4));
         root.addView(text(
-                t("После смены режима нажми «Перезапустить SystemUI».",
+                t("После смены режима нажми «Перезапустить SystemUI».", 
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
         // Кнопки
+        Button showShade = new Button(this);
+        showShade.setText(t("Показать шторку", "Show shade"));
+        showShade.setOnClickListener(v -> new Thread(() -> {
+            runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
+        }).start());
+        root.addView(showShade, lp(24));
+
         Button reset = new Button(this);
         reset.setText(t("Сбросить до 100%", "Reset to 100%"));
         reset.setOnClickListener(v -> {
@@ -148,7 +204,7 @@ public class SettingsActivity extends Activity {
             save(Keys.TOP, 100);
             save(Keys.BOTTOM, 100);
         });
-        root.addView(reset, lp(24));
+        root.addView(reset, lp(8));
 
         Button restart = new Button(this);
         restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
@@ -163,7 +219,7 @@ public class SettingsActivity extends Activity {
         status = text("", 14, false);
         root.addView(status, lp(12));
 
-        // Разрешение на запись системных настроек (альтернатива root)
+        // Разрешение
         permText = text("", 13, false);
         permButton = new Button(this);
         permButton.setOnClickListener(v -> startActivity(new Intent(
@@ -187,16 +243,18 @@ public class SettingsActivity extends Activity {
             @Override
             public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
                 value.setText(p + "%");
+                if (p < 20 && fromUser) {
+                    value.setTextColor(0xFFF44336);
+                    value.setText(p + "% " + t("(текст может быть нечитаем)", "(text may be unreadable)"));
+                } else {
+                    value.setTextColor(text("", 16, false).getCurrentTextColor());
+                    value.setText(p + "%");
+                }
             }
-
             @Override
-            public void onStartTrackingTouch(SeekBar s) {
-            }
-
+            public void onStartTrackingTouch(SeekBar s) {}
             @Override
-            public void onStopTrackingTouch(SeekBar s) {
-                save(key, s.getProgress());
-            }
+            public void onStopTrackingTouch(SeekBar s) { save(key, s.getProgress()); }
         });
         root.addView(text(label, 16, true), lp(24));
         root.addView(value, lp(2));
@@ -204,9 +262,6 @@ public class SettingsActivity extends Activity {
         return bar;
     }
 
-    // ---------- сохранение ----------
-
-    /** Запоминает значение в самом приложении и передаёт его системе (для хука в SystemUI). */
     private void save(final String key, final int p) {
         prefs.edit().putInt(key, p).apply();
         new Thread(() -> {
@@ -219,7 +274,6 @@ public class SettingsActivity extends Activity {
         }).start();
     }
 
-    /** При возврате в приложение (например, после выдачи разрешения) досылает сохранённые значения. */
     private void syncToSystem() {
         new Thread(() -> {
             for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.MODE}) {
@@ -239,15 +293,12 @@ public class SettingsActivity extends Activity {
     }
 
     private boolean writeSetting(String key, int p) {
-        // 1) напрямую, если выдано разрешение «Изменение системных настроек»
         try {
             if (Settings.System.canWrite(this)) {
                 Settings.System.putInt(getContentResolver(), key, p);
                 if (readSystem(key, -1) == p) return true;
             }
-        } catch (Throwable ignored) {
-        }
-        // 2) через root
+        } catch (Throwable ignored) {}
         runRoot("settings put system " + key + " " + p);
         return readSystem(key, -1) == p;
     }
@@ -265,10 +316,8 @@ public class SettingsActivity extends Activity {
         if (permText == null) return;
         boolean ok = Settings.System.canWrite(this);
         permText.setText(ok
-                ? t("Разрешение на изменение системных настроек выдано.",
-                "Permission to modify system settings is granted.")
-                : t("Если нет root: нужно разрешение «Изменение системных настроек».",
-                "Without root, the app needs the \"Modify system settings\" permission."));
+                ? t("Разрешение на изменение системных настроек выдано.", "Permission to modify system settings is granted.")
+                : t("Если нет root: нужно разрешение «Изменение системных настроек».", "Without root, the app needs the \"Modify system settings\" permission."));
         permButton.setText(t("Выдать разрешение", "Grant permission"));
         permButton.setVisibility(ok ? View.GONE : View.VISIBLE);
     }
@@ -282,7 +331,7 @@ public class SettingsActivity extends Activity {
         TextView help = new TextView(this);
         help.setText("?");
         help.setTextSize(13);
-        help.setTypeface(help.getTypeface(), Typeface.BOLD);
+        help.setTypeface(Typeface.DEFAULT_BOLD);
         help.setGravity(Gravity.CENTER);
         help.setContentDescription(t("Справка", "Help"));
 
@@ -307,7 +356,24 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
-    private String modesHelpText() { return t("Режим 1 (Рекомендуется) — самый быстрый и оптимизированный. Не нагружает систему.\n\nРежим 2 — легкий для видеокарты.\n\nРежим 0 — максимальная совместимость, но выше нагрузка.", "Mode 1 (Recommended) — fastest and optimized. Does not load the system.\n\nMode 2 — light for GPU.\n\nMode 0 — max compatibility, but higher load."); } }
+    private String modesHelpText() {
+        return t(
+                "Режим отрисовки определяет, как именно модуль делает фон прозрачным. На глаз разницы нет, но есть разница в нагрузке на батарею.\n\n" +
+                "🟢 Режим 1 (Рекомендуется)\n" +
+                "Самый быстрый и оптимизированный способ. Не нагружает систему. Используй его по умолчанию.\n\n" +
+                "🟡 Режим 2\n" +
+                "Максимально легкий для видеокарты. Подходит, если Режим 1 на твоей прошивке работает криво.\n\n" +
+                "🔴 Режим 0\n" +
+                "Максимальная совместимость со старыми прошивками, но создает дополнительную нагрузку. Используй только если остальные не работают.\n\n" +
+                "После смены режима обязательно нажми «Перезапустить SystemUI».",
+                
+                "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery load.\n\n" +
+                "🟢 Mode 1 (Recommended)\n" +
+                "The fastest and most optimized method. Does not load the system. Use it by default.\n\n" +
+                "🟡 Mode 2\n" +
+                "Maximally light for the GPU. Suitable if Mode 1 works incorrectly on your ROM.\n\n" +
+                "🔴 Mode 0\n" +
+                "Maximum compatibility with old ROMs, but creates additional load. Use only if the others don't work.\n\n" +
+                "After changing the mode, be sure to tap \"Restart SystemUI\".");
     }
 }
-

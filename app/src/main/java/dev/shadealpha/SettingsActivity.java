@@ -203,7 +203,7 @@ public class SettingsActivity extends AppCompatActivity {
         slider.setValueTo(100f);
         slider.setStepSize(5f); // Шаг 5%
         slider.setTickVisible(false); // Убираем точки
-        slider.setLabelBehavior(com.google.android.material.slider.BaseSlider.LABEL_VISIBILITY_GONE); // Убираем всплывающую цифру над ползунком
+        slider.setLabelBehavior(2); // Убираем всплывающую цифру над ползунком
 
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));

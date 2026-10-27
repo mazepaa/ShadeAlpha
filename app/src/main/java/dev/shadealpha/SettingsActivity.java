@@ -1,4 +1,4 @@
-package dev.shadealpha;
+﻿package dev.shadealpha;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -7,6 +7,9 @@ import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.app.AlertDialog;
+import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
@@ -123,7 +126,10 @@ public class SettingsActivity extends Activity {
                 Keys.BOTTOM);
 
         // Режим отрисовки
-        root.addView(text(t("Режим отрисовки", "Rendering mode"), 16, true), lp(24));
+        root.addView(headerWithHelp(
+        t("Режим отрисовки", "Rendering mode"),
+        t("Режимы отрисовки", "Rendering modes"),
+        modesHelpText()), lp(24));
         final String[] labels = {
                 t("0: Слой (лучше совместимость, выше нагрузка)", "0: Layer (best compatibility, higher system load)"),
                 t("1: View alpha (лёгкий и плавный режим)", "1: View alpha (lightweight and smooth)"),
@@ -285,4 +291,69 @@ public class SettingsActivity extends Activity {
         permButton.setText(t("Выдать разрешение", "Grant permission"));
         permButton.setVisibility(ok ? View.GONE : View.VISIBLE);
     }
+
+    private LinearLayout headerWithHelp(String title, final String helpTitle, final String helpText) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(text(title, 16, true));
+
+        TextView help = new TextView(this);
+        help.setText("?");
+        help.setTextSize(15);
+        help.setTypeface(help.getTypeface(), Typeface.BOLD);
+        help.setGravity(Gravity.CENTER);
+        help.setContentDescription(t("Справка", "Help"));
+
+        GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setStroke(dp(1), help.getCurrentTextColor());
+        help.setBackground(ring);
+
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(28), dp(28));
+        p.setMarginStart(dp(10));
+        help.setLayoutParams(p);
+        help.setOnClickListener(v -> showHelp(helpTitle, helpText));
+        row.addView(help);
+        return row;
+    }
+
+    private void showHelp(String title, String message) {
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(t("Понятно", "Got it"), null)
+                .show();
+    }
+
+    private String modesHelpText() {
+        return t(
+                "Режим отрисовки — это способ, которым модуль делает шторку прозрачной. "
+                        + "На экране результат у всех режимов одинаковый, различаются нагрузка "
+                        + "на видеочип и совместимость с твоей прошивкой.\n\n"
+                        + "0 — слой.\nФон шторки рисуется во временный слой, который затем накладывается "
+                        + "с нужной прозрачностью. Это два прохода GPU, поэтому нагрузка выше. "
+                        + "Запасной вариант.\n\n"
+                        + "1 — альфа view (лёгкий).\nПрозрачность задаётся самому элементу фона шторки. "
+                        + "Один проход, нагрузка минимальная.\n\n"
+                        + "2 — альфа скрима.\nМодуль подменяет значение прозрачности, которое система "
+                        + "сама передаёт фону шторки. Тоже один проход, но на некоторых прошивках система "
+                        + "не вызывает нужный метод, и тогда эффекта не будет.\n\n"
+                        + "Как выбрать: начни с режима 1. Если прозрачность не меняется, попробуй 2, "
+                        + "затем 0. После смены режима нажми «Перезапустить SystemUI».",
+                "The rendering mode is the way the module makes the shade transparent. "
+                        + "The result on screen is the same in every mode; they differ in GPU load "
+                        + "and in compatibility with your ROM.\n\n"
+                        + "0 - layer.\nThe shade background is drawn into a temporary layer, which is then "
+                        + "composited with the chosen transparency. That is two GPU passes, so the "
+                        + "load is higher. A fallback option.\n\n"
+                        + "1 - view alpha (light).\nThe transparency is applied to the shade background "
+                        + "element itself. One pass, minimal load.\n\n"
+                        + "2 - scrim alpha.\nThe module replaces the transparency value that the system "
+                        + "passes to the shade background. Also one pass, but on some ROMs the system "
+                        + "never calls the method involved, so there will be no effect.\n\n"
+                        + "How to choose: start with mode 1. If the transparency does not change, "
+                        + "try 2, then 0. After changing the mode tap \"Restart SystemUI\".");
+    }
 }
+

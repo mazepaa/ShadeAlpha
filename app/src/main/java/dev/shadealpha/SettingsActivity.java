@@ -144,7 +144,7 @@ public class SettingsActivity extends AppCompatActivity {
         title.setPadding(0, dp(16), 0, dp(4));
         root.addView(title);
 
-        TextView version = text("v1.0.1", 14, false);
+        TextView version = text("v2.0", 14, false);
         version.setTextColor(Color.GRAY);
         root.addView(version);
 

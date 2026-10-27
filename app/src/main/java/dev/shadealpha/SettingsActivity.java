@@ -98,7 +98,7 @@ public class SettingsActivity extends Activity {
             statusText.setText(t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus());
             statusText.setTextColor(0xFF4CAF50);
         } else {
-            statusText.setText(t("Статус: Не активен ❌\nВключите модуль в LSPosed (System UI)", "Status: Inactive ❌\nEnable module in LSPosed (System UI)"));
+            statusText.setText(t("Статус: Не активен ❌\nВключите модуль в LSPosed (System UI + ShadeAlpha)", "Status: Inactive ❌\nEnable module in LSPosed (System UI + ShadeAlpha)"));
             statusText.setTextColor(0xFFF44336);
         }
         root.addView(statusText, lp(0));
@@ -109,7 +109,7 @@ public class SettingsActivity extends Activity {
                 t("100% — стандартный вид системы. Чем ниже значение, тем прозрачнее шторка.",
                         "100% = default system appearance. Lower values make the shade more transparent."), 14, false), lp(4));
 
-        // Язык (Перенесен наверх)
+        // Язык
         root.addView(text(t("Язык", "Language"), 16, true), lp(16));
         RadioGroup group = new RadioGroup(this);
         group.setOrientation(RadioGroup.HORIZONTAL);
@@ -134,25 +134,6 @@ public class SettingsActivity extends Activity {
         // Ползунки
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
-
-        // Пресеты
-        LinearLayout presets = new LinearLayout(this);
-        presets.setOrientation(LinearLayout.HORIZONTAL);
-        int[] presetValues = {25, 50, 75};
-        for (int val : presetValues) {
-            Button b = new Button(this);
-            b.setText(val + "%");
-            b.setOnClickListener(v -> {
-                topBar.setProgress(val);
-                bottomBar.setProgress(val);
-                save(Keys.TOP, val);
-                save(Keys.BOTTOM, val);
-            });
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            p.setMarginEnd(dp(4));
-            presets.addView(b, p);
-        }
-        root.addView(presets, lp(8));
 
         // Режим отрисовки
         root.addView(headerWithHelp(
@@ -359,20 +340,20 @@ public class SettingsActivity extends Activity {
     private String modesHelpText() {
         return t(
                 "Режим отрисовки определяет, как именно модуль делает фон прозрачным. На глаз разницы нет, но есть разница в нагрузке на батарею.\n\n" +
-                "🟢 Режим 1 (Рекомендуется)\n" +
+                "🟢 Режим 1 (View.setAlpha) (Рекомендуется)\n" +
                 "Самый быстрый и оптимизированный способ. Не нагружает систему. Используй его по умолчанию.\n\n" +
-                "🟡 Режим 2\n" +
+                "🟡 Режим 2 (ScrimView.setViewAlpha)\n" +
                 "Максимально легкий для видеокарты. Подходит, если Режим 1 на твоей прошивке работает криво.\n\n" +
-                "🔴 Режим 0\n" +
+                "🔴 Режим 0 (saveLayerAlpha)\n" +
                 "Максимальная совместимость со старыми прошивками, но создает дополнительную нагрузку. Используй только если остальные не работают.\n\n" +
                 "После смены режима обязательно нажми «Перезапустить SystemUI».",
                 
                 "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery load.\n\n" +
-                "🟢 Mode 1 (Recommended)\n" +
+                "🟢 Mode 1 (View.setAlpha) (Recommended)\n" +
                 "The fastest and most optimized method. Does not load the system. Use it by default.\n\n" +
-                "🟡 Mode 2\n" +
+                "🟡 Mode 2 (ScrimView.setViewAlpha)\n" +
                 "Maximally light for the GPU. Suitable if Mode 1 works incorrectly on your ROM.\n\n" +
-                "🔴 Mode 0\n" +
+                "🔴 Mode 0 (saveLayerAlpha)\n" +
                 "Maximum compatibility with old ROMs, but creates additional load. Use only if the others don't work.\n\n" +
                 "After changing the mode, be sure to tap \"Restart SystemUI\".");
     }

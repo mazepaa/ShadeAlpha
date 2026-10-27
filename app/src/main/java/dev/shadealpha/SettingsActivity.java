@@ -93,7 +93,7 @@ public class SettingsActivity extends Activity {
             return WindowInsets.CONSUMED;
         });
 
-        boolean active = Keys.isModuleActive(); TextView statusText = text("", 14, true); statusText.setText(active ? t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus() : t("Статус: Не активен ❌", "Status: Inactive ❌")); statusText.setTextColor(active ? 0xFF4CAF50 : 0xFFF44336); root.addView(statusText, lp(0)); root.addView(text(t("Язык", "Language"), 16, true), lp(16)); RadioGroup group = new RadioGroup(this); group.setOrientation(RadioGroup.HORIZONTAL); final RadioButton ru = new RadioButton(this); ru.setText("Русский"); ru.setId(View.generateViewId()); final RadioButton en = new RadioButton(this); en.setText("English"); en.setId(View.generateViewId()); group.addView(ru); group.addView(en); group.check("ru".equals(lang) ? ru.getId() : en.getId()); group.setOnCheckedChangeListener((g, id) -> { String nl = id == ru.getId() ? "ru" : "en"; if (!nl.equals(lang)) { prefs.edit().putString(KEY_LANG, nl).apply(); recreate(); } }); root.addView(group, lp(4));
+        boolean active = Keys.isModuleActive(); TextView statusText = text("", 14, true); statusText.setText(active ? t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus() : t("Статус: Не активен ❌", "Status: Inactive ❌")); statusText.setTextColor(active ? 0xFF4CAF50 : 0xFFF44336); root.addView(statusText, lp(0)); 
         root.addView(text(
                 t("100% — стандартный вид системы. Чем ниже значение, тем прозрачнее шторка.",
                         "100% = default system appearance. Lower values make the shade more transparent."), 14, false), lp(4));
@@ -307,7 +307,7 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
-    private String modesHelpText() { return t("Режим 1 (Рекомендуется) - самый быстрый и оптимизированный. Не нагружает систему.\n\nРежим 2 - легкий для видеокарты.\n\nРежим 0 - максимальная совместимость, но выше нагрузка.", "Mode 1 (Recommended) - fastest and optimized. Does not load the system.\n\nMode 2 - light for GPU.\n\nMode 0 - max compatibility, but higher load."); }
+    private String modesHelpText() { return t("Режим 1 (Рекомендуется) — самый быстрый и оптимизированный. Не нагружает систему.\n\nРежим 2 — легкий для видеокарты.\n\nРежим 0 — максимальная совместимость, но выше нагрузка.", "Mode 1 (Recommended) — fastest and optimized. Does not load the system.\n\nMode 2 — light for GPU.\n\nMode 0 — max compatibility, but higher load."); } }
     }
 }
 

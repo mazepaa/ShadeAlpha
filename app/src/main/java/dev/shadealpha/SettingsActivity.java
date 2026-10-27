@@ -21,7 +21,6 @@ import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.Locale;
 
@@ -78,6 +77,15 @@ public class SettingsActivity extends Activity {
         return p;
     }
 
+    private boolean checkRoot() {
+        try {
+            Process pr = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
+            return pr.waitFor() == 0;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     private void buildUi() {
         final ScrollView scroll = new ScrollView(this);
         final LinearLayout root = new LinearLayout(this);
@@ -92,17 +100,37 @@ public class SettingsActivity extends Activity {
             return WindowInsets.CONSUMED;
         });
 
-        // Статус модуля
+        // Раздельные статусы
         boolean active = Keys.isModuleActive();
-        TextView statusText = text("", 14, true);
+        boolean hasRoot = checkRoot();
+        
+        StringBuilder sb = new StringBuilder();
+        int statusColor = 0xFF4CAF50;
+
         if (active) {
-            statusText.setText(t("Статус: Активен ✅\n", "Status: Active ✅\n") + Keys.getHookStatus());
-            statusText.setTextColor(0xFF4CAF50);
+            sb.append(t("LSPosed: Активен ✅\n", "LSPosed: Active ✅\n"));
         } else {
-            statusText.setText(t("Статус: Не активен ❌\nВключите модуль в LSPosed (System UI + ShadeAlpha)", "Status: Inactive ❌\nEnable module in LSPosed (System UI + ShadeAlpha)"));
-            statusText.setTextColor(0xFFF44336);
+            sb.append(t("LSPosed: Не активен ❌\n", "LSPosed: Inactive ❌\n"));
+            statusColor = 0xFFF44336;
         }
+
+        if (hasRoot) {
+            sb.append(t("Root: Выдан ✅", "Root: Granted ✅"));
+        } else {
+            sb.append(t("Root: Нет доступа ❌", "Root: Denied ❌"));
+            statusColor = 0xFFF44336;
+        }
+
+        TextView statusText = text(sb.toString(), 14, true);
+        statusText.setTextColor(statusColor);
         root.addView(statusText, lp(0));
+
+        if (!active) {
+            TextView hint = text(t("Включите модуль в LSPosed (Scope: System UI + ShadeAlpha) и перезапустите приложение.", 
+                    "Enable module in LSPosed (Scope: System UI + ShadeAlpha) and restart the app."), 12, false);
+            hint.setTextColor(0xFF888888);
+            root.addView(hint, lp(4));
+        }
 
         // Заголовок
         root.addView(text(t("Прозрачность шторки", "Shade transparency"), 24, true), lp(16));
@@ -143,9 +171,9 @@ public class SettingsActivity extends Activity {
                 modesHelpText()), lp(24));
 
         final String[] labels = {
-                t("0: Совместимость (чуть выше нагрузка)", "0: Compatibility (slightly higher load)"),
-                t("1: Быстрый (рекомендуется)", "1: Fast (recommended)"),
-                t("2: Самый легкий (минимальная нагрузка)", "2: Lightest (minimal load)")
+                t("0: Совместимость (выше нагрузка)", "0: Compatibility (higher load)"),
+                t("1: Быстрый (View.setAlpha)", "1: Fast (View.setAlpha)"),
+                t("2: Самый легкий (Scrim.setViewAlpha)", "2: Lightest (Scrim.setViewAlpha)")
         };
         final int[] ids = new int[3];
         RadioGroup modes = new RadioGroup(this);
@@ -191,10 +219,8 @@ public class SettingsActivity extends Activity {
         Button restart = new Button(this);
         restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
         restart.setOnClickListener(v -> new Thread(() -> {
-            final int code = runRoot("killall com.android.systemui || pkill -f com.android.systemui");
-            runOnUiThread(() -> status.setText(code == 0
-                    ? t("SystemUI перезапущен.", "SystemUI restarted.")
-                    : t("ОШИБКА: Root не выдан или заблокирован!", "ERROR: Root denied or blocked!")));
+            runRoot("killall com.android.systemui || pkill -f com.android.systemui");
+            runOnUiThread(() -> status.setText(t("Команда перезапуска отправлена.", "Restart command sent.")));
         }).start());
         root.addView(restart, lp(8));
 
@@ -227,7 +253,7 @@ public class SettingsActivity extends Activity {
                 value.setText(p + "%");
                 if (p < 20 && fromUser) {
                     value.setTextColor(0xFFF44336);
-                    value.setText(p + "% " + t("(текст может быть нечитаем)", "(text may be unreadable)"));
+                    value.setText(p + "% " + t("(текст нечитаем)", "(unreadable text)"));
                 } else {
                     value.setTextColor(text("", 16, false).getCurrentTextColor());
                     value.setText(p + "%");
@@ -251,8 +277,7 @@ public class SettingsActivity extends Activity {
             final String shown = Keys.MODE.equals(key) ? t("режим ", "mode ") + p : p + "%";
             runOnUiThread(() -> status.setText(ok
                     ? t("Сохранено: ", "Saved: ") + shown
-                    : t("Не удалось записать в систему. Выдай разрешение ниже или root этому приложению.",
-                    "Could not write to the system. Grant the permission below or root access to this app.")));
+                    : t("Ошибка записи. Выдайте разрешение или root.", "Write error. Grant permission or root.")));
         }).start();
     }
 
@@ -285,18 +310,15 @@ public class SettingsActivity extends Activity {
         return readSystem(key, -1) == p;
     }
 
-    private int runRoot(String cmd) {
+    private void runRoot(String cmd) {
         try {
             Process pr = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
-            return pr.waitFor();
+            pr.waitFor();
         } catch (Throwable e) {
-            // Пробуем альтернативный вызов для некоторых рут-менеджеров
             try {
                 Process pr = Runtime.getRuntime().exec("su -c " + cmd);
-                return pr.waitFor();
-            } catch (Throwable e2) {
-                return -1;
-            }
+                pr.waitFor();
+            } catch (Throwable ignored) {}
         }
     }
 
@@ -305,7 +327,7 @@ public class SettingsActivity extends Activity {
         boolean ok = Settings.System.canWrite(this);
         permText.setText(ok
                 ? t("Разрешение на изменение системных настроек выдано.", "Permission to modify system settings is granted.")
-                : t("Если нет root: нужно разрешение «Изменение системных настроек».", "Without root, the app needs the \"Modify system settings\" permission."));
+                : t("Для работы без root нужно разрешение «Изменение системных настроек».", "Without root, the app needs the \"Modify system settings\" permission."));
         permButton.setText(t("Выдать разрешение", "Grant permission"));
         permButton.setVisibility(ok ? View.GONE : View.VISIBLE);
     }

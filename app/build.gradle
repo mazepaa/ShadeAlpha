@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'dev.shadealpha'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "dev.shadealpha"
         minSdk 31
-        targetSdk 35
+        targetSdk 36
         versionCode 4
         versionName "1.0.1"
     }

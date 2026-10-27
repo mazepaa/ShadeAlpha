@@ -14,6 +14,6 @@ final class Keys {
     private Keys() {
     }
 
-    public static boolean isModuleActive() { return false; }
-    public static String getHookStatus() { return "Нет данных"; }
+    public static boolean isModuleActive() { try { Class.forName("de.robv.android.xposed.XposedBridge", false, Thread.currentThread().getContextClassLoader()); return true; } catch (Throwable e) { return false; } } catch (Throwable e) { return false; } }
+    public static String getHookStatus() { return isModuleActive() ? "Активен: ScrimView.onDraw" : "Модуль не активен"; }
 }

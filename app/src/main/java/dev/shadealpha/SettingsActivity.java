@@ -22,6 +22,7 @@ import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -99,7 +100,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // Физика нажатия для кнопок (без вибрации)
     private void addPressPhysics(View v) {
         v.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
@@ -119,15 +119,16 @@ public class SettingsActivity extends AppCompatActivity {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        // Увеличили верхний отступ (было 32), чтобы было куда прыгать логотипу
         root.setPadding(dp(24), dp(56), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
+        
+        root.setClipChildren(false);
+        root.setClipToPadding(false);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
         
-        // Пружинка с вибрацией для логотипа
         icon.setOnClickListener(v -> {
             v.animate().cancel();
             v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -181,6 +182,12 @@ public class SettingsActivity extends AppCompatActivity {
         devLayout.addView(devName);
         devCard.addView(devLayout);
 
+        // Добавляем физику нажатия и клик с тостом <3
+        addPressPhysics(devCard);
+        devCard.setOnClickListener(v -> {
+            Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show();
+        });
+
         root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView desc = text(t(
@@ -191,6 +198,13 @@ public class SettingsActivity extends AppCompatActivity {
         root.addView(desc);
 
         dialog.setContentView(root);
+        
+        View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (bottomSheet != null) {
+            bottomSheet.setClipChildren(false);
+            bottomSheet.setClipToPadding(false);
+        }
+        
         dialog.show();
     }
 
@@ -216,7 +230,6 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         headerRow.addView(title, titleLp);
 
-        // Кнопка RU/EN
         TextView langBtn = text(lang.equals("ru") ? "RU" : "EN", 16, true);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
@@ -236,7 +249,6 @@ public class SettingsActivity extends AppCompatActivity {
         langLp.setMarginEnd(dp(12));
         headerRow.addView(langBtn, langLp);
 
-        // Кнопка меню
         TextView menuBtn = text("⋮", 24, true);
         menuBtn.setIncludeFontPadding(false);
         menuBtn.setGravity(Gravity.CENTER);
@@ -258,7 +270,6 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             statusText.setText(t("Root: Нет доступа ❌", "Root: Denied ❌"));
             statusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
-            // Оставляем вибрацию для ошибки Root
             statusText.performHapticFeedback(HapticFeedbackConstants.REJECT);
         }
         root.addView(statusText, lp(8));
@@ -344,7 +355,6 @@ public class SettingsActivity extends AppCompatActivity {
             int p = (int) v;
             value.setText(p + "%");
             
-            // Оставляем вибрацию для слайдера (тактильный отклик при прокрутке)
             if (fromUser && Math.abs(v - lastVal[0]) >= 4.9f) {
                 s.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 lastVal[0] = v;

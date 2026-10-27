@@ -11,9 +11,12 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.view.animation.BounceInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioGroup;
@@ -97,11 +100,21 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    private void animateClick(View v, Runnable action) {
-        v.animate().scaleX(0.92f).scaleY(0.92f).setDuration(80).withEndAction(() -> {
-            v.animate().scaleX(1f).scaleY(1f).setDuration(80).start();
-            action.run();
-        }).start();
+    // Физика нажатия для кнопок (продавливание)
+    private void addPressPhysics(View v) {
+        v.setOnTouchListener((view, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    view.animate().scaleX(0.92f).scaleY(0.92f).setDuration(80).start();
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(80).start();
+                    break;
+            }
+            return false;
+        });
     }
 
     private void showAboutSheet() {
@@ -114,14 +127,15 @@ public class SettingsActivity extends AppCompatActivity {
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
-        // Делаем иконку кликабельной (открывает GitHub)
-        icon.setOnClickListener(v -> animateClick(v, () -> {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK)));
-            } catch (Exception e) {
-                Toast.makeText(this, "Ошибка открытия ссылки", Toast.LENGTH_SHORT).show();
-            }
-        }));
+        
+        // Пружинка для логотипа
+        icon.setOnClickListener(v -> {
+            v.animate().cancel();
+            v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+            v.animate().translationY(-dp(15)).setDuration(100)
+             .withEndAction(() -> v.animate().translationY(0).setInterpolator(new BounceInterpolator()).setDuration(400).start())
+             .start();
+        });
         root.addView(icon, iconLp);
 
         TextView title = text("ShadeAlpha", 24, true);
@@ -139,26 +153,16 @@ public class SettingsActivity extends AppCompatActivity {
 
         MaterialButton btnTg = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnTg.setText("Telegram");
-        btnTg.setOnClickListener(v -> animateClick(v, () -> {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK)));
-            } catch (Exception e) {
-                Toast.makeText(this, "Ошибка открытия Telegram", Toast.LENGTH_SHORT).show();
-            }
-        }));
+        addPressPhysics(btnTg);
+        btnTg.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TG_LINK))));
         LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp1.setMarginEnd(dp(8));
         linksRow.addView(btnTg, lp1);
 
         MaterialButton btnGh = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnGh.setText("GitHub");
-        btnGh.setOnClickListener(v -> animateClick(v, () -> {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK)));
-            } catch (Exception e) {
-                Toast.makeText(this, "Ошибка открытия GitHub", Toast.LENGTH_SHORT).show();
-            }
-        }));
+        addPressPhysics(btnGh);
+        btnGh.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_LINK))));
         LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp2.setMarginStart(dp(8));
         linksRow.addView(btnGh, lp2);
@@ -177,11 +181,6 @@ public class SettingsActivity extends AppCompatActivity {
         TextView devName = text(t("Разработчик:\nmazepaa", "Developer:\nmazepaa"), 16, true);
         devLayout.addView(devName);
         devCard.addView(devLayout);
-        
-        // Делаем карточку кликабельной тоже
-        devCard.setOnClickListener(v -> animateClick(v, () -> {
-            Toast.makeText(this, "mazepaa", Toast.LENGTH_SHORT).show();
-        }));
 
         root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -210,7 +209,6 @@ public class SettingsActivity extends AppCompatActivity {
             return WindowInsets.CONSUMED;
         });
 
-        // Шапка с жестким выравниванием
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -219,7 +217,7 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         headerRow.addView(title, titleLp);
 
-        // Кнопка RU/EN (Вернули нормальный размер)
+        // Кнопка RU/EN
         TextView langBtn = text(lang.equals("ru") ? "RU" : "EN", 16, true);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
@@ -229,6 +227,7 @@ public class SettingsActivity extends AppCompatActivity {
         langBtn.setPadding(dp(12), dp(6), dp(12), dp(6));
         langBtn.setGravity(Gravity.CENTER);
         langBtn.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimaryContainer, 0xFF000000));
+        addPressPhysics(langBtn);
         langBtn.setOnClickListener(v -> {
             String nl = lang.equals("ru") ? "en" : "ru";
             prefs.edit().putString(KEY_LANG, nl).apply();
@@ -238,15 +237,15 @@ public class SettingsActivity extends AppCompatActivity {
         langLp.setMarginEnd(dp(12));
         headerRow.addView(langBtn, langLp);
 
-        // Кнопка меню (три точки) - визуально поднимаем на 2dp
+        // Кнопка меню (без смещения)
         TextView menuBtn = text("⋮", 24, true);
         menuBtn.setIncludeFontPadding(false);
         menuBtn.setGravity(Gravity.CENTER);
         menuBtn.setPadding(dp(4), dp(4), dp(4), dp(4));
-        menuBtn.setTranslationY(dp(2)); // Поднимаем текст выше, чтобы точки были по центру
         TypedValue outValue = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true);
         menuBtn.setBackgroundResource(outValue.resourceId);
+        addPressPhysics(menuBtn);
         menuBtn.setOnClickListener(v -> showAboutSheet());
         headerRow.addView(menuBtn);
 
@@ -260,6 +259,8 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             statusText.setText(t("Root: Нет доступа ❌", "Root: Denied ❌"));
             statusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
+            // Виброотклик при ошибке root при запуске
+            statusText.performHapticFeedback(HapticFeedbackConstants.REJECT);
         }
         root.addView(statusText, lp(8));
 
@@ -302,6 +303,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         MaterialButton showShade = new MaterialButton(this);
         showShade.setText(t("Показать шторку", "Show shade"));
+        addPressPhysics(showShade);
         showShade.setOnClickListener(v -> new Thread(() -> {
             runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
         }).start());
@@ -309,6 +311,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         MaterialButton restart = new MaterialButton(this);
         restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
+        addPressPhysics(restart);
         restart.setOnClickListener(v -> new Thread(() -> {
             runRoot("killall com.android.systemui || pkill -f com.android.systemui");
             runOnUiThread(() -> status.setText(t("Команда перезапуска отправлена.", "Restart command sent.")));
@@ -337,9 +340,17 @@ public class SettingsActivity extends AppCompatActivity {
         slider.setValue((float) cur);
         value.setText(cur + "%");
 
+        final float[] lastVal = {cur};
         slider.addOnChangeListener((s, v, fromUser) -> {
             int p = (int) v;
             value.setText(p + "%");
+            
+            // Виброотклик при каждом шаге (5%)
+            if (fromUser && Math.abs(v - lastVal[0]) >= 4.9f) {
+                s.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+                lastVal[0] = v;
+            }
+
             if (p < 20 && fromUser) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
@@ -351,9 +362,15 @@ public class SettingsActivity extends AppCompatActivity {
         
         slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
             @Override
-            public void onStartTrackingTouch(Slider slider) {}
+            public void onStartTrackingTouch(Slider slider) {
+                slider.animate().scaleY(1.05f).setDuration(100).start();
+                slider.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+            }
             @Override
-            public void onStopTrackingTouch(Slider slider) { save(key, (int) slider.getValue()); }
+            public void onStopTrackingTouch(Slider slider) {
+                slider.animate().scaleY(1f).setDuration(100).start();
+                save(key, (int) slider.getValue());
+            }
         });
 
         root.addView(text(label, 16, true), lp(24));
@@ -367,9 +384,12 @@ public class SettingsActivity extends AppCompatActivity {
         new Thread(() -> {
             final boolean ok = writeSetting(key, p);
             final String shown = Keys.MODE.equals(key) ? t("режим ", "mode ") + (p + 1) : p + "%";
-            runOnUiThread(() -> status.setText(ok
-                    ? t("Сохранено: ", "Saved: ") + shown
-                    : t("Ошибка записи. Проверьте root.", "Write error. Check root.")));
+            runOnUiThread(() -> {
+                status.setText(ok
+                        ? t("Сохранено: ", "Saved: ") + shown
+                        : t("Ошибка записи. Проверьте root.", "Write error. Check root."));
+                if (!ok) status.performHapticFeedback(HapticFeedbackConstants.REJECT);
+            });
         }).start();
     }
 
@@ -430,6 +450,7 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(24), dp(24));
         p.setMarginStart(dp(4));
         help.setLayoutParams(p);
+        addPressPhysics(help);
         help.setOnClickListener(v -> showHelp(helpTitle, helpText));
         row.addView(help);
         return row;

@@ -1,29 +1,31 @@
 package dev.shadealpha;
 
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
-import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.radiobutton.MaterialRadioButton;
+import com.google.android.material.slider.Slider;
 
 import java.util.Locale;
 
-public class SettingsActivity extends Activity {
+public class SettingsActivity extends AppCompatActivity {
 
     private static final String PREFS = "ui";
     private static final String KEY_LANG = "lang";
@@ -31,8 +33,8 @@ public class SettingsActivity extends Activity {
     private SharedPreferences prefs;
     private String lang;
     private TextView status;
-    private SeekBar topBar;
-    private SeekBar bottomBar;
+    private Slider topBar;
+    private Slider bottomBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +64,7 @@ public class SettingsActivity extends Activity {
         tv.setText(s);
         tv.setTextSize(sp);
         if (bold) tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
+        tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
         return tv;
     }
 
@@ -107,17 +110,17 @@ public class SettingsActivity extends Activity {
         TextView langBtn = text(lang.equals("ru") ? "RU" : "EN", 16, true);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
-        bg.setCornerRadius(dp(8));
-        bg.setColor(0x22888888);
+        bg.setCornerRadius(dp(12));
+        bg.setColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimaryContainer, 0x22888888));
         langBtn.setBackground(bg);
         langBtn.setPadding(dp(12), dp(6), dp(12), dp(6));
+        langBtn.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimaryContainer, 0xFF000000));
         langBtn.setOnClickListener(v -> {
             String nl = lang.equals("ru") ? "en" : "ru";
             prefs.edit().putString(KEY_LANG, nl).apply();
             recreate();
         });
         headerRow.addView(langBtn);
-
         root.addView(headerRow, lp(0));
 
         // Статус Root
@@ -125,14 +128,10 @@ public class SettingsActivity extends Activity {
         TextView statusText = text("", 14, true);
         if (hasRoot) {
             statusText.setText(t("Root: Выдан ✅", "Root: Granted ✅"));
-            TypedValue typedValue = new TypedValue();
-            getTheme().resolveAttribute(android.R.attr.colorAccent, typedValue, true);
-            int accentColor = typedValue.data;
-            if (accentColor == 0) accentColor = 0xFF4CAF50;
-            statusText.setTextColor(accentColor);
+            statusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFF4CAF50));
         } else {
             statusText.setText(t("Root: Нет доступа ❌", "Root: Denied ❌"));
-            statusText.setTextColor(0xFFF44336);
+            statusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
         }
         root.addView(statusText, lp(8));
 
@@ -155,8 +154,9 @@ public class SettingsActivity extends Activity {
         RadioGroup modes = new RadioGroup(this);
         modes.setOrientation(RadioGroup.VERTICAL);
         for (int i = 0; i < 3; i++) {
-            RadioButton rb = new RadioButton(this);
+            MaterialRadioButton rb = new MaterialRadioButton(this);
             rb.setText(labels[i]);
+            rb.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
             rb.setId(View.generateViewId());
             ids[i] = rb.getId();
             modes.addView(rb);
@@ -175,14 +175,14 @@ public class SettingsActivity extends Activity {
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
         // Кнопки
-        Button showShade = new Button(this);
+        MaterialButton showShade = new MaterialButton(this);
         showShade.setText(t("Показать шторку", "Show shade"));
         showShade.setOnClickListener(v -> new Thread(() -> {
             runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
         }).start());
         root.addView(showShade, lp(24));
 
-        Button restart = new Button(this);
+        MaterialButton restart = new MaterialButton(this);
         restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
         restart.setOnClickListener(v -> new Thread(() -> {
             runRoot("killall com.android.systemui || pkill -f com.android.systemui");
@@ -196,35 +196,42 @@ public class SettingsActivity extends Activity {
         setContentView(scroll);
     }
 
-    private SeekBar addSlider(LinearLayout root, String label, final String key) {
+    private Slider addSlider(LinearLayout root, String label, final String key) {
         final TextView value = text("", 16, false);
-        final SeekBar bar = new SeekBar(this);
-        bar.setMax(100);
+        final Slider slider = new Slider(this);
+        
+        slider.setValueFrom(0f);
+        slider.setValueTo(100f);
+        slider.setStepSize(1f);
+
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));
-        bar.setProgress(cur);
+        slider.setValue((float) cur);
         value.setText(cur + "%");
-        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+
+        slider.addOnChangeListener((s, v, fromUser) -> {
+            int p = (int) v;
+            value.setText(p + "%");
+            if (p < 20 && fromUser) {
+                value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
+                value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
+            } else {
+                value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
                 value.setText(p + "%");
-                if (p < 20 && fromUser) {
-                    value.setTextColor(0xFFF44336);
-                    value.setText(p + "% " + t("(текст нечитаем)", "(unreadable text)"));
-                } else {
-                    value.setTextColor(text("", 16, false).getCurrentTextColor());
-                    value.setText(p + "%");
-                }
             }
-            @Override
-            public void onStartTrackingTouch(SeekBar s) {}
-            @Override
-            public void onStopTrackingTouch(SeekBar s) { save(key, s.getProgress()); }
         });
+        
+        slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
+            @Override
+            public void onStartTrackingTouch(Slider slider) {}
+            @Override
+            public void onStopTrackingTouch(Slider slider) { save(key, (int) slider.getValue()); }
+        });
+
         root.addView(text(label, 16, true), lp(24));
         root.addView(value, lp(2));
-        root.addView(bar, lp(4));
-        return bar;
+        root.addView(slider, lp(4));
+        return slider;
     }
 
     private void save(final String key, final int p) {
@@ -288,11 +295,12 @@ public class SettingsActivity extends Activity {
 
         GradientDrawable ring = new GradientDrawable();
         ring.setShape(GradientDrawable.OVAL);
-        ring.setStroke(dp(1), help.getCurrentTextColor());
+        ring.setStroke(dp(1), MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
         help.setBackground(ring);
+        help.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
 
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(22), dp(22));
-        p.setMarginStart(dp(4));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(24), dp(24));
+        p.setMarginStart(dp(8));
         help.setLayoutParams(p);
         help.setOnClickListener(v -> showHelp(helpTitle, helpText));
         row.addView(help);
@@ -300,7 +308,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void showHelp(String title, String message) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(title)
                 .setMessage(message)
                 .setPositiveButton(t("Понятно", "Got it"), null)

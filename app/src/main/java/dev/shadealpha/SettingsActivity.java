@@ -39,7 +39,6 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Применяем динамические цвета (Monet)
         DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
         
@@ -201,9 +200,10 @@ public class SettingsActivity extends AppCompatActivity {
         
         slider.setValueFrom(0f);
         slider.setValueTo(100f);
-        slider.setStepSize(5f); // Шаг 5%
-        slider.setTickVisible(false); // Убираем точки
-        slider.setLabelBehavior(2); // Убираем всплывающую цифру над ползунком
+        slider.setStepSize(5f);
+        slider.setTickVisible(false); // Убираем деления
+        slider.setTrackStopIndicatorSize(0); // Убираем точку в конце
+        slider.setLabelBehavior(2); // Скрываем всплывающую цифру над ползунком
 
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));
@@ -301,7 +301,7 @@ public class SettingsActivity extends AppCompatActivity {
         help.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(24), dp(24));
-        p.setMarginStart(dp(8));
+        p.setMarginStart(dp(4)); // Придвинули ближе (было 8)
         help.setLayoutParams(p);
         help.setOnClickListener(v -> showHelp(helpTitle, helpText));
         row.addView(help);

@@ -2,12 +2,10 @@ package dev.shadealpha;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.TypedValue;
@@ -32,9 +30,7 @@ public class SettingsActivity extends Activity {
 
     private SharedPreferences prefs;
     private String lang;
-    private TextView permText;
     private TextView status;
-    private Button permButton;
     private SeekBar topBar;
     private SeekBar bottomBar;
 
@@ -50,7 +46,6 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        refreshPermission();
         syncToSystem();
     }
 
@@ -113,7 +108,7 @@ public class SettingsActivity extends Activity {
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
         bg.setCornerRadius(dp(8));
-        bg.setColor(0x22888888); // Полупрозрачный серый фон
+        bg.setColor(0x22888888);
         langBtn.setBackground(bg);
         langBtn.setPadding(dp(12), dp(6), dp(12), dp(6));
         langBtn.setOnClickListener(v -> {
@@ -133,7 +128,7 @@ public class SettingsActivity extends Activity {
             TypedValue typedValue = new TypedValue();
             getTheme().resolveAttribute(android.R.attr.colorAccent, typedValue, true);
             int accentColor = typedValue.data;
-            if (accentColor == 0) accentColor = 0xFF4CAF50; // Fallback зеленый
+            if (accentColor == 0) accentColor = 0xFF4CAF50;
             statusText.setTextColor(accentColor);
         } else {
             statusText.setText(t("Root: Нет доступа ❌", "Root: Denied ❌"));
@@ -198,15 +193,6 @@ public class SettingsActivity extends Activity {
         status = text("", 14, false);
         root.addView(status, lp(12));
 
-        // Разрешение
-        permText = text("", 13, false);
-        permButton = new Button(this);
-        permButton.setOnClickListener(v -> startActivity(new Intent(
-                Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                Uri.parse("package:" + getPackageName()))));
-        root.addView(permText, lp(24));
-        root.addView(permButton, lp(4));
-
         setContentView(scroll);
     }
 
@@ -248,7 +234,7 @@ public class SettingsActivity extends Activity {
             final String shown = Keys.MODE.equals(key) ? t("режим ", "mode ") + (p + 1) : p + "%";
             runOnUiThread(() -> status.setText(ok
                     ? t("Сохранено: ", "Saved: ") + shown
-                    : t("Ошибка записи. Выдайте разрешение или root.", "Write error. Grant permission or root.")));
+                    : t("Ошибка записи. Проверьте root.", "Write error. Check root.")));
         }).start();
     }
 
@@ -271,12 +257,6 @@ public class SettingsActivity extends Activity {
     }
 
     private boolean writeSetting(String key, int p) {
-        try {
-            if (Settings.System.canWrite(this)) {
-                Settings.System.putInt(getContentResolver(), key, p);
-                if (readSystem(key, -1) == p) return true;
-            }
-        } catch (Throwable ignored) {}
         runRoot("settings put system " + key + " " + p);
         return readSystem(key, -1) == p;
     }
@@ -291,16 +271,6 @@ public class SettingsActivity extends Activity {
                 pr.waitFor();
             } catch (Throwable ignored) {}
         }
-    }
-
-    private void refreshPermission() {
-        if (permText == null) return;
-        boolean ok = Settings.System.canWrite(this);
-        permText.setText(ok
-                ? t("Разрешение на изменение системных настроек выдано.", "Permission to modify system settings is granted.")
-                : t("Для работы без root нужно разрешение «Изменение системных настроек».", "Without root, the app needs the \"Modify system settings\" permission."));
-        permButton.setText(t("Выдать разрешение", "Grant permission"));
-        permButton.setVisibility(ok ? View.GONE : View.VISIBLE);
     }
 
     private LinearLayout headerWithHelp(String title, final String helpTitle, final String helpText) {

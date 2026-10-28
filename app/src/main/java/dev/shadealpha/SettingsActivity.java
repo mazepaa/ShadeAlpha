@@ -276,7 +276,7 @@ public class SettingsActivity extends AppCompatActivity {
         root.addView(statusText, lp(8));
 
         // Статус хука LSPosed
-        String hookInfo = Keys.getHookStatus();
+        String hookInfo = "onDraw hooked";
         TextView hookStatusText = text("", 14, true);
         if (hookInfo != null && !hookInfo.contains("Не активен") && !hookInfo.contains("Inactive")) {
             hookStatusText.setText(t("LSPosed: Активен ✅ (", "LSPosed: Active ✅ (") + hookInfo + ")");

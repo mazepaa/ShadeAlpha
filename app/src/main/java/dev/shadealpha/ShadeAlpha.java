@@ -2,6 +2,7 @@ package dev.shadealpha;
 
 import android.content.Context;
 import android.database.ContentObserver;
+import android.graphics.Canvas;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -28,7 +29,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static boolean disabled = false;
     private static boolean observerRegistered = false;
 
-    private static int valTop = 100, valBottom = 100, valMode = 1;
+    private static int valTop = 100, valBottom = 100, valMode = 0; // По умолчанию 0 (Слой)
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
@@ -39,14 +40,12 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             });
             XposedHelpers.findAndHookMethod("dev.shadealpha.Keys", lpparam.classLoader, "getHookStatus", new XC_MethodReplacement() {
                 @Override
-                protected Object replaceHookedMethod(MethodHookParam param) { return "ScrimView.onDraw hooked"; }
+                protected Object replaceHookedMethod(MethodHookParam param) { return "onDraw hooked"; }
             });
             return;
         }
 
         if (!lpparam.packageName.equals("com.android.systemui")) return;
-
-        XposedBridge.log(TAG + ": SystemUI loaded, hooking started");
 
         try {
             XposedHelpers.findAndHookMethod("com.android.systemui.scrim.ScrimView", lpparam.classLoader, "onDraw", new XC_MethodHook() {
@@ -70,19 +69,48 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
                         float alpha = (role == ROLE_TOP ? valTop : valBottom) / 100f;
 
+                        // Режим 0: saveLayerAlpha (Рабочий)
                         if (valMode == 0) {
-                            param.setObjectExtra("sa_alpha", alpha);
-                        } else if (valMode == 1) {
+                            if (alpha < 0.999f) {
+                                Canvas canvas = (Canvas) XposedHelpers.getObjectField(param.args[0], "mCanvas"); // На случай если canvas в args
+                                // Если canvas не в args, используем стандартный getfield
+                                if (canvas == null && param.args.length > 0 && param.args[0] instanceof Canvas) {
+                                    canvas = (Canvas) param.args[0];
+                                }
+                                if (canvas != null) {
+                                    int sc = canvas.saveLayerAlpha(0, 0, view.getWidth(), view.getHeight(), (int) (alpha * 255));
+                                    param.setObjectExtra("sa_sc", sc);
+                                    param.setObjectExtra("sa_canvas", canvas);
+                                }
+                            }
+                        } 
+                        // Режим 1: View Alpha
+                        else if (valMode == 1) {
                             if (view.getAlpha() != alpha) view.setAlpha(alpha);
-                        } else if (valMode == 2) {
+                        } 
+                        // Режим 2: Scrim Alpha
+                        else if (valMode == 2) {
                             try { XposedHelpers.callMethod(view, "setViewAlpha", alpha); } catch (Throwable ignored) {}
                         }
                     } catch (Throwable t) {
                         handleError(t);
                     }
                 }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    if (disabled || valMode != 0) return;
+                    try {
+                        Integer sc = (Integer) param.getObjectExtra("sa_sc");
+                        Canvas canvas = (Canvas) param.getObjectExtra("sa_canvas");
+                        if (sc != null && canvas != null) {
+                            canvas.restoreToCount(sc);
+                        }
+                    } catch (Throwable t) {
+                        handleError(t);
+                    }
+                }
             });
-            XposedBridge.log(TAG + ": hooked onDraw, methods=1");
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": Hook failed: " + t.getMessage());
         }
@@ -102,7 +130,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             ctx.getContentResolver().registerContentObserver(Settings.System.getUriFor(Keys.MODE), false, observer);
             updateValues(ctx);
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": Failed to register observer: " + t.getMessage());
+            XposedBridge.log(TAG + ": Observer failed: " + t.getMessage());
         }
     }
 
@@ -110,7 +138,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try {
             int newTop = Settings.System.getInt(ctx.getContentResolver(), Keys.TOP, 100);
             int newBottom = Settings.System.getInt(ctx.getContentResolver(), Keys.BOTTOM, 100);
-            int newMode = Settings.System.getInt(ctx.getContentResolver(), Keys.MODE, 1);
+            int newMode = Settings.System.getInt(ctx.getContentResolver(), Keys.MODE, 0); // 0 = Слой
 
             boolean changed = (newTop != valTop || newBottom != valBottom || newMode != valMode);
             valTop = newTop; valBottom = newBottom; valMode = newMode;
@@ -123,7 +151,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 }
             }
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": Failed to read settings: " + t.getMessage());
+            XposedBridge.log(TAG + ": Read failed: " + t.getMessage());
         }
     }
 

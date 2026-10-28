@@ -121,7 +121,7 @@ public class SettingsActivity extends AppCompatActivity {
         root.setOrientation(LinearLayout.VERTICAL);
         
         // Уменьшили верхний отступ с 56 до 50dp (чуть ниже)
-        root.setPadding(dp(24), dp(40), dp(24), dp(32));
+        root.setPadding(dp(24), dp(35), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         
         root.setClipChildren(false);

@@ -12,6 +12,10 @@ public abstract class XC_MethodHook {
         public Object getObjectExtra(String key) { return extra; }
     }
 
+    public static class Unhook {
+        // Пустой класс-заглушка для компиляции
+    }
+
     protected void beforeHookedMethod(MethodHookParam param) throws Throwable {}
     protected void afterHookedMethod(MethodHookParam param) throws Throwable {}
 }

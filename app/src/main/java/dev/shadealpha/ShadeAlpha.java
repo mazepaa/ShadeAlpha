@@ -71,17 +71,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
                         // Режим 0: saveLayerAlpha (Рабочий)
                         if (valMode == 0) {
-                            if (alpha < 0.999f) {
-                                Canvas canvas = (Canvas) XposedHelpers.getObjectField(param.args[0], "mCanvas"); // На случай если canvas в args
-                                // Если canvas не в args, используем стандартный getfield
-                                if (canvas == null && param.args.length > 0 && param.args[0] instanceof Canvas) {
-                                    canvas = (Canvas) param.args[0];
-                                }
-                                if (canvas != null) {
-                                    int sc = canvas.saveLayerAlpha(0, 0, view.getWidth(), view.getHeight(), (int) (alpha * 255));
-                                    param.setObjectExtra("sa_sc", sc);
-                                    param.setObjectExtra("sa_canvas", canvas);
-                                }
+                            if (alpha < 0.999f && param.args != null && param.args.length > 0 && param.args[0] instanceof Canvas) {
+                                Canvas canvas = (Canvas) param.args[0];
+                                int sc = canvas.saveLayerAlpha(0, 0, view.getWidth(), view.getHeight(), (int) (alpha * 255));
+                                param.setObjectExtra("sa_sc", sc);
+                                param.setObjectExtra("sa_canvas", canvas);
                             }
                         } 
                         // Режим 1: View Alpha

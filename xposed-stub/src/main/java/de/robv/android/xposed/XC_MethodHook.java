@@ -3,6 +3,7 @@ package de.robv.android.xposed;
 public abstract class XC_MethodHook {
     public static class MethodHookParam {
         public Object thisObject;
+        public Object[] args; // <--- ДОБАВЛЕНО
         private Object result;
         private Object extra;
 
@@ -12,9 +13,7 @@ public abstract class XC_MethodHook {
         public Object getObjectExtra(String key) { return extra; }
     }
 
-    public static class Unhook {
-        // Пустой класс-заглушка для компиляции
-    }
+    public static class Unhook {}
 
     protected void beforeHookedMethod(MethodHookParam param) throws Throwable {}
     protected void afterHookedMethod(MethodHookParam param) throws Throwable {}

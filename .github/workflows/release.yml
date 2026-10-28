@@ -54,7 +54,7 @@ jobs:
             echo "::error::Не заданы секреты KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD"
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/shadealpha-release.jks"
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$GITHUB_WORKSPACE/shadealpha-release.jks"
           {
             echo "storeFile=$GITHUB_WORKSPACE/shadealpha-release.jks"
             echo "storePassword=$KEYSTORE_PASSWORD"

@@ -27,6 +27,12 @@ jobs:
         run: |
           # tr -d убирает любые пробелы и переносы строк, которые могли затесаться
           echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$GITHUB_WORKSPACE/shadealpha-release.jks"
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/shadealpha-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
 
       - name: Build release APK
         run: gradle :app:assembleRelease --no-daemon

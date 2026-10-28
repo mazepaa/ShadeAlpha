@@ -29,7 +29,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static boolean disabled = false;
     private static boolean observerRegistered = false;
 
-    private static int valTop = 100, valBottom = 100, valMode = 0; // По умолчанию 0 (Слой)
+    private static int valTop = 100, valBottom = 100, valMode = 0; // По умолчанию Режим 0 (Слой)
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
@@ -69,9 +69,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
                         float alpha = (role == ROLE_TOP ? valTop : valBottom) / 100f;
 
-                        // Режим 0: saveLayerAlpha (Рабочий)
+                        // Режим 0: saveLayerAlpha (Классический и рабочий)
                         if (valMode == 0) {
-                            if (alpha < 0.999f && param.args != null && param.args.length > 0 && param.args[0] instanceof Canvas) {
+                            if (alpha < 0.999f && param.args.length > 0 && param.args[0] instanceof Canvas) {
                                 Canvas canvas = (Canvas) param.args[0];
                                 int sc = canvas.saveLayerAlpha(0, 0, view.getWidth(), view.getHeight(), (int) (alpha * 255));
                                 param.setObjectExtra("sa_sc", sc);
@@ -132,7 +132,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try {
             int newTop = Settings.System.getInt(ctx.getContentResolver(), Keys.TOP, 100);
             int newBottom = Settings.System.getInt(ctx.getContentResolver(), Keys.BOTTOM, 100);
-            int newMode = Settings.System.getInt(ctx.getContentResolver(), Keys.MODE, 0); // 0 = Слой
+            int newMode = Settings.System.getInt(ctx.getContentResolver(), Keys.MODE, 0);
 
             boolean changed = (newTop != valTop || newBottom != valBottom || newMode != valMode);
             valTop = newTop; valBottom = newBottom; valMode = newMode;

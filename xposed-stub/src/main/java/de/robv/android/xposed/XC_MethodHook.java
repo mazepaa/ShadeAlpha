@@ -1,33 +1,17 @@
 package de.robv.android.xposed;
 
-import de.robv.android.xposed.callbacks.XCallback;
-
-public abstract class XC_MethodHook extends XCallback {
-
-    public XC_MethodHook() {
-    }
-
-    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-    }
-
-    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-    }
-
-    public static class MethodHookParam extends XCallback.Param {
-        public java.lang.reflect.Member method;
+public abstract class XC_MethodHook {
+    public static class MethodHookParam {
         public Object thisObject;
-        public Object[] args;
+        private Object result;
+        private Object extra;
 
-        public Object getResult() {
-            return null;
-        }
-
-        public void setResult(Object result) {
-        }
+        public Object getResult() { return result; }
+        public void setResult(Object result) { this.result = result; }
+        public void setObjectExtra(String key, Object value) { this.extra = value; }
+        public Object getObjectExtra(String key) { return extra; }
     }
 
-    public class Unhook {
-        public void unhook() {
-        }
-    }
+    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {}
+    protected void afterHookedMethod(MethodHookParam param) throws Throwable {}
 }

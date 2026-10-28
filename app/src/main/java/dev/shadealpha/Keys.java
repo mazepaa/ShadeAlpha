@@ -10,15 +10,10 @@ public class Keys {
     public static final int MODE_SCRIM_ALPHA = 2;
 
     public static boolean isModuleActive() {
-        try {
-            Class.forName("de.robv.android.xposed.XposedBridge", false, Thread.currentThread().getContextClassLoader());
-            return true;
-        } catch (Throwable e) {
-            return false;
-        }
+        return false;
     }
 
     public static String getHookStatus() {
-        return isModuleActive() ? "Активен: ScrimView.onDraw" : "Модуль не активен";
+        return "Не активен";
     }
 }

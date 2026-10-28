@@ -275,6 +275,18 @@ public class SettingsActivity extends AppCompatActivity {
         }
         root.addView(statusText, lp(8));
 
+        // Статус хука LSPosed
+        String hookInfo = Keys.getHookStatus();
+        TextView hookStatusText = text("", 14, true);
+        if (hookInfo != null && !hookInfo.contains("Не активен") && !hookInfo.contains("Inactive")) {
+            hookStatusText.setText(t("LSPosed: Активен ✅ (", "LSPosed: Active ✅ (") + hookInfo + ")");
+            hookStatusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFF4CAF50));
+        } else {
+            hookStatusText.setText(t("LSPosed: Не активен ❌", "LSPosed: Inactive ❌"));
+            hookStatusText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
+        }
+        root.addView(hookStatusText, lp(4));
+
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
 

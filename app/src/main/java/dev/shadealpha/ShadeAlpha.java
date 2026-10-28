@@ -1,221 +1,151 @@
 package dev.shadealpha;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.os.SystemClock;
+import android.database.ContentObserver;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.View;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
-/**
- * ТЕСТОВАЯ сборка: три способа сделать скрим прозрачнее, переключаются на лету через
- * Settings.System["shade_alpha_mode"]:
- *   0 = слой: ScrimView.onDraw рисуется в saveLayerAlpha (два прохода, как в 1.0)
- *   1 = альфа view: View.setAlpha(f) у самого скрима (один проход, если hasOverlappingRendering=false)
- *   2 = альфа скрима: умножение аргумента ScrimView.setViewAlpha (как «снижение альфы цвета» в Iconify)
- * Верх -> scrim_behind, низ -> scrim_notifications. 100 = как в системе.
- */
 public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private static final String TAG = "ShadeAlpha";
-    private static final String EXTRA = "shadealpha_save";
+    private static final WeakHashMap<View, Boolean> activeScrims = new WeakHashMap<>();
+    private static final Object lock = new Object();
 
-    private static final String[] SCRIM_CLASSES = {
-            "com.android.systemui.scrim.ScrimView",
-            "com.android.systemui.statusbar.ScrimView"
-    };
+    private static final int ROLE_NONE = 0, ROLE_TOP = 1, ROLE_BOTTOM = 2;
+    private static int failures = 0;
+    private static boolean disabled = false;
+    private static boolean observerRegistered = false;
 
-    private static final ConcurrentHashMap<Integer, String> NAMES = new ConcurrentHashMap<>();
-    private static final Set<String> SEEN = new HashSet<>();
-    private static final Set<View> ALPHA_SET =
-            Collections.newSetFromMap(new WeakHashMap<View, Boolean>());
-
-    private static volatile float fTop = 1f;
-    private static volatile float fBottom = 1f;
-    private static volatile int mode = Keys.MODE_VIEW_ALPHA;
-    private static volatile long lastRead = 0;
+    private static int valTop = 100, valBottom = 100, valMode = 1;
 
     @Override
-    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
-        if (!"com.android.systemui".equals(lpparam.packageName)) return;
-        XposedBridge.log(TAG + ": SystemUI loaded, process=" + lpparam.processName);
-
-        Class<?> scrim = null;
-        for (String name : SCRIM_CLASSES) {
-            scrim = XposedHelpers.findClassIfExists(name, lpparam.classLoader);
-            if (scrim != null) break;
-        }
-        if (scrim == null) {
-            XposedBridge.log(TAG + ": ScrimView class not found");
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+        if (lpparam.packageName.equals("dev.shadealpha")) {
+            XposedHelpers.findAndHookMethod("dev.shadealpha.Keys", lpparam.classLoader, "isModuleActive", new XC_MethodReplacement() {
+                @Override
+                protected Object replaceHookedMethod(MethodHookParam param) { return true; }
+            });
+            XposedHelpers.findAndHookMethod("dev.shadealpha.Keys", lpparam.classLoader, "getHookStatus", new XC_MethodReplacement() {
+                @Override
+                protected Object replaceHookedMethod(MethodHookParam param) { return "ScrimView.onDraw hooked"; }
+            });
             return;
         }
-        XposedBridge.log(TAG + ": found " + scrim.getName());
+
+        if (!lpparam.packageName.equals("com.android.systemui")) return;
+
+        XposedBridge.log(TAG + ": SystemUI loaded, hooking started");
 
         try {
-            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(
-                    scrim, "onDraw", new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            try {
-                                if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
-                                View v = (View) param.thisObject;
-                                String id = idName(v);
-                                boolean top = "scrim_behind".equals(id);
-                                boolean bottom = "scrim_notifications".equals(id);
-                                if (!top && !bottom) {
-                                    logOnce("draw:" + id, -1f);
-                                    return;
-                                }
-                                float f = factor(v.getContext(), top);
-                                logOnce("draw:" + id, f);
-                                if (mode == Keys.MODE_VIEW_ALPHA) {
-                                    applyViewAlpha(v, f);
-                                } else {
-                                    resetViewAlpha(v);
-                                    if (mode == Keys.MODE_LAYER && f < 0.999f) {
-                                        Canvas c = (Canvas) param.args[0];
-                                        int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(),
-                                                Math.round(255 * f));
-                                        param.setObjectExtra(EXTRA, Integer.valueOf(count));
-                                    }
-                                }
-                            } catch (Throwable t) {
-                                XposedBridge.log(TAG + ": before onDraw failed: " + t);
+            XposedHelpers.findAndHookMethod("com.android.systemui.scrim.ScrimView", lpparam.classLoader, "onDraw", new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    if (disabled) return;
+                    try {
+                        View view = (View) param.thisObject;
+                        if (!observerRegistered) {
+                            Context ctx = view.getContext();
+                            if (ctx != null) {
+                                registerObserver(ctx);
+                                observerRegistered = true;
                             }
                         }
 
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            try {
-                                Object o = param.getObjectExtra(EXTRA);
-                                if (o instanceof Integer) {
-                                    ((Canvas) param.args[0]).restoreToCount((Integer) o);
-                                }
-                            } catch (Throwable t) {
-                                XposedBridge.log(TAG + ": after onDraw failed: " + t);
-                            }
+                        int role = getRole(view);
+                        if (role == ROLE_NONE) return;
+
+                        synchronized (lock) { activeScrims.put(view, true); }
+
+                        float alpha = (role == ROLE_TOP ? valTop : valBottom) / 100f;
+
+                        if (valMode == 0) {
+                            param.setObjectExtra("sa_alpha", alpha);
+                        } else if (valMode == 1) {
+                            if (view.getAlpha() != alpha) view.setAlpha(alpha);
+                        } else if (valMode == 2) {
+                            try { XposedHelpers.callMethod(view, "setViewAlpha", alpha); } catch (Throwable ignored) {}
                         }
-                    });
-            XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
+                    } catch (Throwable t) {
+                        handleError(t);
+                    }
+                }
+            });
+            XposedBridge.log(TAG + ": hooked onDraw, methods=1");
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": onDraw hook failed: " + t);
+            XposedBridge.log(TAG + ": Hook failed: " + t.getMessage());
         }
+    }
 
+    private static void registerObserver(Context ctx) {
         try {
-            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(
-                    scrim, "setViewAlpha", new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            try {
-                                if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
-                                View v = (View) param.thisObject;
-                                String id = idName(v);
-                                boolean top = "scrim_behind".equals(id);
-                                boolean bottom = "scrim_notifications".equals(id);
-                                if (!top && !bottom) return;
-                                float a = (Float) param.args[0];
-                                // если эта строка появилась в журнале, метод НЕ встроен и режим 2 может работать
-                                logOnce("setViewAlpha:" + id, a);
-                                float f = factor(v.getContext(), top);
-                                if (mode == Keys.MODE_SCRIM_ALPHA) {
-                                    param.args[0] = a * f;
-                                }
-                            } catch (Throwable t) {
-                                XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t);
-                            }
-                        }
-                    });
-            XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
+            ContentObserver observer = new ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange, Uri uri) {
+                    super.onChange(selfChange, uri);
+                    updateValues(ctx);
+                }
+            };
+            ctx.getContentResolver().registerContentObserver(Settings.System.getUriFor(Keys.TOP), false, observer);
+            ctx.getContentResolver().registerContentObserver(Settings.System.getUriFor(Keys.BOTTOM), false, observer);
+            ctx.getContentResolver().registerContentObserver(Settings.System.getUriFor(Keys.MODE), false, observer);
+            updateValues(ctx);
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t);
+            XposedBridge.log(TAG + ": Failed to register observer: " + t.getMessage());
         }
     }
 
-    private static void applyViewAlpha(View v, float f) {
-        if (f >= 0.999f) {
-            resetViewAlpha(v);
-            return;
-        }
-        if (Math.abs(v.getAlpha() - f) > 0.001f) v.setAlpha(f);
-        synchronized (ALPHA_SET) {
-            ALPHA_SET.add(v);
-        }
-    }
-
-    private static void resetViewAlpha(View v) {
-        boolean had;
-        synchronized (ALPHA_SET) {
-            had = ALPHA_SET.remove(v);
-        }
-        if (had && v.getAlpha() != 1f) v.setAlpha(1f);
-    }
-
-    private static String idName(View v) {
-        int id = v.getId();
-        if (id == View.NO_ID) return "(no-id)";
-        String n = NAMES.get(id);
-        if (n == null) {
-            try {
-                n = v.getResources().getResourceEntryName(id);
-            } catch (Throwable t) {
-                n = "(unknown)";
-            }
-            NAMES.put(id, n);
-        }
-        return n;
-    }
-
-    private static void logOnce(String key, float value) {
-        synchronized (SEEN) {
-            if (SEEN.add(key)) {
-                XposedBridge.log(TAG + ": first " + key + " value=" + value);
-            }
-        }
-    }
-
-    private static float factor(Context c, boolean top) {
-        long now = SystemClock.uptimeMillis();
-        if (now - lastRead > 500) {
-            lastRead = now;
-            float nt = read(c, Keys.TOP);
-            float nb = read(c, Keys.BOTTOM);
-            int nm = readMode(c);
-            if (nt != fTop || nb != fBottom || nm != mode) {
-                XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb + " mode=" + nm);
-            }
-            fTop = nt;
-            fBottom = nb;
-            mode = nm;
-        }
-        return top ? fTop : fBottom;
-    }
-
-    private static float read(Context c, String key) {
+    private static void updateValues(Context ctx) {
         try {
-            int p = Settings.System.getInt(c.getContentResolver(), key, 100);
-            return Math.max(0, Math.min(100, p)) / 100f;
-        } catch (Throwable e) {
-            return 1f;
+            int newTop = Settings.System.getInt(ctx.getContentResolver(), Keys.TOP, 100);
+            int newBottom = Settings.System.getInt(ctx.getContentResolver(), Keys.BOTTOM, 100);
+            int newMode = Settings.System.getInt(ctx.getContentResolver(), Keys.MODE, 1);
+
+            boolean changed = (newTop != valTop || newBottom != valBottom || newMode != valMode);
+            valTop = newTop; valBottom = newBottom; valMode = newMode;
+
+            if (changed) {
+                synchronized (lock) {
+                    for (View v : activeScrims.keySet()) {
+                        if (v != null) v.post(v::invalidate);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": Failed to read settings: " + t.getMessage());
         }
     }
 
-    private static int readMode(Context c) {
+    private static int getRole(View v) {
+        Object r = XposedHelpers.getAdditionalInstanceField(v, "sa_role");
+        if (r != null) return (Integer) r;
+        String idName = "unknown";
         try {
-            int m = Settings.System.getInt(c.getContentResolver(), Keys.MODE, Keys.MODE_VIEW_ALPHA);
-            return Math.max(0, Math.min(2, m));
-        } catch (Throwable e) {
-            return Keys.MODE_VIEW_ALPHA;
+            int id = v.getId();
+            if (id != View.NO_ID) idName = v.getResources().getResourceEntryName(id);
+        } catch (Throwable ignored) {}
+        int role = ROLE_NONE;
+        if ("scrim_behind".equals(idName)) role = ROLE_TOP;
+        else if ("scrim_notifications".equals(idName)) role = ROLE_BOTTOM;
+        XposedHelpers.setAdditionalInstanceField(v, "sa_role", role);
+        return role;
+    }
+
+    private static void handleError(Throwable t) {
+        if (++failures > 20) {
+            disabled = true;
+            XposedBridge.log(TAG + ": Too many errors, hook disabled! Last error: " + t.getMessage());
         }
     }
 }

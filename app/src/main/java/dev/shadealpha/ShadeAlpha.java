@@ -1,12 +1,12 @@
 package dev.shadealpha;
 
-import android.app.AndroidAppHelper;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.View;
 
+import java.lang.reflect.Method;
 import java.util.Set;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -133,7 +133,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
-                        Context ctx = AndroidAppHelper.currentApplication();
+                        Context ctx = getContext();
                         if (ctx == null) return;
 
                         int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.RECENTS, 100);
@@ -160,22 +160,32 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 
+    private static Context getContext() {
+        try {
+            Class<?> atClass = Class.forName("android.app.ActivityThread");
+            Method currentMethod = atClass.getMethod("currentActivityThread");
+            Object at = currentMethod.invoke(null);
+            Method getAppMethod = atClass.getMethod("getApplication");
+            return (Context) getAppMethod.invoke(at);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private static Object rebuildScrimColors(Object result, int alpha) {
         try {
             Class<?> cls = result.getClass();
             int bg = -1, fg = -1;
             boolean found = false;
 
-            // Попытка через методы getBackgroundColor/getForegroundColor
             try {
-                java.lang.reflect.Method getBg = cls.getMethod("getBackgroundColor");
-                java.lang.reflect.Method getFg = cls.getMethod("getForegroundColor");
+                Method getBg = cls.getMethod("getBackgroundColor");
+                Method getFg = cls.getMethod("getForegroundColor");
                 bg = (int) getBg.invoke(result);
                 fg = (int) getFg.invoke(result);
                 found = true;
             } catch (Throwable ignored) {}
 
-            // Fallback: через поля
             if (!found) {
                 try {
                     java.lang.reflect.Field fBg = cls.getDeclaredField("backgroundColor");

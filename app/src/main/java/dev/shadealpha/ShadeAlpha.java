@@ -219,4 +219,43 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             return Keys.MODE_VIEW_ALPHA;
         }
     }
-}
+
+        // === Hooks for Pixel Launcher ===
+        if (lpparam.packageName.equals("com.google.android.apps.nexuslauncher") || lpparam.packageName.equals("com.android.launcher3")) {
+            XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
+            
+            try {
+                XposedHelpers.findAndHookMethod("com.android.quickstep.views.RecentsView", lpparam.classLoader, "setStableAlpha", float.class, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        try {
+                            float originalAlpha = (float) param.args[0];
+                            View view = (View) param.thisObject;
+                            float recentsPercent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.RECENTS, 100) / 100f;
+                            param.args[0] = originalAlpha * recentsPercent;
+                        } catch (Throwable t) { XposedBridge.log(TAG + ": Recents alpha error: " + t); }
+                    }
+                });
+                XposedBridge.log(TAG + ": hooked RecentsView.setStableAlpha");
+            } catch (Throwable t) {
+                XposedBridge.log(TAG + ": Recents hook failed: " + t);
+            }
+            
+            try {
+                XposedHelpers.findAndHookMethod("com.android.launcher3.allapps.AllAppsContainerView", lpparam.classLoader, "updateBackground", int.class, int.class, int.class, int.class, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        try {
+                            View view = (View) param.thisObject;
+                            float drawerPercent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.APPDRAWER, 100) / 100f;
+                            if (view.getBackground() != null) {
+                                view.getBackground().setAlpha((int) (255 * drawerPercent));
+                            }
+                        } catch (Throwable t) { XposedBridge.log(TAG + ": AppDrawer alpha error: " + t); }
+                    }
+                });
+                XposedBridge.log(TAG + ": hooked AllAppsContainerView.updateBackground");
+            } catch (Throwable t) {
+                XposedBridge.log(TAG + ": AppDrawer hook failed: " + t);
+            }
+        }}

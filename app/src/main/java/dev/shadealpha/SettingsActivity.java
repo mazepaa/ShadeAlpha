@@ -279,6 +279,8 @@ public class SettingsActivity extends AppCompatActivity {
 
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
+        addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
+        addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);
 
         root.addView(headerWithHelp(
                 t("Режим отрисовки", "Rendering mode"),

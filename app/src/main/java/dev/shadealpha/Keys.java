@@ -2,7 +2,7 @@ package dev.shadealpha;
 
 public class Keys {
     public static final String TOP = "shade_alpha_top_percent";
-    public static final String BOTTOM = "shade_alpha_bottom_percent";
+    public static final String BOTTOM = "shade_alpha_bottom_percent";`n    public static final String RECENTS = "shade_alpha_recents_percent";`n    public static final String APPDRAWER = "shade_alpha_appdrawer_percent";
     public static final String MODE = "shade_alpha_mode";
 
     // Возвращаем константы, которые нужны для интерфейса

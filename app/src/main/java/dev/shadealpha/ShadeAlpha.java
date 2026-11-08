@@ -127,29 +127,33 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private void hookLauncher(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
 
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor");
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor");
-        hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor");
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor");
+        // Recents
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor", Keys.RECENTS);
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor", Keys.RECENTS);
+        hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor", Keys.RECENTS);
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor", Keys.RECENTS);
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", Keys.RECENTS); // fallback
+
+        // App Drawer
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", Keys.APPDRAWER);
+        
+        hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.ActivityAllAppsContainerView");
+        hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.BaseAllAppsContainerView");
+        hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.AllAppsContainerView");
     }
 
-    private static void hookLauncherScrim(ClassLoader cl, String className, String methodName) {
+    private static void hookLauncherScrim(ClassLoader cl, String className, String methodName, final String key) {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
-            if (cls == null) {
-                XposedBridge.log(TAG + ": class not found - " + className);
-                return;
-            }
+            if (cls == null) return;
+
             XposedBridge.hookAllMethods(cls, methodName, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
                         Context ctx = (Context) AndroidAppHelper.currentApplication();
-                        if (ctx == null) {
-                            XposedBridge.log(TAG + ": no context in launcher");
-                            return;
-                        }
-                        int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.RECENTS, 100);
+                        if (ctx == null) return;
+                        int opacity = Settings.System.getInt(ctx.getContentResolver(), key, 100);
                         if (opacity >= 100 || opacity < 0) return;
                         int alpha = opacity * 255 / 100;
                         Object result = param.getResult();
@@ -168,6 +172,35 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": failed to hook " + className + " - " + t);
         }
+    }
+
+    private static void hookAllAppsView(ClassLoader cl, String className) {
+        try {
+            Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
+            if (cls == null) return;
+            
+            String[] methods = {"getBackgroundColor", "getScrimColor", "getHeaderColor", "getBottomSheetBackgroundColor"};
+            for (String m : methods) {
+                XposedBridge.hookAllMethods(cls, m, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        try {
+                            Context ctx = (Context) AndroidAppHelper.currentApplication();
+                            if (ctx == null) return;
+                            int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.APPDRAWER, 100);
+                            if (opacity >= 100 || opacity < 0) return;
+                            int alpha = opacity * 255 / 100;
+                            Object result = param.getResult();
+                            if (result instanceof Integer) {
+                                int color = (Integer) result;
+                                param.setResult((color & 0x00FFFFFF) | (alpha << 24));
+                            }
+                        } catch (Throwable t) {}
+                    }
+                });
+            }
+            XposedBridge.log(TAG + ": hooked " + className + " colors");
+        } catch (Throwable t) {}
     }
 
     private static Object rebuildScrimColors(Object result, int alpha) {

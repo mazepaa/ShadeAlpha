@@ -54,7 +54,6 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
-        
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String def = "ru".equals(Locale.getDefault().getLanguage()) ? "ru" : "en";
         lang = prefs.getString(KEY_LANG, def);
@@ -81,6 +80,14 @@ public class SettingsActivity extends AppCompatActivity {
         tv.setTextSize(sp);
         if (bold) tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
         tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
+        return tv;
+    }
+
+    private TextView sectionHeader(String s) {
+        TextView tv = text(s, 13, true);
+        tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFF4CAF50));
+        tv.setAllCaps(true);
+        tv.setLetterSpacing(0.08f);
         return tv;
     }
 
@@ -119,18 +126,14 @@ public class SettingsActivity extends AppCompatActivity {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        
-        // Уменьшили верхний отступ с 56 до 50dp (чуть ниже)
         root.setPadding(dp(24), dp(35), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        
         root.setClipChildren(false);
         root.setClipToPadding(false);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
-        
         icon.setOnClickListener(v -> {
             v.animate().cancel();
             v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -144,7 +147,11 @@ public class SettingsActivity extends AppCompatActivity {
         title.setPadding(0, dp(16), 0, dp(4));
         root.addView(title);
 
-        String ver = "";`n        try { ver = "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Throwable ignored) { }`n        TextView version = text(ver, 14, false);
+        String ver = "";
+        try {
+            ver = "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Throwable ignored) { }
+        TextView version = text(ver, 14, false);
         version.setTextColor(Color.GRAY);
         root.addView(version);
 
@@ -185,27 +192,23 @@ public class SettingsActivity extends AppCompatActivity {
         devCard.addView(devLayout);
 
         addPressPhysics(devCard);
-        devCard.setOnClickListener(v -> {
-            Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show();
-        });
+        devCard.setOnClickListener(v -> Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show());
 
         root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView desc = text(t(
-            "Модуль для LSPosed, делающий шторку уведомлений полупрозрачной.",
-            "LSPosed module making the notification shade translucent."), 14, false);
+            "Модуль для LSPosed: полупрозрачная шторка уведомлений, недавние приложения и список приложений в Pixel Launcher.",
+            "LSPosed module: translucent notification shade, recents and app drawer in Pixel Launcher."), 14, false);
         desc.setPadding(0, dp(24), 0, 0);
         desc.setGravity(Gravity.CENTER);
         root.addView(desc);
 
         dialog.setContentView(root);
-        
         ViewGroup bottomSheet = (ViewGroup) dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bottomSheet != null) {
             bottomSheet.setClipChildren(false);
             bottomSheet.setClipToPadding(false);
         }
-        
         dialog.show();
     }
 
@@ -274,22 +277,29 @@ public class SettingsActivity extends AppCompatActivity {
             statusText.performHapticFeedback(HapticFeedbackConstants.REJECT);
         }
         root.addView(statusText, lp(8));
+
         TextView moduleText = text("", 14, true);
         if (Keys.isModuleActive()) {
             moduleText.setText(t("Модуль: Активен ✅", "Module: Active ✅"));
             moduleText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFF4CAF50));
         } else {
-            moduleText.setText(t("Модуль: Не активен ❌ (включи в LSPosed и добавь ShadeAlpha в область)", "Module: Inactive ❌ (enable it in LSPosed and add ShadeAlpha to the scope)"));
+            moduleText.setText(t("Модуль: Не активен ❌ (включи в LSPosed и добавь ShadeAlpha в область)",
+                    "Module: Inactive ❌ (enable it in LSPosed and add ShadeAlpha to the scope)"));
             moduleText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
         }
         root.addView(moduleText, lp(2));
 
-        
-
-        root.addView(sectionHeader(t("Шторка уведомлений", "Notification shade")), lp(24));`n        topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
+        root.addView(sectionHeader(t("Шторка уведомлений", "Notification shade")), lp(24));
+        topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
-        root.addView(sectionHeader(t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)")), lp(32));`n        addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
-        addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);`n        root.addView(text(t("Работает при включённом модуле для Pixel Launcher в LSPosed. После первого включения нажми «Перезапустить лаунчер».", "Needs the module enabled for Pixel Launcher in LSPosed. After enabling it for the first time, tap \"Restart launcher\"."), 13, false), lp(8));
+
+        root.addView(sectionHeader(t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)")), lp(32));
+        addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
+        addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);
+        root.addView(text(t(
+                "Работает при включённом модуле для Pixel Launcher в LSPosed. После первого включения нажми «Перезапустить лаунчер».",
+                "Needs the module enabled for Pixel Launcher in LSPosed. After enabling it for the first time, tap \"Restart launcher\"."),
+                13, false), lp(8));
 
         root.addView(headerWithHelp(
                 t("Режим отрисовки шторки", "Shade rendering mode"),
@@ -332,6 +342,7 @@ public class SettingsActivity extends AppCompatActivity {
             runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
         }).start());
         root.addView(showShade, lp(24));
+
         MaterialButton showRecents = new MaterialButton(this);
         showRecents.setText(t("Показать недавние", "Show recents"));
         addPressPhysics(showRecents);
@@ -346,6 +357,7 @@ public class SettingsActivity extends AppCompatActivity {
             runOnUiThread(() -> status.setText(t("Команда перезапуска отправлена.", "Restart command sent.")));
         }).start());
         root.addView(restart, lp(8));
+
         MaterialButton restartLauncher = new MaterialButton(this);
         restartLauncher.setText(t("Перезапустить лаунчер", "Restart launcher"));
         addPressPhysics(restartLauncher);
@@ -364,7 +376,6 @@ public class SettingsActivity extends AppCompatActivity {
     private Slider addSlider(LinearLayout root, String label, final String key) {
         final TextView value = text("", 16, false);
         final Slider slider = new Slider(this);
-        
         slider.setValueFrom(0f);
         slider.setValueTo(100f);
         slider.setStepSize(5f);
@@ -381,14 +392,12 @@ public class SettingsActivity extends AppCompatActivity {
         slider.addOnChangeListener((s, v, fromUser) -> {
             int p = (int) v;
             value.setText(p + "%");
-            
             if (fromUser && Math.abs(v - lastVal[0]) >= 4.9f) {
                 s.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 lastVal[0] = v;
             }
-
             boolean showWarning = !key.equals(Keys.RECENTS) && !key.equals(Keys.APPDRAWER);
-                if (p < 20 && fromUser && showWarning) {
+            if (p < 20 && fromUser && showWarning) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
             } else {
@@ -396,7 +405,6 @@ public class SettingsActivity extends AppCompatActivity {
                 value.setText(p + "%");
             }
         });
-        
         slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
             @Override
             public void onStartTrackingTouch(Slider slider) {
@@ -510,7 +518,6 @@ public class SettingsActivity extends AppCompatActivity {
                 "🔴 Режим 1 (saveLayerAlpha) — Максимальная совместимость\n" +
                 "Принудительно создает слой для отрисовки. Самый надежный, но и самый тяжелый (двойная отрисовка). Используйте только если остальные не работают.\n\n" +
                 "После смены режима обязательно нажми «Перезапустить SystemUI».",
-                
                 "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery and GPU load.\n\n" +
                 "🟢 Mode 3 (ScrimView.setViewAlpha) - Lightest\n" +
                 "Directly changes the background color's alpha. Creates no extra layers, minimal load.\n\n" +

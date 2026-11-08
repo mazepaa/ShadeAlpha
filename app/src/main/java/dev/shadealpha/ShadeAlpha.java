@@ -10,7 +10,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Set;
 
-import de.robv.android.xposed.AndroidAppHelper;
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -151,7 +151,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
-                        Context ctx = (Context) AndroidAppHelper.currentApplication();
+                        Context ctx = getAppContext();
                         if (ctx == null) return;
                         int opacity = Settings.System.getInt(ctx.getContentResolver(), key, 100);
                         if (opacity >= 100 || opacity < 0) return;
@@ -185,7 +185,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         try {
-                            Context ctx = (Context) AndroidAppHelper.currentApplication();
+                            Context ctx = getAppContext();
                             if (ctx == null) return;
                             int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.APPDRAWER, 100);
                             if (opacity >= 100 || opacity < 0) return;
@@ -293,4 +293,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { int m = Settings.System.getInt(c.getContentResolver(), Keys.MODE, Keys.MODE_VIEW_ALPHA); return Math.max(0, Math.min(2, m)); }
         catch (Throwable e) { return Keys.MODE_VIEW_ALPHA; }
     }
-}
+    
+    private static Context getAppContext() {
+        try {
+            Class<?> atClass = Class.forName("android.app.ActivityThread");
+            java.lang.reflect.Method method = atClass.getMethod("currentApplication");
+            return (Context) method.invoke(null);
+        } catch (Throwable t) {
+            return null;
+        }
+    }}

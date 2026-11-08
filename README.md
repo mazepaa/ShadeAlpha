@@ -21,12 +21,12 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v2.1
+## What's new in v3.0
 
 - 🪟 **Recents and app drawer transparency** now actually work: the module scope includes Pixel Launcher (`com.google.android.apps.nexuslauncher`) and Launcher3 (`com.android.launcher3`).
 - 🧱 App drawer: works on Android 15/16 (background drawn through `drawOnScrim*`, wrapped in a layer) and on older versions (scrim colour fields), never both at once.
 - 100% = stock look, the sliders scale the original alpha instead of replacing it.
-- New buttons: **Restart launcher** and **Show recents**; module status line in the app.
+- New buttons: **Restart launcher** and **Show recents**; module status line in the app (works with Vector / LSPosed).
 - Fixed: the recents/app drawer values were not re-synced to `Settings.System` on app start.
 
 ## Features (v2.0)
@@ -99,7 +99,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v2.1
+## Что нового в v3.0
 
 - 🪟 **Прозрачность недавних и списка приложений** теперь работает: в область модуля добавлены Pixel Launcher (`com.google.android.apps.nexuslauncher`) и Launcher3 (`com.android.launcher3`).
 - 🧱 Список приложений: работает на Android 15/16 (фон рисуется через `drawOnScrim*` и оборачивается в слой) и на старых версиях (поля цвета скрима), обе ветки никогда не применяются одновременно.

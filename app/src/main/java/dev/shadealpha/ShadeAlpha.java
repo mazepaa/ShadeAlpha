@@ -58,13 +58,19 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     // ========== SELF (статус модуля в приложении) ==========
     private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
-            XposedHelpers.findAndHookMethod(Keys.class.getName(), lpparam.classLoader, "isModuleActive",
-                    new XC_MethodReplacement() {
-                        @Override
-                        protected Object replaceHookedMethod(MethodHookParam param) {
-                            return Boolean.TRUE;
-                        }
-                    });
+            // В Vector нет XposedHelpers.findAndHookMethod(String, ClassLoader, ...), поэтому через hookAllMethods
+            Class<?> keys = XposedHelpers.findClassIfExists(Keys.class.getName(), lpparam.classLoader);
+            if (keys == null) {
+                XposedBridge.log(TAG + ": self hook: Keys class not found");
+                return;
+            }
+            XposedBridge.hookAllMethods(keys, "isModuleActive", new XC_MethodReplacement() {
+                @Override
+                protected Object replaceHookedMethod(MethodHookParam param) {
+                    return Boolean.TRUE;
+                }
+            });
+            XposedBridge.log(TAG + ": self hooked, module active");
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": self hook failed: " + t);
         }

@@ -2,7 +2,6 @@ package dev.shadealpha;
 
 import android.content.Context;
 import android.provider.Settings;
-import android.view.View;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -30,7 +29,7 @@ public class LauncherHooks {
         hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", Keys.RECENTS);
 
         hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", Keys.APPDRAWER);
-        
+
         hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.ActivityAllAppsContainerView");
         hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.BaseAllAppsContainerView");
         hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.AllAppsContainerView");
@@ -82,7 +81,7 @@ public class LauncherHooks {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
             if (cls == null) return;
-            
+
             String[] methods = {"getBackgroundColor", "getScrimColor", "getHeaderColor", "getBottomSheetBackgroundColor"};
             for (String m : methods) {
                 XposedBridge.hookAllMethods(cls, m, new XC_MethodHook() {

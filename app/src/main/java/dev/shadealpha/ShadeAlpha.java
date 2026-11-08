@@ -6,10 +6,7 @@ import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.View;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.Set;
-
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -47,17 +44,30 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
-        if ("com.android.systemui".equals(lpparam.packageName)) {
+        String pkg = lpparam.packageName;
+        if ("com.android.systemui".equals(pkg)) {
             hookSystemUI(lpparam);
-            return;
-        }
-        if ("com.google.android.apps.nexuslauncher".equals(lpparam.packageName)
-                || "com.android.launcher3".equals(lpparam.packageName)) {
-            hookLauncher(lpparam);
+        } else if (LauncherHooks.isLauncher(pkg)) {
+            LauncherHooks.hook(lpparam);
+        } else if ("dev.shadealpha".equals(pkg)) {
+            hookSelf(lpparam);
         }
     }
 
-    // ========== SYSTEM UI ==========
+    private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            XposedHelpers.findAndHookMethod(Keys.class.getName(), lpparam.classLoader, "isModuleActive",
+                    new XC_MethodReplacement() {
+                        @Override
+                        protected Object replaceHookedMethod(MethodHookParam param) {
+                            return Boolean.TRUE;
+                        }
+                    });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": self hook failed: " + t);
+        }
+    }
+
     private void hookSystemUI(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": SystemUI loaded");
         Class<?> scrim = null;
@@ -124,120 +134,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
     }
 
-    // ========== LAUNCHER ==========
-    private void hookLauncher(XC_LoadPackage.LoadPackageParam lpparam) {
-        XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
-
-        // Recents
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor", Keys.RECENTS);
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor", Keys.RECENTS);
-        hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor", Keys.RECENTS);
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor", Keys.RECENTS);
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", Keys.RECENTS); // fallback
-
-        // App Drawer
-        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", Keys.APPDRAWER);
-        
-        hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.ActivityAllAppsContainerView");
-        hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.BaseAllAppsContainerView");
-        hookAllAppsView(lpparam.classLoader, "com.android.launcher3.allapps.AllAppsContainerView");
-    }
-
-    private static void hookLauncherScrim(ClassLoader cl, String className, String methodName, final String key) {
-        try {
-            Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
-            if (cls == null) return;
-
-            XposedBridge.hookAllMethods(cls, methodName, new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    try {
-                        Context ctx = getAppContext();
-                        if (ctx == null) return;
-                        int opacity = Settings.System.getInt(ctx.getContentResolver(), key, 100);
-                        if (opacity >= 100 || opacity < 0) return;
-                        int alpha = opacity * 255 / 100;
-                        Object result = param.getResult();
-                        if (result == null) return;
-                        if (result instanceof Integer) {
-                            int color = (Integer) result;
-                            param.setResult((color & 0x00FFFFFF) | (alpha << 24));
-                        } else {
-                            Object rebuilt = rebuildScrimColors(result, alpha);
-                            if (rebuilt != null) param.setResult(rebuilt);
-                        }
-                    } catch (Throwable t) { XposedBridge.log(TAG + ": scrim error: " + t); }
-                }
-            });
-            XposedBridge.log(TAG + ": hooked " + className + "." + methodName);
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to hook " + className + " - " + t);
-        }
-    }
-
-    private static void hookAllAppsView(ClassLoader cl, String className) {
-        try {
-            Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
-            if (cls == null) return;
-            
-            String[] methods = {"getBackgroundColor", "getScrimColor", "getHeaderColor", "getBottomSheetBackgroundColor"};
-            for (String m : methods) {
-                XposedBridge.hookAllMethods(cls, m, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        try {
-                            Context ctx = getAppContext();
-                            if (ctx == null) return;
-                            int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.APPDRAWER, 100);
-                            if (opacity >= 100 || opacity < 0) return;
-                            int alpha = opacity * 255 / 100;
-                            Object result = param.getResult();
-                            if (result instanceof Integer) {
-                                int color = (Integer) result;
-                                param.setResult((color & 0x00FFFFFF) | (alpha << 24));
-                            }
-                        } catch (Throwable t) {}
-                    }
-                });
-            }
-            XposedBridge.log(TAG + ": hooked " + className + " colors");
-        } catch (Throwable t) {}
-    }
-
-    private static Object rebuildScrimColors(Object result, int alpha) {
-        try {
-            Class<?> cls = result.getClass();
-            int bg = 0, fg = 0;
-            boolean found = false;
-            try {
-                Method getBg = cls.getMethod("getBackgroundColor");
-                Method getFg = cls.getMethod("getForegroundColor");
-                bg = (int) getBg.invoke(result);
-                fg = (int) getFg.invoke(result);
-                found = true;
-            } catch (Throwable ignored) {}
-            if (!found) {
-                try {
-                    java.lang.reflect.Field fBg = cls.getDeclaredField("backgroundColor");
-                    java.lang.reflect.Field fFg = cls.getDeclaredField("foregroundColor");
-                    fBg.setAccessible(true);
-                    fFg.setAccessible(true);
-                    bg = fBg.getInt(result);
-                    fg = fFg.getInt(result);
-                    found = true;
-                } catch (Throwable ignored) {}
-            }
-            if (!found) return null;
-            int newBg = (bg & 0x00FFFFFF) | (alpha << 24);
-            Constructor<?> ctor = cls.getDeclaredConstructor(int.class, int.class);
-            ctor.setAccessible(true);
-            return ctor.newInstance(newBg, fg);
-        } catch (Throwable t) {
-            return null;
-        }
-    }
-
-    // ========== HELPERS ==========
     private static int role(View v) {
         Object cached = v.getTag(TAG_ROLE);
         if (cached instanceof Integer) return (Integer) cached;
@@ -294,20 +190,4 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { int m = Settings.System.getInt(c.getContentResolver(), Keys.MODE, Keys.MODE_VIEW_ALPHA); return Math.max(0, Math.min(2, m)); }
         catch (Throwable e) { return Keys.MODE_VIEW_ALPHA; }
     }
-    
-     catch (Throwable t) {
-            return null;
-        }
-    }    private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
-        try {
-            XposedHelpers.findAndHookMethod(Keys.class.getName(), lpparam.classLoader, "isModuleActive",
-                    new XC_MethodReplacement() {
-                        @Override
-                        protected Object replaceHookedMethod(MethodHookParam param) {
-                            return Boolean.TRUE;
-                        }
-                    });
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": self hook failed: " + t);
-        }
-    }}
+}

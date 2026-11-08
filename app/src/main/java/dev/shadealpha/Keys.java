@@ -11,5 +11,7 @@ public class Keys {
     public static final int MODE_VIEW_ALPHA = 1;
     public static final int MODE_SCRIM_ALPHA = 2;
 
-    public static boolean isModuleActive() { return Boolean.parseBoolean(System.getProperty("shadealpha.never")); }
+    public static boolean isModuleActive() {
+        return Boolean.parseBoolean(System.getProperty("shadealpha.never"));
+    }
 }

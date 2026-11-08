@@ -43,7 +43,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 ## Installation
 
-1. Install `ShadeAlpha.apk`.
+1. Install `ShadeAlpha-v3.0.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha** (for status detection). The scope list is recommended automatically; make sure the boxes are ticked.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent.
@@ -58,7 +58,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
   - **1 (Compatibility):** Uses `saveLayerAlpha`. Maximum compatibility, but slightly higher GPU load.
   - **2 (Fast):** Uses `View.setAlpha`. Standard Android method, fast and smooth.
   - **3 (Lightest):** Multiplies `ScrimView.setViewAlpha`. Modifies color alpha directly. The lightest mode for GPU, but requires ROM support.
-- The app **has no internet access**. Root is only used for two commands: `settings put system <key> <number>` and `killall com.android.systemui`.
+- The app **has no internet access**. Root is only used to run shell commands: `settings put system <key> <number>`, restarting SystemUI / the launcher (`killall`), and the preview buttons (`cmd statusbar`, `input keyevent`).
 
 ## Troubleshooting
 
@@ -121,7 +121,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 ## Установка
 
-1. Установи `ShadeAlpha.apk`.
+1. Установи `ShadeAlpha-v3.0.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha** (для определения статуса). Список области предлагается автоматически, проверь, что галочки стоят.
 3. Открой приложение ShadeAlpha и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее.
@@ -136,7 +136,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
   - **1 (Совместимость):** Использует `saveLayerAlpha`. Максимальная совместимость, но чуть выше нагрузка на GPU.
   - **2 (Быстрый):** Использует `View.setAlpha`. Стандартный метод Android, быстрый и плавный.
   - **3 (Самый легкий):** Умножает `ScrimView.setViewAlpha`. Меняет прозрачность цвета напрямую. Самый легкий для GPU, но требует поддержки от прошивки.
-- Приложение **не имеет доступа в интернет**. Root нужен только для двух команд: `settings put system <ключ> <число>` и `killall com.android.systemui`.
+- Приложение **не имеет доступа в интернет**. Root нужен только для запуска shell-команд: `settings put system <ключ> <число>`, перезапуск SystemUI и лаунчера (`killall`) и кнопки предпросмотра (`cmd statusbar`, `input keyevent`).
 
 ## Если что-то пошло не так
 

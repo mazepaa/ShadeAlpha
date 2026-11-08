@@ -145,7 +145,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
-                        Context ctx = AndroidAppHelper.currentApplication();
+                        Context ctx = (Context) AndroidAppHelper.currentApplication();
                         if (ctx == null) {
                             XposedBridge.log(TAG + ": no context in launcher");
                             return;

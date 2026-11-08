@@ -10,7 +10,7 @@
         >
 
         <meta-data android:name="xposedmodule" android:value="true" />
-        <meta-data android:name="xposeddescription" android:value="Полупрозрачная шторка / Translucent notification shade" />
+        <meta-data android:name="xposeddescription" android:value="Прозрачность шторки, недавних и списка приложений / Translucent shade, recents and app drawer" />
         <meta-data android:name="xposedminversion" android:value="82" />
         <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
 

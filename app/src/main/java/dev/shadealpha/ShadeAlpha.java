@@ -13,6 +13,7 @@ import java.util.Set;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
@@ -294,12 +295,19 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         catch (Throwable e) { return Keys.MODE_VIEW_ALPHA; }
     }
     
-    private static Context getAppContext() {
-        try {
-            Class<?> atClass = Class.forName("android.app.ActivityThread");
-            java.lang.reflect.Method method = atClass.getMethod("currentApplication");
-            return (Context) method.invoke(null);
-        } catch (Throwable t) {
+     catch (Throwable t) {
             return null;
+        }
+    }    private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            XposedHelpers.findAndHookMethod(Keys.class.getName(), lpparam.classLoader, "isModuleActive",
+                    new XC_MethodReplacement() {
+                        @Override
+                        protected Object replaceHookedMethod(MethodHookParam param) {
+                            return Boolean.TRUE;
+                        }
+                    });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": self hook failed: " + t);
         }
     }}

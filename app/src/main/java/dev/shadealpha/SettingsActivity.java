@@ -144,7 +144,7 @@ public class SettingsActivity extends AppCompatActivity {
         title.setPadding(0, dp(16), 0, dp(4));
         root.addView(title);
 
-        TextView version = text("v2.0", 14, false);
+        String ver = "";`n        try { ver = "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Throwable ignored) { }`n        TextView version = text(ver, 14, false);
         version.setTextColor(Color.GRAY);
         root.addView(version);
 
@@ -227,7 +227,7 @@ public class SettingsActivity extends AppCompatActivity {
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView title = text(t("Прозрачность шторки", "Shade transparency"), 24, true);
+        TextView title = text(t("Прозрачность", "Transparency"), 24, true);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         headerRow.addView(title, titleLp);
 
@@ -274,16 +274,25 @@ public class SettingsActivity extends AppCompatActivity {
             statusText.performHapticFeedback(HapticFeedbackConstants.REJECT);
         }
         root.addView(statusText, lp(8));
+        TextView moduleText = text("", 14, true);
+        if (Keys.isModuleActive()) {
+            moduleText.setText(t("Модуль: Активен ✅", "Module: Active ✅"));
+            moduleText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFF4CAF50));
+        } else {
+            moduleText.setText(t("Модуль: Не активен ❌ (включи в LSPosed и добавь ShadeAlpha в область)", "Module: Inactive ❌ (enable it in LSPosed and add ShadeAlpha to the scope)"));
+            moduleText.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
+        }
+        root.addView(moduleText, lp(2));
 
         
 
-        topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
+        root.addView(sectionHeader(t("Шторка уведомлений", "Notification shade")), lp(24));`n        topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
-        addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
-        addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);
+        root.addView(sectionHeader(t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)")), lp(32));`n        addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
+        addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);`n        root.addView(text(t("Работает при включённом модуле для Pixel Launcher в LSPosed. После первого включения нажми «Перезапустить лаунчер».", "Needs the module enabled for Pixel Launcher in LSPosed. After enabling it for the first time, tap \"Restart launcher\"."), 13, false), lp(8));
 
         root.addView(headerWithHelp(
-                t("Режим отрисовки", "Rendering mode"),
+                t("Режим отрисовки шторки", "Shade rendering mode"),
                 t("Режимы отрисовки", "Rendering modes"),
                 modesHelpText()), lp(24));
 
@@ -323,6 +332,11 @@ public class SettingsActivity extends AppCompatActivity {
             runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
         }).start());
         root.addView(showShade, lp(24));
+        MaterialButton showRecents = new MaterialButton(this);
+        showRecents.setText(t("Показать недавние", "Show recents"));
+        addPressPhysics(showRecents);
+        showRecents.setOnClickListener(v -> new Thread(() -> runRoot("input keyevent 187")).start());
+        root.addView(showRecents, lp(8));
 
         MaterialButton restart = new MaterialButton(this);
         restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
@@ -332,6 +346,14 @@ public class SettingsActivity extends AppCompatActivity {
             runOnUiThread(() -> status.setText(t("Команда перезапуска отправлена.", "Restart command sent.")));
         }).start());
         root.addView(restart, lp(8));
+        MaterialButton restartLauncher = new MaterialButton(this);
+        restartLauncher.setText(t("Перезапустить лаунчер", "Restart launcher"));
+        addPressPhysics(restartLauncher);
+        restartLauncher.setOnClickListener(v -> new Thread(() -> {
+            runRoot("killall com.google.android.apps.nexuslauncher; killall com.android.launcher3");
+            runOnUiThread(() -> status.setText(t("Лаунчер перезапущен.", "Launcher restarted.")));
+        }).start());
+        root.addView(restartLauncher, lp(8));
 
         status = text("", 14, false);
         root.addView(status, lp(12));
@@ -409,7 +431,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.MODE}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

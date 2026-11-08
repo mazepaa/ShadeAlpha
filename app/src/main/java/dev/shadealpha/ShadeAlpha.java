@@ -6,9 +6,11 @@ import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.View;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Set;
 
+import de.robv.android.xposed.AndroidAppHelper;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -44,114 +46,123 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
-        // === SystemUI Hooks ===
         if ("com.android.systemui".equals(lpparam.packageName)) {
-            XposedBridge.log(TAG + ": SystemUI loaded");
-            Class<?> scrim = null;
-            for (String name : SCRIM_CLASSES) {
-                scrim = XposedHelpers.findClassIfExists(name, lpparam.classLoader);
-                if (scrim != null) break;
-            }
-            if (scrim == null) { XposedBridge.log(TAG + ": ScrimView not found"); return; }
-
-            try {
-                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        try {
-                            if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
-                            View v = (View) param.thisObject;
-                            if (disabled) { resetViewAlpha(v); return; }
-                            int role = role(v);
-                            if (role == ROLE_OTHER) return;
-                            float f = factor(v.getContext(), role == ROLE_TOP);
-                            int m = mode;
-                            if (m == Keys.MODE_VIEW_ALPHA) {
-                                applyViewAlpha(v, f);
-                            } else {
-                                resetViewAlpha(v);
-                                if (m == Keys.MODE_LAYER && f < 0.999f) {
-                                    Canvas c = (Canvas) param.args[0];
-                                    int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(), Math.round(255 * f));
-                                    param.setObjectExtra(EXTRA, Integer.valueOf(count));
-                                }
-                            }
-                            failures = 0;
-                        } catch (Throwable t) { fail("before onDraw", t); }
-                    }
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        try {
-                            Object o = param.getObjectExtra(EXTRA);
-                            if (o instanceof Integer) ((Canvas) param.args[0]).restoreToCount((Integer) o);
-                        } catch (Throwable t) { fail("after onDraw", t); }
-                    }
-                });
-                XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
-            } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }
-
-            try {
-                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "setViewAlpha", new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        try {
-                            if (disabled) return;
-                            if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
-                            View v = (View) param.thisObject;
-                            int role = role(v);
-                            if (role == ROLE_OTHER) return;
-                            float a = (Float) param.args[0];
-                            if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
-                            float f = factor(v.getContext(), role == ROLE_TOP);
-                            if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
-                        } catch (Throwable t) { fail("setViewAlpha", t); }
-                    }
-                });
-                XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
-            } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
+            hookSystemUI(lpparam);
             return;
         }
-
-        // === Launcher Hooks ===
         if ("com.google.android.apps.nexuslauncher".equals(lpparam.packageName)
                 || "com.android.launcher3".equals(lpparam.packageName)) {
-            XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
-
-            hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor");
-            hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor");
-            hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor");
-            hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor");
+            hookLauncher(lpparam);
         }
+    }
+
+    // ========== SYSTEM UI ==========
+    private void hookSystemUI(XC_LoadPackage.LoadPackageParam lpparam) {
+        XposedBridge.log(TAG + ": SystemUI loaded");
+        Class<?> scrim = null;
+        for (String name : SCRIM_CLASSES) {
+            scrim = XposedHelpers.findClassIfExists(name, lpparam.classLoader);
+            if (scrim != null) break;
+        }
+        if (scrim == null) { XposedBridge.log(TAG + ": ScrimView not found"); return; }
+
+        try {
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    try {
+                        if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
+                        View v = (View) param.thisObject;
+                        if (disabled) { resetViewAlpha(v); return; }
+                        int role = role(v);
+                        if (role == ROLE_OTHER) return;
+                        float f = factor(v.getContext(), role == ROLE_TOP);
+                        int m = mode;
+                        if (m == Keys.MODE_VIEW_ALPHA) {
+                            applyViewAlpha(v, f);
+                        } else {
+                            resetViewAlpha(v);
+                            if (m == Keys.MODE_LAYER && f < 0.999f) {
+                                Canvas c = (Canvas) param.args[0];
+                                int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(), Math.round(255 * f));
+                                param.setObjectExtra(EXTRA, Integer.valueOf(count));
+                            }
+                        }
+                        failures = 0;
+                    } catch (Throwable t) { fail("before onDraw", t); }
+                }
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Object o = param.getObjectExtra(EXTRA);
+                        if (o instanceof Integer) ((Canvas) param.args[0]).restoreToCount((Integer) o);
+                    } catch (Throwable t) { fail("after onDraw", t); }
+                }
+            });
+            XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }
+
+        try {
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "setViewAlpha", new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    try {
+                        if (disabled) return;
+                        if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
+                        View v = (View) param.thisObject;
+                        int role = role(v);
+                        if (role == ROLE_OTHER) return;
+                        float a = (Float) param.args[0];
+                        if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
+                        float f = factor(v.getContext(), role == ROLE_TOP);
+                        if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
+                    } catch (Throwable t) { fail("setViewAlpha", t); }
+                }
+            });
+            XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
+    }
+
+    // ========== LAUNCHER ==========
+    private void hookLauncher(XC_LoadPackage.LoadPackageParam lpparam) {
+        XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
+
+        // Recents через ScrimColors
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor");
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor");
+        hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor");
+        hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor");
     }
 
     private static void hookLauncherScrim(ClassLoader cl, String className, String methodName) {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
-            if (cls == null) return;
-
+            if (cls == null) {
+                XposedBridge.log(TAG + ": class not found - " + className);
+                return;
+            }
             XposedBridge.hookAllMethods(cls, methodName, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
-                        Context ctx = getContext();
-                        if (ctx == null) return;
-
+                        Context ctx = AndroidAppHelper.currentApplication();
+                        if (ctx == null) {
+                            XposedBridge.log(TAG + ": no context in launcher");
+                            return;
+                        }
                         int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.RECENTS, 100);
-                        if (opacity >= 100) return;
-                        if (opacity < 0) opacity = 0;
-
+                        if (opacity >= 100 || opacity < 0) return;
                         int alpha = opacity * 255 / 100;
                         Object result = param.getResult();
                         if (result == null) return;
-
                         if (result instanceof Integer) {
                             int color = (Integer) result;
                             param.setResult((color & 0x00FFFFFF) | (alpha << 24));
                         } else {
-                            Object newResult = rebuildScrimColors(result, alpha);
-                            if (newResult != null) param.setResult(newResult);
+                            Object rebuilt = rebuildScrimColors(result, alpha);
+                            if (rebuilt != null) param.setResult(rebuilt);
                         }
-                    } catch (Throwable t) { XposedBridge.log(TAG + ": Scrim color error: " + t); }
+                    } catch (Throwable t) { XposedBridge.log(TAG + ": scrim error: " + t); }
                 }
             });
             XposedBridge.log(TAG + ": hooked " + className + "." + methodName);
@@ -160,24 +171,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 
-    private static Context getContext() {
-        try {
-            Class<?> atClass = Class.forName("android.app.ActivityThread");
-            Method currentMethod = atClass.getMethod("currentActivityThread");
-            Object at = currentMethod.invoke(null);
-            Method getAppMethod = atClass.getMethod("getApplication");
-            return (Context) getAppMethod.invoke(at);
-        } catch (Throwable t) {
-            return null;
-        }
-    }
-
     private static Object rebuildScrimColors(Object result, int alpha) {
         try {
             Class<?> cls = result.getClass();
-            int bg = -1, fg = -1;
+            int bg = 0, fg = 0;
             boolean found = false;
-
             try {
                 Method getBg = cls.getMethod("getBackgroundColor");
                 Method getFg = cls.getMethod("getForegroundColor");
@@ -185,7 +183,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 fg = (int) getFg.invoke(result);
                 found = true;
             } catch (Throwable ignored) {}
-
             if (!found) {
                 try {
                     java.lang.reflect.Field fBg = cls.getDeclaredField("backgroundColor");
@@ -197,11 +194,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     found = true;
                 } catch (Throwable ignored) {}
             }
-
             if (!found) return null;
-
             int newBg = (bg & 0x00FFFFFF) | (alpha << 24);
-            java.lang.reflect.Constructor<?> ctor = cls.getDeclaredConstructor(int.class, int.class);
+            Constructor<?> ctor = cls.getDeclaredConstructor(int.class, int.class);
             ctor.setAccessible(true);
             return ctor.newInstance(newBg, fg);
         } catch (Throwable t) {
@@ -209,6 +204,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 
+    // ========== HELPERS ==========
     private static int role(View v) {
         Object cached = v.getTag(TAG_ROLE);
         if (cached instanceof Integer) return (Integer) cached;

@@ -1,6 +1,6 @@
 package dev.shadealpha;
 
-import android.content.Context;
+import android.content.Context;`nimport android.app.AndroidAppHelper;
 import android.graphics.Canvas;
 import android.os.SystemClock;
 import android.provider.Settings;
@@ -110,46 +110,15 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             return;
         }
 
-        // === Launcher Hooks (hookAllMethods) ===
+        // === Launcher Hooks (Recents Scrim) ===
         if ("com.google.android.apps.nexuslauncher".equals(lpparam.packageName)
                 || "com.android.launcher3".equals(lpparam.packageName)) {
             XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
 
-            try {
-                Class<?> recentsClass = XposedHelpers.findClassIfExists("com.android.quickstep.views.RecentsView", lpparam.classLoader);
-                if (recentsClass != null) {
-                    XposedBridge.hookAllMethods(recentsClass, "setStableAlpha", new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            try {
-                                if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
-                                float originalAlpha = (float) param.args[0];
-                                View view = (View) param.thisObject;
-                                float percent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.RECENTS, 100) / 100f;
-                                param.args[0] = originalAlpha * percent;
-                            } catch (Throwable t) { XposedBridge.log(TAG + ": Recents alpha error: " + t); }
-                        }
-                    });
-                    XposedBridge.log(TAG + ": hooked RecentsView.setStableAlpha");
-                } else { XposedBridge.log(TAG + ": RecentsView class not found"); }
-            } catch (Throwable t) { XposedBridge.log(TAG + ": Recents hook failed: " + t); }
-
-            try {
-                Class<?> allAppsClass = XposedHelpers.findClassIfExists("com.android.launcher3.allapps.AllAppsContainerView", lpparam.classLoader);
-                if (allAppsClass != null) {
-                    XposedBridge.hookAllMethods(allAppsClass, "updateBackground", new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            try {
-                                View view = (View) param.thisObject;
-                                float percent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.APPDRAWER, 100) / 100f;
-                                if (view.getBackground() != null) view.getBackground().setAlpha((int) (255 * percent));
-                            } catch (Throwable t) { XposedBridge.log(TAG + ": AppDrawer alpha error: " + t); }
-                        }
-                    });
-                    XposedBridge.log(TAG + ": hooked AllAppsContainerView.updateBackground");
-                } else { XposedBridge.log(TAG + ": AllAppsContainerView class not found"); }
-            } catch (Throwable t) { XposedBridge.log(TAG + ": AppDrawer hook failed: " + t); }
+            hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor");
+            hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor");
+            hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor");
+            hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor");
         }
     }
 
@@ -209,4 +178,53 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { int m = Settings.System.getInt(c.getContentResolver(), Keys.MODE, Keys.MODE_VIEW_ALPHA); return Math.max(0, Math.min(2, m)); }
         catch (Throwable e) { return Keys.MODE_VIEW_ALPHA; }
     }
-}
+    
+    private static void hookLauncherScrim(ClassLoader cl, String className, String methodName) {
+        try {
+            Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
+            if (cls == null) return;
+
+            XposedBridge.hookAllMethods(cls, methodName, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Context ctx = AndroidAppHelper.currentApplication();
+                        if (ctx == null) return;
+                        
+                        int opacity = Settings.System.getInt(ctx.getContentResolver(), Keys.RECENTS, 100);
+                        if (opacity >= 100) return;
+                        if (opacity < 0) opacity = 0;
+
+                        int alpha = opacity * 255 / 100;
+                        Object result = param.getResult();
+                        if (result == null) return;
+
+                        if (result instanceof Integer) {
+                            int color = (Integer) result;
+                            int newColor = (color & 0x00FFFFFF) | (alpha << 24);
+                            param.setResult(newColor);
+                        } else {
+                            // Обработка объекта ScrimColors
+                            Class<?> scrimColorsClass = result.getClass();
+                            try {
+                                java.lang.reflect.Method getBg = scrimColorsClass.getMethod("getBackgroundColor");
+                                java.lang.reflect.Method getFg = scrimColorsClass.getMethod("getForegroundColor");
+                                int bg = (int) getBg.invoke(result);
+                                int fg = (int) getFg.invoke(result);
+                                
+                                int newBg = (bg & 0x00FFFFFF) | (alpha << 24);
+                                java.lang.reflect.Constructor<?> constructor = scrimColorsClass.getDeclaredConstructor(int.class, int.class);
+                                constructor.setAccessible(true);
+                                param.setResult(constructor.newInstance(newBg, fg));
+                            } catch (Throwable ignored) {
+                                // Если не удалось обработать ScrimColors, оставляем как есть
+                            }
+                        }
+                    } catch (Throwable t) { XposedBridge.log(TAG + ": Scrim color error: " + t); }
+                }
+            });
+            XposedBridge.log(TAG + ": hooked " + className + "." + methodName);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": failed to hook " + className + " - " + t);
+        }
+    }}

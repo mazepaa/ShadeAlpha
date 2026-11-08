@@ -11,3 +11,4 @@ local.properties
 *.iml
 build_output/
 *.ps1 
+apply_update.ps1

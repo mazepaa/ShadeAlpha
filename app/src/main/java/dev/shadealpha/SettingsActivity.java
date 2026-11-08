@@ -54,6 +54,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
+        
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String def = "ru".equals(Locale.getDefault().getLanguage()) ? "ru" : "en";
         lang = prefs.getString(KEY_LANG, def);
@@ -126,14 +127,18 @@ public class SettingsActivity extends AppCompatActivity {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        
+        // Уменьшили верхний отступ с 56 до 50dp (чуть ниже)
         root.setPadding(dp(24), dp(35), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
+        
         root.setClipChildren(false);
         root.setClipToPadding(false);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
+        
         icon.setOnClickListener(v -> {
             v.animate().cancel();
             v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -192,7 +197,9 @@ public class SettingsActivity extends AppCompatActivity {
         devCard.addView(devLayout);
 
         addPressPhysics(devCard);
-        devCard.setOnClickListener(v -> Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show());
+        devCard.setOnClickListener(v -> {
+            Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show();
+        });
 
         root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -204,11 +211,13 @@ public class SettingsActivity extends AppCompatActivity {
         root.addView(desc);
 
         dialog.setContentView(root);
+        
         ViewGroup bottomSheet = (ViewGroup) dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bottomSheet != null) {
             bottomSheet.setClipChildren(false);
             bottomSheet.setClipToPadding(false);
         }
+        
         dialog.show();
     }
 
@@ -376,6 +385,7 @@ public class SettingsActivity extends AppCompatActivity {
     private Slider addSlider(LinearLayout root, String label, final String key) {
         final TextView value = text("", 16, false);
         final Slider slider = new Slider(this);
+        
         slider.setValueFrom(0f);
         slider.setValueTo(100f);
         slider.setStepSize(5f);
@@ -392,12 +402,14 @@ public class SettingsActivity extends AppCompatActivity {
         slider.addOnChangeListener((s, v, fromUser) -> {
             int p = (int) v;
             value.setText(p + "%");
+            
             if (fromUser && Math.abs(v - lastVal[0]) >= 4.9f) {
                 s.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 lastVal[0] = v;
             }
+
             boolean showWarning = !key.equals(Keys.RECENTS) && !key.equals(Keys.APPDRAWER);
-            if (p < 20 && fromUser && showWarning) {
+                if (p < 20 && fromUser && showWarning) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
             } else {
@@ -405,6 +417,7 @@ public class SettingsActivity extends AppCompatActivity {
                 value.setText(p + "%");
             }
         });
+        
         slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
             @Override
             public void onStartTrackingTouch(Slider slider) {
@@ -518,6 +531,7 @@ public class SettingsActivity extends AppCompatActivity {
                 "🔴 Режим 1 (saveLayerAlpha) — Максимальная совместимость\n" +
                 "Принудительно создает слой для отрисовки. Самый надежный, но и самый тяжелый (двойная отрисовка). Используйте только если остальные не работают.\n\n" +
                 "После смены режима обязательно нажми «Перезапустить SystemUI».",
+                
                 "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery and GPU load.\n\n" +
                 "🟢 Mode 3 (ScrimView.setViewAlpha) - Lightest\n" +
                 "Directly changes the background color's alpha. Creates no extra layers, minimal load.\n\n" +

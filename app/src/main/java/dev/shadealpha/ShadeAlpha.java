@@ -8,6 +8,7 @@ import android.view.View;
 
 import java.util.Set;
 
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
@@ -54,6 +55,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 
+    // ========== SELF (статус модуля в приложении) ==========
     private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
             XposedHelpers.findAndHookMethod(Keys.class.getName(), lpparam.classLoader, "isModuleActive",
@@ -68,6 +70,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 
+    // ========== SYSTEM UI ==========
     private void hookSystemUI(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": SystemUI loaded");
         Class<?> scrim = null;
@@ -134,6 +137,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
     }
 
+    // ========== HELPERS ==========
     private static int role(View v) {
         Object cached = v.getTag(TAG_ROLE);
         if (cached instanceof Integer) return (Integer) cached;

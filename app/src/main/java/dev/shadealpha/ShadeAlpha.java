@@ -127,7 +127,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private void hookLauncher(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
 
-        // Recents через ScrimColors
         hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor");
         hookLauncherScrim(lpparam.classLoader, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor");
         hookLauncherScrim(lpparam.classLoader, "com.android.quickstep.fallback.RecentsState", "getScrimColor");

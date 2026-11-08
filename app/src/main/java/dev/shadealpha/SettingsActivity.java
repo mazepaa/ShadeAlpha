@@ -365,7 +365,8 @@ public class SettingsActivity extends AppCompatActivity {
                 lastVal[0] = v;
             }
 
-            if (p < 20 && fromUser) {
+            boolean showWarning = !key.equals(Keys.RECENTS) && !key.equals(Keys.APPDRAWER);
+                if (p < 20 && fromUser && showWarning) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
             } else {

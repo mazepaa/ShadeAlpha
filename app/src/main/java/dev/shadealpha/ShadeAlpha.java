@@ -32,7 +32,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int TAG_ALPHA_SET = 0x7ffa0002;
 
     private static final int MAX_FAILURES = 20;
-
     private static final boolean[] SVA_LOGGED = new boolean[3];
 
     private static volatile float fTop = 1f;
@@ -44,125 +43,112 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
-        // === SystemUI hooks ===
         if ("com.android.systemui".equals(lpparam.packageName)) {
             XposedBridge.log(TAG + ": SystemUI loaded");
-
             Class<?> scrim = null;
             for (String name : SCRIM_CLASSES) {
                 scrim = XposedHelpers.findClassIfExists(name, lpparam.classLoader);
                 if (scrim != null) break;
             }
-            if (scrim == null) {
-                XposedBridge.log(TAG + ": ScrimView class not found");
-                return;
-            }
-            XposedBridge.log(TAG + ": found " + scrim.getName());
+            if (scrim == null) { XposedBridge.log(TAG + ": ScrimView not found"); return; }
 
             try {
-                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(
-                        scrim, "onDraw", new XC_MethodHook() {
-                            @Override
-                            protected void beforeHookedMethod(MethodHookParam param) {
-                                try {
-                                    if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
-                                    View v = (View) param.thisObject;
-                                    if (disabled) { resetViewAlpha(v); return; }
-                                    int role = role(v);
-                                    if (role == ROLE_OTHER) return;
-                                    float f = factor(v.getContext(), role == ROLE_TOP);
-                                    int m = mode;
-                                    if (m == Keys.MODE_VIEW_ALPHA) {
-                                        applyViewAlpha(v, f);
-                                    } else {
-                                        resetViewAlpha(v);
-                                        if (m == Keys.MODE_LAYER && f < 0.999f) {
-                                            Canvas c = (Canvas) param.args[0];
-                                            int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(), Math.round(255 * f));
-                                            param.setObjectExtra(EXTRA, Integer.valueOf(count));
-                                        }
-                                    }
-                                    failures = 0;
-                                } catch (Throwable t) { fail("before onDraw", t); }
+                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        try {
+                            if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
+                            View v = (View) param.thisObject;
+                            if (disabled) { resetViewAlpha(v); return; }
+                            int role = role(v);
+                            if (role == ROLE_OTHER) return;
+                            float f = factor(v.getContext(), role == ROLE_TOP);
+                            int m = mode;
+                            if (m == Keys.MODE_VIEW_ALPHA) {
+                                applyViewAlpha(v, f);
+                            } else {
+                                resetViewAlpha(v);
+                                if (m == Keys.MODE_LAYER && f < 0.999f) {
+                                    Canvas c = (Canvas) param.args[0];
+                                    int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(), Math.round(255 * f));
+                                    param.setObjectExtra(EXTRA, Integer.valueOf(count));
+                                }
                             }
-
-                            @Override
-                            protected void afterHookedMethod(MethodHookParam param) {
-                                try {
-                                    Object o = param.getObjectExtra(EXTRA);
-                                    if (o instanceof Integer) ((Canvas) param.args[0]).restoreToCount((Integer) o);
-                                } catch (Throwable t) { fail("after onDraw", t); }
-                            }
-                        });
+                            failures = 0;
+                        } catch (Throwable t) { fail("before onDraw", t); }
+                    }
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        try {
+                            Object o = param.getObjectExtra(EXTRA);
+                            if (o instanceof Integer) ((Canvas) param.args[0]).restoreToCount((Integer) o);
+                        } catch (Throwable t) { fail("after onDraw", t); }
+                    }
+                });
                 XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
             } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }
 
             try {
-                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(
-                        scrim, "setViewAlpha", new XC_MethodHook() {
-                            @Override
-                            protected void beforeHookedMethod(MethodHookParam param) {
-                                try {
-                                    if (disabled) return;
-                                    if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
-                                    View v = (View) param.thisObject;
-                                    int role = role(v);
-                                    if (role == ROLE_OTHER) return;
-                                    float a = (Float) param.args[0];
-                                    if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
-                                    float f = factor(v.getContext(), role == ROLE_TOP);
-                                    if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
-                                } catch (Throwable t) { fail("setViewAlpha", t); }
-                            }
-                        });
+                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "setViewAlpha", new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        try {
+                            if (disabled) return;
+                            if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
+                            View v = (View) param.thisObject;
+                            int role = role(v);
+                            if (role == ROLE_OTHER) return;
+                            float a = (Float) param.args[0];
+                            if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
+                            float f = factor(v.getContext(), role == ROLE_TOP);
+                            if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
+                        } catch (Throwable t) { fail("setViewAlpha", t); }
+                    }
+                });
                 XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
             } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
-
             return;
         }
 
-        // === Launcher hooks ===
+        // === Launcher Hooks (hookAllMethods) ===
         if ("com.google.android.apps.nexuslauncher".equals(lpparam.packageName)
                 || "com.android.launcher3".equals(lpparam.packageName)) {
             XposedBridge.log(TAG + ": Launcher loaded (" + lpparam.packageName + ")");
 
             try {
-                XposedHelpers.findAndHookMethod(
-                        "com.android.quickstep.views.RecentsView",
-                        lpparam.classLoader,
-                        "setStableAlpha",
-                        float.class,
-                        new XC_MethodHook() {
-                            @Override
-                            protected void beforeHookedMethod(MethodHookParam param) {
-                                try {
-                                    float originalAlpha = (float) param.args[0];
-                                    View view = (View) param.thisObject;
-                                    float percent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.RECENTS, 100) / 100f;
-                                    param.args[0] = originalAlpha * percent;
-                                } catch (Throwable t) { XposedBridge.log(TAG + ": Recents alpha error: " + t); }
-                            }
-                        });
-                XposedBridge.log(TAG + ": hooked RecentsView.setStableAlpha");
+                Class<?> recentsClass = XposedHelpers.findClassIfExists("com.android.quickstep.views.RecentsView", lpparam.classLoader);
+                if (recentsClass != null) {
+                    XposedBridge.hookAllMethods(recentsClass, "setStableAlpha", new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            try {
+                                if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
+                                float originalAlpha = (float) param.args[0];
+                                View view = (View) param.thisObject;
+                                float percent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.RECENTS, 100) / 100f;
+                                param.args[0] = originalAlpha * percent;
+                            } catch (Throwable t) { XposedBridge.log(TAG + ": Recents alpha error: " + t); }
+                        }
+                    });
+                    XposedBridge.log(TAG + ": hooked RecentsView.setStableAlpha");
+                } else { XposedBridge.log(TAG + ": RecentsView class not found"); }
             } catch (Throwable t) { XposedBridge.log(TAG + ": Recents hook failed: " + t); }
 
             try {
-                XposedHelpers.findAndHookMethod(
-                        "com.android.launcher3.allapps.AllAppsContainerView",
-                        lpparam.classLoader,
-                        "updateBackground",
-                        int.class, int.class, int.class, int.class,
-                        new XC_MethodHook() {
-                            @Override
-                            protected void afterHookedMethod(MethodHookParam param) {
-                                try {
-                                    View view = (View) param.thisObject;
-                                    float percent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.APPDRAWER, 100) / 100f;
-                                    if (view.getBackground() != null) view.getBackground().setAlpha((int) (255 * percent));
-                                } catch (Throwable t) { XposedBridge.log(TAG + ": AppDrawer alpha error: " + t); }
-                            }
-                        });
-                XposedBridge.log(TAG + ": hooked AllAppsContainerView.updateBackground");
+                Class<?> allAppsClass = XposedHelpers.findClassIfExists("com.android.launcher3.allapps.AllAppsContainerView", lpparam.classLoader);
+                if (allAppsClass != null) {
+                    XposedBridge.hookAllMethods(allAppsClass, "updateBackground", new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            try {
+                                View view = (View) param.thisObject;
+                                float percent = Settings.System.getInt(view.getContext().getContentResolver(), Keys.APPDRAWER, 100) / 100f;
+                                if (view.getBackground() != null) view.getBackground().setAlpha((int) (255 * percent));
+                            } catch (Throwable t) { XposedBridge.log(TAG + ": AppDrawer alpha error: " + t); }
+                        }
+                    });
+                    XposedBridge.log(TAG + ": hooked AllAppsContainerView.updateBackground");
+                } else { XposedBridge.log(TAG + ": AllAppsContainerView class not found"); }
             } catch (Throwable t) { XposedBridge.log(TAG + ": AppDrawer hook failed: " + t); }
         }
     }
@@ -171,9 +157,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         Object cached = v.getTag(TAG_ROLE);
         if (cached instanceof Integer) return (Integer) cached;
         String id = idName(v);
-        int r = "scrim_behind".equals(id) ? ROLE_TOP
-                : "scrim_notifications".equals(id) ? ROLE_BOTTOM
-                : ROLE_OTHER;
+        int r = "scrim_behind".equals(id) ? ROLE_TOP : "scrim_notifications".equals(id) ? ROLE_BOTTOM : ROLE_OTHER;
         v.setTag(TAG_ROLE, Integer.valueOf(r));
         XposedBridge.log(TAG + ": scrim view id=" + id + " role=" + r);
         return r;
@@ -200,7 +184,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static void fail(String where, Throwable t) {
         int n = ++failures;
         if (n <= 3) XposedBridge.log(TAG + ": " + where + " failed: " + t);
-        if (n >= MAX_FAILURES && !disabled) { disabled = true; XposedBridge.log(TAG + ": too many failures, hook disabled until SystemUI restart"); }
+        if (n >= MAX_FAILURES && !disabled) { disabled = true; XposedBridge.log(TAG + ": too many failures, hook disabled"); }
     }
 
     private static float factor(Context c, boolean top) {

@@ -65,30 +65,30 @@ jobs:
         if: inputs.build_type == 'release'
         shell: bash
         env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
-          if [ -z "${RELEASE_KEYSTORE_BASE64:-}" ]; then
-            echo "::error::Missing GitHub Actions secret RELEASE_KEYSTORE_BASE64"
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::Missing GitHub Actions secret KEYSTORE_BASE64"
             exit 1
           fi
 
           KEYSTORE="$RUNNER_TEMP/shadealpha-release.jks"
-          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
           test -s "$KEYSTORE"
           echo "Release keystore prepared."
 
       - name: Build APK
         env:
           RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/shadealpha-release.jks
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ "${{ inputs.build_type }}" = "debug" ]; then
             gradle --no-daemon assembleDebug
           else
-            for name in RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            for name in KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
               if [ -z "${!name:-}" ]; then
                 echo "::error::Missing GitHub Actions secret $name"
                 exit 1

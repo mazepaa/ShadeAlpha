@@ -431,9 +431,6 @@ public class SettingsActivity extends AppCompatActivity {
         TextView titleTv = text(title, 17, true);
         header.addView(titleTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        final TextView chevron = text("\u25BE", 18, false);
-        chevron.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
-        header.addView(chevron);
         col.addView(header);
 
         final LinearLayout body = new LinearLayout(this);
@@ -445,14 +442,12 @@ public class SettingsActivity extends AppCompatActivity {
         final String prefKey = "grp_" + id;
         final boolean[] open = {prefs.getBoolean(prefKey, defaultOpen)};
         body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
-        chevron.setRotation(open[0] ? 180f : 0f);
 
         header.setOnClickListener(v -> {
             open[0] = !open[0];
             prefs.edit().putBoolean(prefKey, open[0]).apply();
             TransitionManager.beginDelayedTransition(root, new AutoTransition().setDuration(180));
             body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
-            chevron.animate().rotation(open[0] ? 180f : 0f).setDuration(180).start();
             v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
         });
         return body;

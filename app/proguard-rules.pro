@@ -1,7 +1,10 @@
--keep class dev.shadealpha.** { *; }
--keep class androidx.appcompat.** { *; }
--keep class com.google.android.material.** { *; }
--dontwarn androidx.appcompat.**
--dontwarn com.google.android.material.**
--keep class de.robv.android.xposed.** { *; }
+# Xposed loads this entry point by the exact class name in assets/xposed_init.
+-keep class dev.shadealpha.ShadeAlpha { *; }
+
+# SettingsActivity checks this method after the module hooks its own process.
+-keepclassmembers class dev.shadealpha.Keys {
+    public static boolean isModuleActive();
+}
+
+# Xposed API classes are supplied by the framework, not packaged in this APK.
 -dontwarn de.robv.android.xposed.**

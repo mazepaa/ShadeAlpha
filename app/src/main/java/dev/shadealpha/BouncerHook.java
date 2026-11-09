@@ -66,9 +66,7 @@ final class BouncerHook {
 
     private static void applyScrimOpacity(XC_MethodHook.MethodHookParam p) {
         try {
-            if (p.args == null || p.args.length < 3
-                    || !(p.args[0] instanceof View)
-                    || !(p.args[1] instanceof Float)) return;
+            if (p.args == null || p.args.length < 1 || !(p.args[0] instanceof View)) return;
 
             Object controller = p.thisObject;
             Object state = XposedHelpers.getObjectField(controller, "mState");
@@ -86,7 +84,10 @@ final class BouncerHook {
 
             boolean bouncerState = "BOUNCER".equals(stateName)
                     || "BOUNCER_SCRIMMED".equals(stateName);
-            if (!bouncerState && !inTransit) return;
+            if (!bouncerState && !inTransit) {
+                activeBouncerScrim = null;
+                return;
+            }
 
             boolean clipsQsScrim = false;
             try {
@@ -99,34 +100,28 @@ final class BouncerHook {
                 Object front = XposedHelpers.getObjectField(controller, "mScrimInFront");
                 target = front instanceof View ? (View) front : null;
             } else {
+                // When QS clips the scrim, the notification scrim is the visible
+                // background layer; otherwise it is the regular behind scrim.
                 String field = clipsQsScrim ? "mNotificationsScrim" : "mScrimBehind";
                 Object behind = XposedHelpers.getObjectField(controller, field);
                 target = behind instanceof View ? (View) behind : null;
             }
-            if (p.args[0] != target) return;
 
-            View scrim = (View) p.args[0];
-            float original = ((Float) p.args[1]).floatValue();
-            float factor = Prefs.bouncer(scrim.getContext());
-            float adjusted = Math.max(0f, Math.min(1f, original * factor));
-            if (Math.abs(original - adjusted) > 0.0001f) {
-                p.args[1] = Float.valueOf(adjusted);
-            }
-
-            if (!logged) {
+            activeBouncerScrim = target;
+            if (!logged && target != null) {
                 logged = true;
-                XposedBridge.log(TAG + ": bouncer scrim first hit state=" + stateName
-                        + " transit=" + inTransit + " factor=" + factor
-                        + " alpha=" + original + " -> " + adjusted);
+                XposedBridge.log(TAG + ": bouncer scrim tracked state=" + stateName
+                        + " transit=" + inTransit + " target=" + target.getClass().getSimpleName());
             }
         } catch (Throwable t) {
-            if (++errors <= 3) XposedBridge.log(TAG + ": bouncer scrim alpha failed: " + t);
+            activeBouncerScrim = null;
+            if (++errors <= 3) XposedBridge.log(TAG + ": bouncer scrim tracking failed: " + t);
         }
     }
 
-    /** Scrim alpha is scaled in ScrimController.updateScrimColor; avoid applying it twice. */
+    /** ShadeAlpha's three rendering modes apply this value in their normal draw path. */
     static float scrimFactor(View view) {
-        return -1f;
+        return activeBouncerScrim == view ? Prefs.bouncer(view.getContext()) : -1f;
     }
 
     private static void hookContainer(ClassLoader cl) {

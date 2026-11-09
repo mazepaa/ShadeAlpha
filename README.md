@@ -21,6 +21,15 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
+## What's new in v3.2
+
+- 🔒 **Lock screen:** separate transparency for the PIN / password / pattern entry panel, including the bouncer scrim behind it.
+- 🔊 **Volume panel:** opacity control for the compact volume dialog and the expanded full-screen Compose panel.
+- 🎚️ **Volume sliders:** independent opacity for the inactive track and active fill.
+- 100% restores the original system alpha; repeated updates do not accumulate transparency.
+- Settings are grouped into collapsible sections; Russian and English remain available.
+- Android 16 / API 36 target. Release version 3.2 (versionCode 15).
+
 ## What's new in v3.0
 
 - 🪟 **Recents and app drawer transparency** now actually work: the module scope includes Pixel Launcher (`com.google.android.apps.nexuslauncher`) and Launcher3 (`com.android.launcher3`).
@@ -43,7 +52,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 ## Installation
 
-1. Install `ShadeAlpha-v3.0.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-v3.2.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha** (for status detection). The scope list is recommended automatically; make sure the boxes are ticked.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent.
@@ -51,9 +60,11 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 ## How it works
 
 - A hook inside the SystemUI process intercepts `ScrimView.onDraw` and draws the shade background in a layer with the chosen transparency: top → `scrim_behind`, bottom → `scrim_notifications`.
+- **Lock screen:** the bouncer container and the state-specific scrim behind / in front of it use the dedicated PIN opacity value.
+- **Volume panel:** the compact dialog backgrounds and Compose slider colors are adjusted separately from the expanded `VolumePanelActivity` surface.
 - **Recents:** the launcher hook post-processes the scrim colour returned by `OverviewState`, `QuickSwitchState`, `RecentsState` and `HintState` (`getWorkspaceScrimColor` / `getScrimColor`) and multiplies its alpha.
 - **App drawer:** `AllAppsState` scrim is scaled the same way; the sheet itself (`ActivityAllAppsContainerView`) is either recoloured (old versions with `mScrimColor`) or drawn inside `saveLayerAlpha` (`drawOnScrim*`, Android 15/16).
-- The values are stored in `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`, `shade_alpha_recents_percent`, `shade_alpha_appdrawer_percent`).
+- The values are stored in `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`, `shade_alpha_recents_percent`, `shade_alpha_appdrawer_percent`, `shade_alpha_bouncer_percent`, `shade_alpha_volume_percent`, `shade_alpha_vol_track_percent`, `shade_alpha_vol_fill_percent`).
 - **Rendering modes:** Due to different SystemUI implementations on custom ROMs, the app includes 3 rendering modes (switchable on the fly):
   - **1 (Compatibility):** Uses `saveLayerAlpha`. Maximum compatibility, but slightly higher GPU load.
   - **2 (Fast):** Uses `View.setAlpha`. Standard Android method, fast and smooth.
@@ -99,6 +110,15 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
+## Что нового в v3.2
+
+- 🔒 **Экран блокировки:** отдельная прозрачность панели ввода PIN-кода / пароля / графического ключа, включая затемняющий scrim за ней.
+- 🔊 **Панель громкости:** прозрачность компактного окна громкости и раскрытой полноэкранной Compose-панели.
+- 🎚️ **Ползунки громкости:** независимая прозрачность неактивной дорожки и активного заполнения.
+- 100% возвращает исходную системную альфу; повторные обновления не накапливают затемнение.
+- Настройки собраны в сворачиваемые группы; доступны русский и английский языки.
+- Android 16 / API 36. Версия выпуска 3.2 (versionCode 15).
+
 ## Что нового в v3.0
 
 - 🪟 **Прозрачность недавних и списка приложений** теперь работает: в область модуля добавлены Pixel Launcher (`com.google.android.apps.nexuslauncher`) и Launcher3 (`com.android.launcher3`).
@@ -121,7 +141,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 ## Установка
 
-1. Установи `ShadeAlpha-v3.0.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-v3.2.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha** (для определения статуса). Список области предлагается автоматически, проверь, что галочки стоят.
 3. Открой приложение ShadeAlpha и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее.
@@ -129,9 +149,11 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 ## Как это работает
 
 - Хук в процессе SystemUI перехватывает `ScrimView.onDraw` и рисует фон шторки в слое с нужной прозрачностью: верх → `scrim_behind`, низ → `scrim_notifications`.
+- **Экран блокировки:** фон PIN-контейнера и отдельный scrim за / перед ним используют значение ползунка PIN.
+- **Панель громкости:** фоны компактного окна и цвета ползунков Compose настраиваются отдельно от поверхности раскрытой `VolumePanelActivity`.
 - **Недавние:** хук в лаунчере перехватывает цвет скрима, который возвращают `OverviewState`, `QuickSwitchState`, `RecentsState` и `HintState` (`getWorkspaceScrimColor` / `getScrimColor`), и умножает его альфу.
 - **Список приложений:** скрим `AllAppsState` масштабируется так же; сама шторка (`ActivityAllAppsContainerView`) либо перекрашивается (старые версии с полем `mScrimColor`), либо рисуется внутри `saveLayerAlpha` (`drawOnScrim*`, Android 15/16).
-- Значения хранятся в `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`, `shade_alpha_recents_percent`, `shade_alpha_appdrawer_percent`).
+- Значения хранятся в `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`, `shade_alpha_recents_percent`, `shade_alpha_appdrawer_percent`, `shade_alpha_bouncer_percent`, `shade_alpha_volume_percent`, `shade_alpha_vol_track_percent`, `shade_alpha_vol_fill_percent`).
 - **Режимы отрисовки:** Из-за разных реализаций SystemUI на кастомных прошивках, в приложении есть 3 режима (переключаются на лету):
   - **1 (Совместимость):** Использует `saveLayerAlpha`. Максимальная совместимость, но чуть выше нагрузка на GPU.
   - **2 (Быстрый):** Использует `View.setAlpha`. Стандартный метод Android, быстрый и плавный.

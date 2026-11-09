@@ -130,6 +130,7 @@ final class BouncerHook {
 
             int total = 0;
             total += hookReapplyMethod(cls, "reloadBackgroundColor");
+            total += hookDraw(cls);
             total += hookReapplyMethod(cls, "reloadColors");
             total += hookReapplyMethod(cls, "enableTransparentMode");
             total += hookReapplyMethod(cls, "disableTransparentMode");
@@ -137,6 +138,23 @@ final class BouncerHook {
             XposedBridge.log(TAG + ": hooked bouncer refresh paths x" + total);
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": bouncer hook failed: " + t);
+        }
+    }
+
+    /** Reapply PIN background opacity immediately before View draws its background. */
+    private static int hookDraw(Class<?> cls) {
+        try {
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "draw",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam p) {
+                            apply(p.thisObject);
+                        }
+                    });
+            return hooks == null ? 0 : hooks.size();
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": bouncer draw hook failed: " + t);
+            return 0;
         }
     }
 

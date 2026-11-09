@@ -66,7 +66,8 @@ jobs:
           src=$(find app/build/outputs/apk/release -name '*.apk' | head -n1)
           bt=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)
           apksigner="$ANDROID_HOME/build-tools/$bt/apksigner"
-          name="ShadeAlpha-${GITHUB_REF_NAME}.apk"
+          ref_name="${GITHUB_REF_NAME//\//-}"
+          name="ShadeAlpha-${ref_name}.apk"
           "$apksigner" sign \
             --ks "$GITHUB_WORKSPACE/shadealpha-release.jks" \
             --ks-key-alias "$KEY_ALIAS" \

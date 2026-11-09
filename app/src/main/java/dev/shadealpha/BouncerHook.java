@@ -27,6 +27,8 @@ final class BouncerHook {
     private static final String SCRIM_CONTROLLER = "com.android.systemui.statusbar.phone.ScrimController";
     private static final String ORIGINAL_ALPHA = "shadealpha_bouncer_original_alpha";
 
+    // Current scrim view that belongs to the PIN transition or visible bouncer.
+    private static volatile View activeBouncerScrim;
     private static volatile boolean logged;
     private static int errors;
 

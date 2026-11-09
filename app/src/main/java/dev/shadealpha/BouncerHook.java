@@ -100,6 +100,10 @@ final class BouncerHook {
         }
     }
 
+    static String scrimStateForDiagnostics() {
+        return lastScrimState;
+    }
+
     /** Returns -1 when this View is not the scrim used by the active PIN state. */
     static float scrimFactor(View view) {
         if (activeBouncerScrim == view) return Prefs.bouncer(view.getContext());

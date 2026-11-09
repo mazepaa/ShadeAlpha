@@ -30,6 +30,7 @@ final class BouncerHook {
     // Scrim behind the PIN panel is separate from KeyguardSecurityContainer's own background.
     // In Android 16 it can retain its own dim value unless we use the PIN opacity for it too.
     private static volatile View activeBouncerScrim;
+    private static volatile boolean bouncerPreparing;
     private static volatile String lastScrimState = "";
 
     private static volatile boolean logged;
@@ -82,6 +83,12 @@ final class BouncerHook {
                 if (v instanceof View) target = (View) v;
             }
             activeBouncerScrim = target;
+            // prepareToShow() runs before ScrimController switches mState to BOUNCER.
+            // Keep using the PIN opacity during that gap to avoid one opaque frame.
+            if ("BOUNCER".equals(name) || "BOUNCER_SCRIMMED".equals(name)
+                    || "UNLOCKED".equals(name)) {
+                bouncerPreparing = false;
+            }
             if (!name.equals(lastScrimState)) {
                 lastScrimState = name;
                 XposedBridge.log(TAG + ": scrim state=" + name
@@ -95,7 +102,18 @@ final class BouncerHook {
 
     /** Returns -1 when this View is not the scrim used by the active PIN state. */
     static float scrimFactor(View view) {
-        return activeBouncerScrim == view ? Prefs.bouncer(view.getContext()) : -1f;
+        if (activeBouncerScrim == view) return Prefs.bouncer(view.getContext());
+        if (bouncerPreparing && isBehindScrim(view)) return Prefs.bouncer(view.getContext());
+        return -1f;
+    }
+
+    private static boolean isBehindScrim(View view) {
+        if (view == null || view.getId() == View.NO_ID) return false;
+        try {
+            return "scrim_behind".equals(view.getResources().getResourceEntryName(view.getId()));
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static void hookContainer(ClassLoader cl) {
@@ -151,6 +169,8 @@ final class BouncerHook {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam p) {
                             try {
+                                // Arm the PIN scrim opacity before prepareToShow starts its transition.
+                                bouncerPreparing = true;
                                 Object view = XposedHelpers.getObjectField(p.thisObject, "mView");
                                 if (view instanceof View) {
                                     logTransitionTarget((View) view, "prepareToShow/before");

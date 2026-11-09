@@ -27,12 +27,6 @@ final class BouncerHook {
     private static final String SCRIM_CONTROLLER = "com.android.systemui.statusbar.phone.ScrimController";
     private static final String ORIGINAL_ALPHA = "shadealpha_bouncer_original_alpha";
 
-    // Scrim behind the PIN panel is separate from KeyguardSecurityContainer's own background.
-    // In Android 16 it can retain its own dim value unless we use the PIN opacity for it too.
-    private static volatile View activeBouncerScrim;
-    private static volatile String lastScrimState = "";
-    private static volatile boolean bouncerInTransit;
-
     private static volatile boolean logged;
     private static int errors;
 
@@ -46,9 +40,9 @@ final class BouncerHook {
     }
 
     /**
-     * Track which SystemUI scrim currently belongs to the PIN bouncer.
-     * Normal BOUNCER uses the behind scrim; BOUNCER_SCRIMMED (over a
-     * show-when-locked activity) uses the front scrim.
+     * ScrimController blends Monet tints while KEYGUARD transitions to the primary
+     * bouncer. Hook the final alpha calculation itself so the PIN opacity is applied
+     * from the first swipe frame, for every rendering mode.
      */
     private static void hookScrimController(ClassLoader cl) {
         try {
@@ -57,72 +51,82 @@ final class BouncerHook {
                 XposedBridge.log(TAG + ": scrim controller not found: " + SCRIM_CONTROLLER);
                 return;
             }
-            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "updateScrims",
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "updateScrimColor",
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam p) {
-                            refreshBouncerScrim(p.thisObject);
+                            applyScrimOpacity(p);
                         }
                     });
-            XposedBridge.log(TAG + ": hooked bouncer scrim state x" + (hooks == null ? 0 : hooks.size()));
+            XposedBridge.log(TAG + ": hooked bouncer scrim alpha x" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": bouncer scrim hook failed: " + t);
         }
     }
 
-    private static void refreshBouncerScrim(Object controller) {
+    private static void applyScrimOpacity(XC_MethodHook.MethodHookParam p) {
         try {
+            if (p.args == null || p.args.length < 3
+                    || !(p.args[0] instanceof View)
+                    || !(p.args[1] instanceof Float)) return;
+
+            Object controller = p.thisObject;
             Object state = XposedHelpers.getObjectField(controller, "mState");
-            String name = state == null ? "" : state.toString();
+            String stateName = state == null ? "" : state.toString();
+
             boolean inTransit = false;
             try {
                 Object manager = XposedHelpers.getObjectField(
                         controller, "mStatusBarKeyguardViewManager");
-                Object value = XposedHelpers.callMethod(manager, "isPrimaryBouncerInTransit");
-                inTransit = Boolean.TRUE.equals(value);
+                inTransit = Boolean.TRUE.equals(
+                        XposedHelpers.callMethod(manager, "isPrimaryBouncerInTransit"));
             } catch (Throwable ignored) {
-                // Older or vendor SystemUI builds may not expose this transition query.
+                // Some vendor SystemUI versions do not expose the transition query.
             }
-            bouncerInTransit = inTransit;
 
-            View target = null;
-            if ("BOUNCER".equals(name)) {
-                Object v = XposedHelpers.getObjectField(controller, "mScrimBehind");
-                if (v instanceof View) target = (View) v;
-            } else if ("BOUNCER_SCRIMMED".equals(name)) {
-                Object v = XposedHelpers.getObjectField(controller, "mScrimInFront");
-                if (v instanceof View) target = (View) v;
-            } else if (inTransit) {
-                // During the swipe the ScrimState is still KEYGUARD, but AOSP has already
-                // started blending its Monet tint towards BOUNCER. Scale that same layer
-                // with the PIN slider from the first transition frame.
-                boolean clipsQsScrim = false;
-                try {
-                    Object clips = XposedHelpers.getObjectField(controller, "mClipsQsScrim");
-                    clipsQsScrim = Boolean.TRUE.equals(clips);
-                } catch (Throwable ignored) { }
+            boolean bouncerState = "BOUNCER".equals(stateName)
+                    || "BOUNCER_SCRIMMED".equals(stateName);
+            if (!bouncerState && !inTransit) return;
+
+            boolean clipsQsScrim = false;
+            try {
+                clipsQsScrim = Boolean.TRUE.equals(
+                        XposedHelpers.getObjectField(controller, "mClipsQsScrim"));
+            } catch (Throwable ignored) { }
+
+            View target;
+            if ("BOUNCER_SCRIMMED".equals(stateName)) {
+                Object front = XposedHelpers.getObjectField(controller, "mScrimInFront");
+                target = front instanceof View ? (View) front : null;
+            } else {
                 String field = clipsQsScrim ? "mNotificationsScrim" : "mScrimBehind";
-                Object v = XposedHelpers.getObjectField(controller, field);
-                if (v instanceof View) target = (View) v;
+                Object behind = XposedHelpers.getObjectField(controller, field);
+                target = behind instanceof View ? (View) behind : null;
+            }
+            if (p.args[0] != target) return;
+
+            View scrim = (View) p.args[0];
+            float original = ((Float) p.args[1]).floatValue();
+            float factor = Prefs.bouncer(scrim.getContext());
+            float adjusted = Math.max(0f, Math.min(1f, original * factor));
+            if (Math.abs(original - adjusted) > 0.0001f) {
+                p.args[1] = Float.valueOf(adjusted);
             }
 
-            activeBouncerScrim = target;
-            String stateKey = name + (inTransit ? "/transit" : "");
-            if (!stateKey.equals(lastScrimState)) {
-                lastScrimState = stateKey;
-                XposedBridge.log(TAG + ": scrim state=" + stateKey
-                        + " bouncerScrim=" + (target == null ? "none" : target.getClass().getSimpleName()));
+            if (!logged) {
+                logged = true;
+                XposedBridge.log(TAG + ": bouncer scrim first hit state=" + stateName
+                        + " transit=" + inTransit + " factor=" + factor
+                        + " alpha=" + original + " -> " + adjusted);
             }
         } catch (Throwable t) {
-            activeBouncerScrim = null;
-            bouncerInTransit = false;
-            if (++errors <= 3) XposedBridge.log(TAG + ": bouncer scrim state read failed: " + t);
+            if (++errors <= 3) XposedBridge.log(TAG + ": bouncer scrim alpha failed: " + t);
         }
     }
 
-    /** Returns -1 when this View is not the scrim used by the active PIN state. */
+    /** Scrim alpha is scaled in ScrimController.updateScrimColor; avoid applying it twice. */
     static float scrimFactor(View view) {
-        return activeBouncerScrim == view ? Prefs.bouncer(view.getContext()) : -1f;
+        return -1f;
     }
 
     private static void hookContainer(ClassLoader cl) {

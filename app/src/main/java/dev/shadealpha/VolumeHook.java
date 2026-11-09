@@ -49,24 +49,36 @@ final class VolumeHook {
     private VolumeHook() {}
 
     static void hook(ClassLoader cl) {
+        hookDialogShow(cl);
+        hookSliderTrack(cl);
+    }
+
+    /**
+     * VolumeDialog inherits Dialog.onStart() and does not override it on AOSP.
+     * Hook Dialog.show() after the window content is attached, otherwise hookAllMethods
+     * on VolumeDialog.onStart finds zero methods and the background is never changed.
+     */
+    private static void hookDialogShow(ClassLoader cl) {
         try {
-            Class<?> cls = XposedHelpers.findClassIfExists(DIALOG, cl);
+            Class<?> cls = XposedHelpers.findClassIfExists("android.app.Dialog", cl);
             if (cls == null) {
-                XposedBridge.log(TAG + ": volume: " + DIALOG + " not found");
+                XposedBridge.log(TAG + ": Dialog base class not found");
                 return;
             }
-            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "onStart",
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "show",
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam p) {
-                            apply(p.thisObject);
+                            if (p.thisObject != null
+                                    && DIALOG.equals(p.thisObject.getClass().getName())) {
+                                apply(p.thisObject);
+                            }
                         }
                     });
-            XposedBridge.log(TAG + ": hooked volume dialog x" + (hooks == null ? 0 : hooks.size()));
+            XposedBridge.log(TAG + ": hooked Dialog.show for volume x" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": volume hook failed: " + t);
+            XposedBridge.log(TAG + ": volume dialog show hook failed: " + t);
         }
-        hookSliderTrack(cl);
     }
 
     /**

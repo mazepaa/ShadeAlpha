@@ -50,8 +50,6 @@ jobs:
             exit 1
           fi
 
-          # sdkmanager may close stdin after accepting all licenses; ignore yes/SIGPIPE,
-          # but preserve sdkmanager's own exit status.
           set +o pipefail
           yes | "$SDKMANAGER" --licenses
           LICENSE_STATUS=$?
@@ -63,13 +61,52 @@ jobs:
 
           "$SDKMANAGER" --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Prepare release signing key
+        if: inputs.build_type == 'release'
+        shell: bash
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_KEYSTORE_BASE64:-}" ]; then
+            echo "::error::Missing GitHub Actions secret RELEASE_KEYSTORE_BASE64"
+            exit 1
+          fi
+
+          KEYSTORE="$RUNNER_TEMP/shadealpha-release.jks"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          echo "Release keystore prepared."
+
       - name: Build APK
+        env:
+          RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/shadealpha-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           if [ "${{ inputs.build_type }}" = "debug" ]; then
             gradle --no-daemon assembleDebug
           else
+            for name in RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+              if [ -z "${!name:-}" ]; then
+                echo "::error::Missing GitHub Actions secret $name"
+                exit 1
+              fi
+            done
             gradle --no-daemon assembleRelease
           fi
+
+      - name: Verify release APK signature
+        if: inputs.build_type == 'release'
+        shell: bash
+        run: |
+          APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo "::error::Release APK not found"
+            exit 1
+          fi
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

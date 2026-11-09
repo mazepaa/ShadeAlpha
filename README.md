@@ -24,7 +24,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 ## What's new in v3.2
 
 - 🔒 **Lock screen:** separate transparency for the PIN / password / pattern entry panel, including the bouncer scrim behind it.
-- 🔊 **Volume panel:** opacity control for the compact volume dialog and the expanded full-screen Compose panel.
+- 🔊 **Volume panel:** opacity control for the compact dialog and the expanded list of streams (alarm, ringtone, calls, notifications and other channels).
 - 🎚️ **Volume sliders:** independent opacity for the inactive track and active fill.
 - 100% restores the original system alpha; repeated updates do not accumulate transparency.
 - Settings are grouped into collapsible sections; Russian and English remain available.
@@ -61,7 +61,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 - A hook inside the SystemUI process intercepts `ScrimView.onDraw` and draws the shade background in a layer with the chosen transparency: top → `scrim_behind`, bottom → `scrim_notifications`.
 - **Lock screen:** the bouncer container and the state-specific scrim behind / in front of it use the dedicated PIN opacity value.
-- **Volume panel:** the compact dialog backgrounds and Compose slider colors are adjusted separately from the expanded `VolumePanelActivity` surface.
+- **Volume panel:** the background is adjusted after the `VolumeDialog` layout has been attached, so the same opacity applies to its expanded stream rows; Compose slider track and fill colors have independent controls.
 - **Recents:** the launcher hook post-processes the scrim colour returned by `OverviewState`, `QuickSwitchState`, `RecentsState` and `HintState` (`getWorkspaceScrimColor` / `getScrimColor`) and multiplies its alpha.
 - **App drawer:** `AllAppsState` scrim is scaled the same way; the sheet itself (`ActivityAllAppsContainerView`) is either recoloured (old versions with `mScrimColor`) or drawn inside `saveLayerAlpha` (`drawOnScrim*`, Android 15/16).
 - The values are stored in `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`, `shade_alpha_recents_percent`, `shade_alpha_appdrawer_percent`, `shade_alpha_bouncer_percent`, `shade_alpha_volume_percent`, `shade_alpha_vol_track_percent`, `shade_alpha_vol_fill_percent`).
@@ -113,7 +113,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 ## Что нового в v3.2
 
 - 🔒 **Экран блокировки:** отдельная прозрачность панели ввода PIN-кода / пароля / графического ключа, включая затемняющий scrim за ней.
-- 🔊 **Панель громкости:** прозрачность компактного окна громкости и раскрытой полноэкранной Compose-панели.
+- 🔊 **Панель громкости:** прозрачность компактного окна и раскрытого списка каналов (будильник, звонок, вызовы, уведомления и другие).
 - 🎚️ **Ползунки громкости:** независимая прозрачность неактивной дорожки и активного заполнения.
 - 100% возвращает исходную системную альфу; повторные обновления не накапливают затемнение.
 - Настройки собраны в сворачиваемые группы; доступны русский и английский языки.
@@ -150,7 +150,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 - Хук в процессе SystemUI перехватывает `ScrimView.onDraw` и рисует фон шторки в слое с нужной прозрачностью: верх → `scrim_behind`, низ → `scrim_notifications`.
 - **Экран блокировки:** фон PIN-контейнера и отдельный scrim за / перед ним используют значение ползунка PIN.
-- **Панель громкости:** фоны компактного окна и цвета ползунков Compose настраиваются отдельно от поверхности раскрытой `VolumePanelActivity`.
+- **Панель громкости:** фон обрабатывается после подключения разметки `VolumeDialog`, поэтому прозрачность распространяется и на раскрытые строки каналов; дорожка и заполнение Compose-ползунков настраиваются отдельно.
 - **Недавние:** хук в лаунчере перехватывает цвет скрима, который возвращают `OverviewState`, `QuickSwitchState`, `RecentsState` и `HintState` (`getWorkspaceScrimColor` / `getScrimColor`), и умножает его альфу.
 - **Список приложений:** скрим `AllAppsState` масштабируется так же; сама шторка (`ActivityAllAppsContainerView`) либо перекрашивается (старые версии с полем `mScrimColor`), либо рисуется внутри `saveLayerAlpha` (`drawOnScrim*`, Android 15/16).
 - Значения хранятся в `Settings.System` (`shade_alpha_top_percent`, `shade_alpha_bottom_percent`, `shade_alpha_recents_percent`, `shade_alpha_appdrawer_percent`, `shade_alpha_bouncer_percent`, `shade_alpha_volume_percent`, `shade_alpha_vol_track_percent`, `shade_alpha_vol_fill_percent`).

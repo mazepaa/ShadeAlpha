@@ -81,7 +81,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         XposedBridge.log(TAG + ": SystemUI loaded");
         BouncerHook.hook(lpparam.classLoader);
         VolumeHook.hook(lpparam.classLoader);
-        VolumePanelHook.hook(lpparam.classLoader);
         Class<?> scrim = null;
         for (String name : SCRIM_CLASSES) {
             scrim = XposedHelpers.findClassIfExists(name, lpparam.classLoader);

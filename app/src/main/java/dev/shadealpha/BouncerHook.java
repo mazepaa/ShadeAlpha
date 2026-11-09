@@ -33,6 +33,7 @@ final class BouncerHook {
     private static volatile String lastScrimState = "";
 
     private static volatile boolean logged;
+    private static volatile boolean transitionLogged;
     private static int errors;
 
     private BouncerHook() {}
@@ -84,7 +85,7 @@ final class BouncerHook {
             if (!name.equals(lastScrimState)) {
                 lastScrimState = name;
                 XposedBridge.log(TAG + ": scrim state=" + name
-                        + " bouncerScrim=" + (target == null ? "none" : target.getClass().getSimpleName()));
+                        + " bouncerScrim=" + (target == null ? "none" : viewInfo(target)));
             }
         } catch (Throwable t) {
             activeBouncerScrim = null;
@@ -122,6 +123,10 @@ final class BouncerHook {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, methodName,
                     new XC_MethodHook() {
                         @Override
+                        protected void beforeHookedMethod(MethodHookParam p) {
+                            apply(p.thisObject);
+                        }
+                        @Override
                         protected void afterHookedMethod(MethodHookParam p) {
                             apply(p.thisObject);
                         }
@@ -144,12 +149,27 @@ final class BouncerHook {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "prepareToShow",
                     new XC_MethodHook() {
                         @Override
+                        protected void beforeHookedMethod(MethodHookParam p) {
+                            try {
+                                Object view = XposedHelpers.getObjectField(p.thisObject, "mView");
+                                if (view instanceof View) {
+                                    logTransitionTarget((View) view, "prepareToShow/before");
+                                    apply(view);
+                                }
+                            } catch (Throwable t) {
+                                if (++errors <= 3) XposedBridge.log(TAG + ": bouncer prepareToShow before failed: " + t);
+                            }
+                        }
+                        @Override
                         protected void afterHookedMethod(MethodHookParam p) {
                             try {
                                 Object view = XposedHelpers.getObjectField(p.thisObject, "mView");
-                                if (view instanceof View) apply(view);
+                                if (view instanceof View) {
+                                    logTransitionTarget((View) view, "prepareToShow/after");
+                                    apply(view);
+                                }
                             } catch (Throwable t) {
-                                if (++errors <= 3) XposedBridge.log(TAG + ": bouncer prepareToShow failed: " + t);
+                                if (++errors <= 3) XposedBridge.log(TAG + ": bouncer prepareToShow after failed: " + t);
                             }
                         }
                     });
@@ -157,6 +177,25 @@ final class BouncerHook {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": bouncer controller hook failed: " + t);
         }
+    }
+
+    private static void logTransitionTarget(View view, String phase) {
+        if (transitionLogged) return;
+        transitionLogged = true;
+        XposedBridge.log(TAG + ": bouncer transition " + phase + " " + viewInfo(view));
+    }
+
+    private static String viewInfo(View view) {
+        if (view == null) return "null";
+        String id = "(no-id)";
+        try {
+            if (view.getId() != View.NO_ID) id = view.getResources().getResourceEntryName(view.getId());
+        } catch (Throwable ignored) { }
+        Drawable bg = view.getBackground();
+        return "class=" + view.getClass().getName()
+                + " id=" + id
+                + " viewAlpha=" + view.getAlpha()
+                + " bg=" + (bg == null ? "null" : bg.getClass().getName() + "/alpha=" + bg.getAlpha());
     }
 
     private static void apply(Object target) {
@@ -168,8 +207,7 @@ final class BouncerHook {
 
             if (!logged) {
                 logged = true;
-                XposedBridge.log(TAG + ": bouncer first hit factor=" + factor
-                        + " background=" + (current == null ? "null" : current.getClass().getSimpleName()));
+                XposedBridge.log(TAG + ": bouncer first hit factor=" + factor + " " + viewInfo(view));
             }
             if (current == null) return;
 

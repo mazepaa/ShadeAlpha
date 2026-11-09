@@ -201,7 +201,8 @@ final class VolumeHook {
             setBackgroundAlpha(ringer, f);
             // Some ROMs attach a drawable to this container; apply opacity when present.
             // The full-screen Compose VolumePanel is handled separately by VolumePanelHook.
-            setBackgroundAlpha(floating, f);
+            float expandedFactor = Prefs.volumeExpanded(ctx);
+            setBackgroundAlpha(floating, expandedFactor);
             if (floating instanceof ViewGroup) {
                 ViewGroup g = (ViewGroup) floating;
                 if (XposedHelpers.getAdditionalInstanceField(g, "shadealpha_volume_listener_installed") == null) {
@@ -216,7 +217,7 @@ final class VolumeHook {
                     ViewGroup.OnHierarchyChangeListener listener = new ViewGroup.OnHierarchyChangeListener() {
                         @Override
                         public void onChildViewAdded(View parent, View child) {
-                            setBackgroundAlpha(child, Prefs.volume(child.getContext()));
+                            setBackgroundAlpha(child, Prefs.volumeExpanded(child.getContext()));
                             if (chained != null) {
                                 try { chained.onChildViewAdded(parent, child); } catch (Throwable ignored) { }
                             }
@@ -232,7 +233,9 @@ final class VolumeHook {
                     XposedHelpers.setAdditionalInstanceField(g, "shadealpha_volume_listener_installed", Boolean.TRUE);
                     g.setOnHierarchyChangeListener(listener);
                 }
-                for (int i = 0; i < g.getChildCount(); i++) setBackgroundAlpha(g.getChildAt(i), f);
+                for (int i = 0; i < g.getChildCount(); i++) {
+                    setBackgroundAlpha(g.getChildAt(i), expandedFactor);
+                }
             }
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume apply failed: " + t);

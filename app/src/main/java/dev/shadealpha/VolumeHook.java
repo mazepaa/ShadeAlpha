@@ -199,8 +199,8 @@ final class VolumeHook {
 
             setBackgroundAlpha(bg, f);
             setBackgroundAlpha(ringer, f);
-            // The expanded volume UI paints its own rounded background on the container.
-            // Fading only its children leaves the full-screen panel opaque.
+            // Some ROMs attach a drawable to this container; apply opacity when present.
+            // The full-screen Compose VolumePanel is handled separately by VolumePanelHook.
             setBackgroundAlpha(floating, f);
             if (floating instanceof ViewGroup) {
                 ViewGroup g = (ViewGroup) floating;

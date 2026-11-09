@@ -11,9 +11,9 @@ android {
             def keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
             if (keystorePath != null && !keystorePath.isEmpty()) {
                 storeFile file(keystorePath)
-                storePassword System.getenv("RELEASE_STORE_PASSWORD")
-                keyAlias System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
             }
         }
     }

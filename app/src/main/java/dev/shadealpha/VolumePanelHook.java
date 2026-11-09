@@ -40,17 +40,20 @@ final class VolumePanelHook {
 
     private static void hookActivity(ClassLoader cl) {
         try {
-            Class<?> cls = XposedHelpers.findClassIfExists(ACTIVITY, cl);
+            Class<?> cls = XposedHelpers.findClassIfExists("android.app.Activity", cl);
             if (cls == null) {
-                XposedBridge.log(TAG + ": expanded volume activity not found");
+                XposedBridge.log(TAG + ": Activity base class not found");
                 return;
             }
 
+            // Hook the base methods so the logic also works when VolumePanelActivity
+            // inherits onStart/onStop without overriding them.
             Set<XC_MethodHook.Unhook> starts = XposedBridge.hookAllMethods(cls, "onStart",
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam p) {
-                            if (p.thisObject instanceof Activity) {
+                            if (p.thisObject instanceof Activity
+                                    && ACTIVITY.equals(p.thisObject.getClass().getName())) {
                                 Activity activity = (Activity) p.thisObject;
                                 activeActivity = activity;
                                 applyWindowDim(activity);
@@ -62,11 +65,11 @@ final class VolumePanelHook {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam p) {
-                            if (activeActivity == p.thisObject) activeActivity = null;
+                            if (p.thisObject == activeActivity) activeActivity = null;
                         }
                     });
 
-            XposedBridge.log(TAG + ": hooked expanded volume activity start="
+            XposedBridge.log(TAG + ": hooked Activity lifecycle start="
                     + (starts == null ? 0 : starts.size())
                     + " stop=" + (stops == null ? 0 : stops.size()));
         } catch (Throwable t) {

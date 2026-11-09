@@ -4,7 +4,6 @@ import android.app.Dialog;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.view.View;
-import android.view.ViewGroup;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -18,12 +17,12 @@ import de.robv.android.xposed.XposedHelpers;
 /**
  * Прозрачность панели громкости (новая реализация Android 16, com.android.systemui.volume.dialog).
  *
- * Фон панели, подложка ряда кнопок звонка и «плавающих» слайдеров — это обычные View с
+ * Фон панели и подложка ряда кнопок звонка — обычные View с
  * GradientDrawable. Достаточно выставить альфу самого drawable (View.alpha не трогаем,
  * её анимирует система). Сами дорожки слайдеров рисует Compose, их этот хук не затрагивает.
  *
  * Применяется при каждом показе панели (VolumeDialog.onStart), поэтому значение слайдера
- * подхватывается сразу. Плавающие слайдеры создаются позже, их ловим по добавлению в контейнер.
+ * подхватывается сразу.
  */
 final class VolumeHook {
 
@@ -42,9 +41,7 @@ final class VolumeHook {
 
     private static volatile int idBackground;
     private static volatile int idRinger;
-    private static volatile int idFloating;
     private static volatile boolean logged;
-    private static volatile boolean expandedLogged;
     private static int errors;
 
     private VolumeHook() {}
@@ -190,67 +187,14 @@ final class VolumeHook {
 
             View bg = idBackground != 0 ? d.findViewById(idBackground) : null;
             View ringer = idRinger != 0 ? d.findViewById(idRinger) : null;
-            View floating = idFloating != 0 ? d.findViewById(idFloating) : null;
             if (!logged) {
                 logged = true;
                 XposedBridge.log(TAG + ": volume first hit factor=" + f
-                        + " background=" + (bg != null) + " ringer=" + (ringer != null)
-                        + " floating=" + (floating != null));
+                        + " background=" + (bg != null) + " ringer=" + (ringer != null));
             }
 
             setBackgroundAlpha(bg, f);
             setBackgroundAlpha(ringer, f);
-            // Some ROMs attach a drawable to this container; apply opacity when present.
-            // The full-screen Compose VolumePanel is handled separately by VolumePanelHook.
-            float expandedFactor = Prefs.volumeExpanded(ctx);
-            if (!expandedLogged) {
-                expandedLogged = true;
-                XposedBridge.log(TAG + ": expanded volume inspect factor=" + expandedFactor
-                        + " container=" + describe(floating)
-                        + " childCount=" + (floating instanceof ViewGroup ? ((ViewGroup) floating).getChildCount() : -1));
-                if (floating instanceof ViewGroup) {
-                    ViewGroup inspect = (ViewGroup) floating;
-                    for (int i = 0; i < inspect.getChildCount(); i++) {
-                        XposedBridge.log(TAG + ": expanded volume child[" + i + "] " + describe(inspect.getChildAt(i)));
-                    }
-                }
-            }
-            setBackgroundAlpha(floating, expandedFactor);
-            if (floating instanceof ViewGroup) {
-                ViewGroup g = (ViewGroup) floating;
-                if (XposedHelpers.getAdditionalInstanceField(g, "shadealpha_volume_listener_installed") == null) {
-                    // Keep any listener installed by SystemUI instead of silently replacing it.
-                    ViewGroup.OnHierarchyChangeListener previous = null;
-                    try {
-                        previous = (ViewGroup.OnHierarchyChangeListener)
-                                XposedHelpers.getObjectField(g, "mOnHierarchyChangeListener");
-                    } catch (Throwable ignored) { }
-
-                    final ViewGroup.OnHierarchyChangeListener chained = previous;
-                    ViewGroup.OnHierarchyChangeListener listener = new ViewGroup.OnHierarchyChangeListener() {
-                        @Override
-                        public void onChildViewAdded(View parent, View child) {
-                            setBackgroundAlpha(child, Prefs.volumeExpanded(child.getContext()));
-                            XposedBridge.log(TAG + ": expanded volume child added " + describe(child));
-                            if (chained != null) {
-                                try { chained.onChildViewAdded(parent, child); } catch (Throwable ignored) { }
-                            }
-                        }
-
-                        @Override
-                        public void onChildViewRemoved(View parent, View child) {
-                            if (chained != null) {
-                                try { chained.onChildViewRemoved(parent, child); } catch (Throwable ignored) { }
-                            }
-                        }
-                    };
-                    XposedHelpers.setAdditionalInstanceField(g, "shadealpha_volume_listener_installed", Boolean.TRUE);
-                    g.setOnHierarchyChangeListener(listener);
-                }
-                for (int i = 0; i < g.getChildCount(); i++) {
-                    setBackgroundAlpha(g.getChildAt(i), expandedFactor);
-                }
-            }
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume apply failed: " + t);
         }
@@ -262,22 +206,9 @@ final class VolumeHook {
             android.content.res.Resources r = ctx.getResources();
             idBackground = r.getIdentifier("volume_dialog_background", "id", PKG);
             idRinger = r.getIdentifier("ringer_buttons_background", "id", PKG);
-            idFloating = r.getIdentifier("volume_dialog_floating_sliders_container", "id", PKG);
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume ids failed: " + t);
         }
-    }
-
-    private static String describe(View v) {
-        if (v == null) return "null";
-        String id = "(no-id)";
-        try {
-            if (v.getId() != View.NO_ID) id = v.getResources().getResourceEntryName(v.getId());
-        } catch (Throwable ignored) { }
-        Drawable bg = v.getBackground();
-        return "class=" + v.getClass().getName() + " id=" + id
-                + " viewAlpha=" + v.getAlpha()
-                + " bg=" + (bg == null ? "null" : bg.getClass().getName() + "/alpha=" + bg.getAlpha());
     }
 
     private static void setBackgroundAlpha(View v, float f) {

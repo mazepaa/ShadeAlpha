@@ -24,7 +24,13 @@ final class BouncerHook {
     private static final String TAG = "ShadeAlpha";
     private static final String CONTAINER = "com.android.keyguard.KeyguardSecurityContainer";
     private static final String CONTROLLER = "com.android.keyguard.KeyguardSecurityContainerController";
+    private static final String SCRIM_CONTROLLER = "com.android.systemui.statusbar.phone.ScrimController";
     private static final String ORIGINAL_ALPHA = "shadealpha_bouncer_original_alpha";
+
+    // Scrim behind the PIN panel is separate from KeyguardSecurityContainer's own background.
+    // In Android 16 it can retain its own dim value unless we use the PIN opacity for it too.
+    private static volatile View activeBouncerScrim;
+    private static volatile String lastScrimState = "";
 
     private static volatile boolean logged;
     private static int errors;
@@ -34,6 +40,61 @@ final class BouncerHook {
     static void hook(ClassLoader cl) {
         hookContainer(cl);
         hookPrepareToShow(cl);
+        hookScrimController(cl);
+    }
+
+    /**
+     * Track which SystemUI scrim currently belongs to the PIN bouncer.
+     * Normal BOUNCER uses the behind scrim; BOUNCER_SCRIMMED (over a
+     * show-when-locked activity) uses the front scrim.
+     */
+    private static void hookScrimController(ClassLoader cl) {
+        try {
+            Class<?> cls = XposedHelpers.findClassIfExists(SCRIM_CONTROLLER, cl);
+            if (cls == null) {
+                XposedBridge.log(TAG + ": scrim controller not found: " + SCRIM_CONTROLLER);
+                return;
+            }
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "updateScrims",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam p) {
+                            refreshBouncerScrim(p.thisObject);
+                        }
+                    });
+            XposedBridge.log(TAG + ": hooked bouncer scrim state x" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": bouncer scrim hook failed: " + t);
+        }
+    }
+
+    private static void refreshBouncerScrim(Object controller) {
+        try {
+            Object state = XposedHelpers.getObjectField(controller, "mState");
+            String name = state == null ? "" : state.toString();
+            View target = null;
+            if ("BOUNCER".equals(name)) {
+                Object v = XposedHelpers.getObjectField(controller, "mScrimBehind");
+                if (v instanceof View) target = (View) v;
+            } else if ("BOUNCER_SCRIMMED".equals(name)) {
+                Object v = XposedHelpers.getObjectField(controller, "mScrimInFront");
+                if (v instanceof View) target = (View) v;
+            }
+            activeBouncerScrim = target;
+            if (!name.equals(lastScrimState)) {
+                lastScrimState = name;
+                XposedBridge.log(TAG + ": scrim state=" + name
+                        + " bouncerScrim=" + (target == null ? "none" : target.getClass().getSimpleName()));
+            }
+        } catch (Throwable t) {
+            activeBouncerScrim = null;
+            if (++errors <= 3) XposedBridge.log(TAG + ": bouncer scrim state read failed: " + t);
+        }
+    }
+
+    /** Returns -1 when this View is not the scrim used by the active PIN state. */
+    static float scrimFactor(View view) {
+        return activeBouncerScrim == view ? Prefs.bouncer(view.getContext()) : -1f;
     }
 
     private static void hookContainer(ClassLoader cl) {

@@ -50,7 +50,17 @@ jobs:
             exit 1
           fi
 
+          # sdkmanager may close stdin after accepting all licenses; ignore yes/SIGPIPE,
+          # but preserve sdkmanager's own exit status.
+          set +o pipefail
           yes | "$SDKMANAGER" --licenses
+          LICENSE_STATUS=$?
+          set -o pipefail
+          if [ "$LICENSE_STATUS" -ne 0 ]; then
+            echo "Android SDK license acceptance failed (exit $LICENSE_STATUS)"
+            exit "$LICENSE_STATUS"
+          fi
+
           "$SDKMANAGER" --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Build APK

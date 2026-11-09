@@ -31,6 +31,7 @@ final class BouncerHook {
     // In Android 16 it can retain its own dim value unless we use the PIN opacity for it too.
     private static volatile View activeBouncerScrim;
     private static volatile String lastScrimState = "";
+    private static volatile boolean bouncerInTransit;
 
     private static volatile boolean logged;
     private static int errors;
@@ -40,6 +41,7 @@ final class BouncerHook {
     static void hook(ClassLoader cl) {
         hookContainer(cl);
         hookPrepareToShow(cl);
+        hookExpansion(cl);
         hookScrimController(cl);
     }
 
@@ -72,6 +74,17 @@ final class BouncerHook {
         try {
             Object state = XposedHelpers.getObjectField(controller, "mState");
             String name = state == null ? "" : state.toString();
+            boolean inTransit = false;
+            try {
+                Object manager = XposedHelpers.getObjectField(
+                        controller, "mStatusBarKeyguardViewManager");
+                Object value = XposedHelpers.callMethod(manager, "isPrimaryBouncerInTransit");
+                inTransit = Boolean.TRUE.equals(value);
+            } catch (Throwable ignored) {
+                // Older or vendor SystemUI builds may not expose this transition query.
+            }
+            bouncerInTransit = inTransit;
+
             View target = null;
             if ("BOUNCER".equals(name)) {
                 Object v = XposedHelpers.getObjectField(controller, "mScrimBehind");
@@ -79,15 +92,30 @@ final class BouncerHook {
             } else if ("BOUNCER_SCRIMMED".equals(name)) {
                 Object v = XposedHelpers.getObjectField(controller, "mScrimInFront");
                 if (v instanceof View) target = (View) v;
+            } else if (inTransit) {
+                // During the swipe the ScrimState is still KEYGUARD, but AOSP has already
+                // started blending its Monet tint towards BOUNCER. Scale that same layer
+                // with the PIN slider from the first transition frame.
+                boolean clipsQsScrim = false;
+                try {
+                    Object clips = XposedHelpers.getObjectField(controller, "mClipsQsScrim");
+                    clipsQsScrim = Boolean.TRUE.equals(clips);
+                } catch (Throwable ignored) { }
+                String field = clipsQsScrim ? "mNotificationsScrim" : "mScrimBehind";
+                Object v = XposedHelpers.getObjectField(controller, field);
+                if (v instanceof View) target = (View) v;
             }
+
             activeBouncerScrim = target;
-            if (!name.equals(lastScrimState)) {
-                lastScrimState = name;
-                XposedBridge.log(TAG + ": scrim state=" + name
+            String stateKey = name + (inTransit ? "/transit" : "");
+            if (!stateKey.equals(lastScrimState)) {
+                lastScrimState = stateKey;
+                XposedBridge.log(TAG + ": scrim state=" + stateKey
                         + " bouncerScrim=" + (target == null ? "none" : target.getClass().getSimpleName()));
             }
         } catch (Throwable t) {
             activeBouncerScrim = null;
+            bouncerInTransit = false;
             if (++errors <= 3) XposedBridge.log(TAG + ": bouncer scrim state read failed: " + t);
         }
     }
@@ -130,6 +158,33 @@ final class BouncerHook {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": bouncer " + methodName + " hook failed: " + t);
             return 0;
+        }
+    }
+
+    /**
+     * The PIN container is animated into view while the lockscreen is being swiped up.
+     * Reapply the drawable alpha on every expansion update so the Monet-colored bouncer
+     * background is already transparent during the transition, not only after PIN appears.
+     */
+    private static void hookExpansion(ClassLoader cl) {
+        try {
+            Class<?> cls = XposedHelpers.findClassIfExists(CONTROLLER, cl);
+            if (cls == null) return;
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "setExpansion",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam p) {
+                            try {
+                                Object view = XposedHelpers.getObjectField(p.thisObject, "mView");
+                                if (view instanceof View) apply(view);
+                            } catch (Throwable t) {
+                                if (++errors <= 3) XposedBridge.log(TAG + ": bouncer expansion apply failed: " + t);
+                            }
+                        }
+                    });
+            XposedBridge.log(TAG + ": hooked bouncer expansion x" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": bouncer expansion hook failed: " + t);
         }
     }
 

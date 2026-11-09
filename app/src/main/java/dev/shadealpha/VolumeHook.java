@@ -199,17 +199,39 @@ final class VolumeHook {
 
             setBackgroundAlpha(bg, f);
             setBackgroundAlpha(ringer, f);
+            // The expanded volume UI paints its own rounded background on the container.
+            // Fading only its children leaves the full-screen panel opaque.
+            setBackgroundAlpha(floating, f);
             if (floating instanceof ViewGroup) {
                 ViewGroup g = (ViewGroup) floating;
-                g.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
-                    @Override
-                    public void onChildViewAdded(View parent, View child) {
-                        setBackgroundAlpha(child, Prefs.volume(child.getContext()));
-                    }
+                if (XposedHelpers.getAdditionalInstanceField(g, "shadealpha_volume_listener_installed") == null) {
+                    // Keep any listener installed by SystemUI instead of silently replacing it.
+                    ViewGroup.OnHierarchyChangeListener previous = null;
+                    try {
+                        previous = (ViewGroup.OnHierarchyChangeListener)
+                                XposedHelpers.getObjectField(g, "mOnHierarchyChangeListener");
+                    } catch (Throwable ignored) { }
 
-                    @Override
-                    public void onChildViewRemoved(View parent, View child) { }
-                });
+                    final ViewGroup.OnHierarchyChangeListener chained = previous;
+                    ViewGroup.OnHierarchyChangeListener listener = new ViewGroup.OnHierarchyChangeListener() {
+                        @Override
+                        public void onChildViewAdded(View parent, View child) {
+                            setBackgroundAlpha(child, Prefs.volume(child.getContext()));
+                            if (chained != null) {
+                                try { chained.onChildViewAdded(parent, child); } catch (Throwable ignored) { }
+                            }
+                        }
+
+                        @Override
+                        public void onChildViewRemoved(View parent, View child) {
+                            if (chained != null) {
+                                try { chained.onChildViewRemoved(parent, child); } catch (Throwable ignored) { }
+                            }
+                        }
+                    };
+                    XposedHelpers.setAdditionalInstanceField(g, "shadealpha_volume_listener_installed", Boolean.TRUE);
+                    g.setOnHierarchyChangeListener(listener);
+                }
                 for (int i = 0; i < g.getChildCount(); i++) setBackgroundAlpha(g.getChildAt(i), f);
             }
         } catch (Throwable t) {
@@ -232,9 +254,27 @@ final class VolumeHook {
     private static void setBackgroundAlpha(View v, float f) {
         if (v == null) return;
         try {
-            Drawable d = v.getBackground();
-            if (d == null) return;
-            d.mutate().setAlpha(Math.max(0, Math.min(255, Math.round(255f * f))));
+            Drawable current = v.getBackground();
+            if (current == null) return;
+
+            Drawable d = current.mutate();
+            if (d != current) v.setBackground(d);
+
+            // Remember the unmodified drawable alpha. This makes repeated calls idempotent
+            // and restores the exact stock appearance when the slider returns to 100%.
+            Object saved = XposedHelpers.getAdditionalInstanceField(d, "shadealpha_volume_original_alpha");
+            int originalAlpha;
+            if (saved instanceof Integer) {
+                originalAlpha = ((Integer) saved).intValue();
+            } else {
+                originalAlpha = d.getAlpha();
+                XposedHelpers.setAdditionalInstanceField(d, "shadealpha_volume_original_alpha",
+                        Integer.valueOf(originalAlpha));
+            }
+
+            float factor = Math.max(0f, Math.min(1f, f));
+            int alpha = Math.max(0, Math.min(255, Math.round(originalAlpha * factor)));
+            if (d.getAlpha() != alpha) d.setAlpha(alpha);
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume alpha failed: " + t);
         }

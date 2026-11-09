@@ -111,15 +111,6 @@ final class BouncerHook {
             total += hookReapplyMethod(cls, "enableTransparentMode");
             total += hookReapplyMethod(cls, "disableTransparentMode");
 
-            Set<XC_MethodHook.Unhook> constructors = XposedBridge.hookAllConstructors(cls,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam p) {
-                            apply(p.thisObject);
-                        }
-                    });
-            total += constructors == null ? 0 : constructors.size();
-
             XposedBridge.log(TAG + ": hooked bouncer refresh paths x" + total);
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": bouncer hook failed: " + t);

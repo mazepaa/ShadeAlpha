@@ -170,7 +170,7 @@ final class VolumePanelHook {
         StackTraceElement[] stack = Thread.currentThread().getStackTrace();
         for (StackTraceElement frame : stack) {
             String name = frame.getClassName();
-            if (ROOT_KT.equals(name) || name.startsWith(ROOT_KT + "$")) return true;
+            if (name.contains("VolumePanelRootKt")) return true;
         }
         return false;
     }

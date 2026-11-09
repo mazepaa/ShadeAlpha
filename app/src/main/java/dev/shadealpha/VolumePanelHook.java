@@ -140,7 +140,8 @@ final class VolumePanelHook {
         if (activity == null || p.args == null || !isVolumePanelRootCall()) return;
 
         try {
-            float factor = Prefs.volume(activity);
+            // The expanded panel has its own slider; do not reuse the compact dialog opacity.
+            float factor = Prefs.volumeExpanded(activity);
             if (factor >= 0.999f) return;
 
             // Compose Color is represented as a packed long. In Material3 Surface

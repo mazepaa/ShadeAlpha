@@ -7,6 +7,7 @@ import android.provider.Settings;
 import android.view.View;
 
 import java.util.Set;
+import java.lang.reflect.Method;
 
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -35,6 +36,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private static final int MAX_FAILURES = 20;
     private static final boolean[] SVA_LOGGED = new boolean[3];
+    private static volatile String lastScrimDiagnostic = "";
 
     private static volatile float fTop = 1f;
     private static volatile float fBottom = 1f;
@@ -88,6 +90,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
         if (scrim == null) { XposedBridge.log(TAG + ": ScrimView not found"); return; }
 
+        hookScrimColorSetters(scrim);
+
         try {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
                 @Override
@@ -135,14 +139,57 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
                         float a = (Float) param.args[0];
-                        if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
                         float f = factor(v, role == ROLE_TOP);
-                        if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
+                        int m = mode;
+                        float applied = (m == Keys.MODE_SCRIM_ALPHA) ? a * f : a;
+                        String state = BouncerHook.scrimStateForDiagnostics();
+                        String diagnostic = "setViewAlpha id=" + idName(v) + " state=" + state
+                                + " mode=" + m + " requested=" + a + " factor=" + f
+                                + " applied=" + applied;
+                        if (!diagnostic.equals(lastScrimDiagnostic)) {
+                            lastScrimDiagnostic = diagnostic;
+                            XposedBridge.log(TAG + ": scrim diagnostic " + diagnostic);
+                        }
+                        if (m == Keys.MODE_SCRIM_ALPHA) param.args[0] = applied;
                     } catch (Throwable t) { fail("setViewAlpha", t); }
                 }
             });
             XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
+    }
+
+    private static void hookScrimColorSetters(Class<?> scrim) {
+        try {
+            int count = 0;
+            for (Method method : scrim.getDeclaredMethods()) {
+                String name = method.getName();
+                if (!(name.startsWith("setColor") || name.startsWith("setColors")
+                        || name.startsWith("setTint") || name.startsWith("setScrimColor"))) continue;
+                Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, name,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam p) {
+                                try {
+                                    View v = (View) p.thisObject;
+                                    if (role(v) == ROLE_OTHER) return;
+                                    String state = BouncerHook.scrimStateForDiagnostics();
+                                    String signature = "setter=" + name + " id=" + idName(v)
+                                            + " state=" + state + " args=" + java.util.Arrays.deepToString(p.args);
+                                    if (!signature.equals(lastScrimDiagnostic)) {
+                                        lastScrimDiagnostic = signature;
+                                        XposedBridge.log(TAG + ": scrim diagnostic " + signature);
+                                    }
+                                } catch (Throwable t) {
+                                    fail("scrim color diagnostic", t);
+                                }
+                            }
+                        });
+                count += hooks == null ? 0 : hooks.size();
+            }
+            XposedBridge.log(TAG + ": hooked scrim color setters x" + count);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": scrim color diagnostics failed: " + t);
+        }
     }
 
     // ========== HELPERS ==========

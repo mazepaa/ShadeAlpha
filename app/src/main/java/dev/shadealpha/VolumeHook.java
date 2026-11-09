@@ -44,6 +44,7 @@ final class VolumeHook {
     private static volatile int idRinger;
     private static volatile int idFloating;
     private static volatile boolean logged;
+    private static volatile boolean expandedLogged;
     private static int errors;
 
     private VolumeHook() {}
@@ -202,6 +203,18 @@ final class VolumeHook {
             // Some ROMs attach a drawable to this container; apply opacity when present.
             // The full-screen Compose VolumePanel is handled separately by VolumePanelHook.
             float expandedFactor = Prefs.volumeExpanded(ctx);
+            if (!expandedLogged) {
+                expandedLogged = true;
+                XposedBridge.log(TAG + ": expanded volume inspect factor=" + expandedFactor
+                        + " container=" + describe(floating)
+                        + " childCount=" + (floating instanceof ViewGroup ? ((ViewGroup) floating).getChildCount() : -1));
+                if (floating instanceof ViewGroup) {
+                    ViewGroup inspect = (ViewGroup) floating;
+                    for (int i = 0; i < inspect.getChildCount(); i++) {
+                        XposedBridge.log(TAG + ": expanded volume child[" + i + "] " + describe(inspect.getChildAt(i)));
+                    }
+                }
+            }
             setBackgroundAlpha(floating, expandedFactor);
             if (floating instanceof ViewGroup) {
                 ViewGroup g = (ViewGroup) floating;
@@ -218,6 +231,7 @@ final class VolumeHook {
                         @Override
                         public void onChildViewAdded(View parent, View child) {
                             setBackgroundAlpha(child, Prefs.volumeExpanded(child.getContext()));
+                            XposedBridge.log(TAG + ": expanded volume child added " + describe(child));
                             if (chained != null) {
                                 try { chained.onChildViewAdded(parent, child); } catch (Throwable ignored) { }
                             }
@@ -252,6 +266,18 @@ final class VolumeHook {
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume ids failed: " + t);
         }
+    }
+
+    private static String describe(View v) {
+        if (v == null) return "null";
+        String id = "(no-id)";
+        try {
+            if (v.getId() != View.NO_ID) id = v.getResources().getResourceEntryName(v.getId());
+        } catch (Throwable ignored) { }
+        Drawable bg = v.getBackground();
+        return "class=" + v.getClass().getName() + " id=" + id
+                + " viewAlpha=" + v.getAlpha()
+                + " bg=" + (bg == null ? "null" : bg.getClass().getName() + "/alpha=" + bg.getAlpha());
     }
 
     private static void setBackgroundAlpha(View v, float f) {

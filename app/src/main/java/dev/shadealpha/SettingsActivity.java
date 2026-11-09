@@ -302,6 +302,20 @@ public class SettingsActivity extends AppCompatActivity {
         topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
 
+        root.addView(sectionHeader(t("Экран блокировки", "Lock screen")), lp(32));
+        addSlider(root, t("Ввод PIN-кода / пароля", "PIN / password entry"), Keys.BOUNCER);
+        root.addView(text(t(
+                "Применяется при следующем показе экрана ввода. После первого включения нажми «Перезапустить SystemUI».",
+                "Applied the next time the entry screen is shown. After enabling it for the first time, tap \"Restart SystemUI\"."),
+                13, false), lp(8));
+
+        root.addView(sectionHeader(t("Другие панели", "Other panels")), lp(32));
+        addSlider(root, t("Панель громкости", "Volume panel"), Keys.VOLUME);
+        root.addView(text(t(
+                "Фон панели и кнопок звонка. Применяется при следующем показе панели. После первого включения нажми «Перезапустить SystemUI».",
+                "Panel and ringer button background. Applied the next time the panel is shown. After enabling it for the first time, tap \"Restart SystemUI\"."),
+                13, false), lp(8));
+
         root.addView(sectionHeader(t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)")), lp(32));
         addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
         addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);
@@ -452,7 +466,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.MODE}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.BOUNCER, Keys.VOLUME, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

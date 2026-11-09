@@ -16,6 +16,8 @@ final class Prefs {
 
     private static volatile int recents = 100;
     private static volatile int drawer = 100;
+    private static volatile int bouncer = 100;
+    private static volatile int volume = 100;
     private static volatile long lastRead = 0;
     private static Method currentApplication;
 
@@ -33,6 +35,18 @@ final class Prefs {
         return drawer / 100f;
     }
 
+    /** То же самое для экрана ввода PIN / пароля / ключа на экране блокировки. */
+    static float bouncer(Context c) {
+        refresh(c);
+        return bouncer / 100f;
+    }
+
+    /** То же самое для панели громкости. */
+    static float volume(Context c) {
+        refresh(c);
+        return volume / 100f;
+    }
+
     private static void refresh(Context c) {
         long now = SystemClock.uptimeMillis();
         if (now - lastRead < TTL_MS) return;
@@ -41,6 +55,8 @@ final class Prefs {
         lastRead = now;
         recents = read(c, Keys.RECENTS);
         drawer = read(c, Keys.APPDRAWER);
+        bouncer = read(c, Keys.BOUNCER);
+        volume = read(c, Keys.VOLUME);
     }
 
     private static int read(Context c, String key) {

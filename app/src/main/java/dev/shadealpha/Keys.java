@@ -5,6 +5,8 @@ public class Keys {
     public static final String BOTTOM = "shade_alpha_bottom_percent";
     public static final String RECENTS = "shade_alpha_recents_percent";
     public static final String APPDRAWER = "shade_alpha_appdrawer_percent";
+    public static final String BOUNCER = "shade_alpha_bouncer_percent";
+    public static final String VOLUME = "shade_alpha_volume_percent";
     public static final String MODE = "shade_alpha_mode";
 
     public static final int MODE_LAYER = 0;

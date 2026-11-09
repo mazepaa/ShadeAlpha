@@ -29,22 +29,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # The legacy "tools" SDK package has been removed from Google's repository.
-          # Install only platform-tools; command-line tools are provided by the action.
-          packages: 'platform-tools'
-
-      - name: Grant execute permission
-        run: chmod +x ./gradlew
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - name: Build APK
         run: |
           if [ "${{ inputs.build_type }}" = "debug" ]; then
-            ./gradlew --no-daemon assembleDebug
+            gradle --no-daemon assembleDebug
           else
-            ./gradlew --no-daemon assembleRelease
+            gradle --no-daemon assembleRelease
           fi
 
       - name: Upload APK

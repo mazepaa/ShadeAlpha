@@ -98,7 +98,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
-                        float f = factor(v.getContext(), role == ROLE_TOP);
+                        float f = factor(v, role == ROLE_TOP);
                         int m = mode;
                         if (m == Keys.MODE_VIEW_ALPHA) {
                             applyViewAlpha(v, f);
@@ -136,7 +136,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (role == ROLE_OTHER) return;
                         float a = (Float) param.args[0];
                         if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
-                        float f = factor(v.getContext(), role == ROLE_TOP);
+                        float f = factor(v, role == ROLE_TOP);
                         if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
                     } catch (Throwable t) { fail("setViewAlpha", t); }
                 }
@@ -178,6 +178,14 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         int n = ++failures;
         if (n <= 3) XposedBridge.log(TAG + ": " + where + " failed: " + t);
         if (n >= MAX_FAILURES && !disabled) { disabled = true; XposedBridge.log(TAG + ": too many failures, hook disabled"); }
+    }
+
+    private static float factor(View v, boolean top) {
+        // During PIN entry, the behind/front scrim is part of the lock screen background,
+        // not the normal notification shade. Use the dedicated PIN opacity slider.
+        float bouncer = BouncerHook.scrimFactor(v);
+        if (bouncer >= 0f) return bouncer;
+        return factor(v.getContext(), top);
     }
 
     private static float factor(Context c, boolean top) {

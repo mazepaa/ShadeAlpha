@@ -18,6 +18,8 @@ final class Prefs {
     private static volatile int drawer = 100;
     private static volatile int bouncer = 100;
     private static volatile int volume = 100;
+    private static volatile int volTrack = 100;
+    private static volatile int volFill = 100;
     private static volatile long lastRead = 0;
     private static Method currentApplication;
 
@@ -47,6 +49,18 @@ final class Prefs {
         return volume / 100f;
     }
 
+    /** Неактивная часть (дорожка) слайдера громкости. */
+    static float volumeTrack(Context c) {
+        refresh(c);
+        return volTrack / 100f;
+    }
+
+    /** Активная часть (заполнение) слайдера громкости. */
+    static float volumeFill(Context c) {
+        refresh(c);
+        return volFill / 100f;
+    }
+
     private static void refresh(Context c) {
         long now = SystemClock.uptimeMillis();
         if (now - lastRead < TTL_MS) return;
@@ -57,6 +71,8 @@ final class Prefs {
         drawer = read(c, Keys.APPDRAWER);
         bouncer = read(c, Keys.BOUNCER);
         volume = read(c, Keys.VOLUME);
+        volTrack = read(c, Keys.VOL_TRACK);
+        volFill = read(c, Keys.VOL_FILL);
     }
 
     private static int read(Context c, String key) {

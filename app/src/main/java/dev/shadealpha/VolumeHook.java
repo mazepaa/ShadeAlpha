@@ -6,6 +6,9 @@ import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.Set;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -27,6 +30,15 @@ final class VolumeHook {
     private static final String TAG = "ShadeAlpha";
     private static final String PKG = "com.android.systemui";
     private static final String DIALOG = "com.android.systemui.volume.dialog.VolumeDialog";
+    private static final String TRACK_KT = "com.android.systemui.volume.dialog.sliders.ui.compose.VolumeDialogSliderTrackKt";
+    private static final String SLIDER_COLORS = "androidx.compose.material3.SliderColors";
+    // active, disabledActive, inactive, disabledInactive
+    private static final String[] COLOR_FIELDS = {
+            "activeTrackColor", "disabledActiveTrackColor", "inactiveTrackColor", "disabledInactiveTrackColor"
+    };
+    private static Field[] colorFields;
+    private static boolean colorFieldsFailed;
+    private static volatile boolean trackLogged;
 
     private static volatile int idBackground;
     private static volatile int idRinger;
@@ -54,6 +66,117 @@ final class VolumeHook {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": volume hook failed: " + t);
         }
+        hookSliderTrack(cl);
+    }
+
+    /**
+     * Дорожку и заполнение слайдера рисует Compose (Material3 Slider). Цвета приходят в SliderTrack(...)
+     * внутри объекта SliderColors (поля типа long — упакованный Compose Color). Имя функции содержит
+     * хэш сигнатуры, поэтому ищем все методы, начинающиеся с "SliderTrack".
+     */
+    private static void hookSliderTrack(ClassLoader cl) {
+        try {
+            Class<?> cls = XposedHelpers.findClassIfExists(TRACK_KT, cl);
+            if (cls == null) {
+                XposedBridge.log(TAG + ": volume slider: " + TRACK_KT + " not found");
+                return;
+            }
+            Set<String> names = new HashSet<String>();
+            for (Method m : cls.getDeclaredMethods()) {
+                if (m.getName().startsWith("SliderTrack")) names.add(m.getName());
+            }
+            int n = 0;
+            for (String name : names) {
+                Set<XC_MethodHook.Unhook> h = XposedBridge.hookAllMethods(cls, name, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam p) {
+                        recolor(p.args);
+                    }
+                });
+                n += h == null ? 0 : h.size();
+            }
+            XposedBridge.log(TAG + ": hooked volume slider track x" + n);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": volume slider hook failed: " + t);
+        }
+    }
+
+    private static void recolor(Object[] args) {
+        if (args == null) return;
+        for (Object a : args) {
+            if (a != null && SLIDER_COLORS.equals(a.getClass().getName())) {
+                applyColors(a);
+                return;
+            }
+        }
+    }
+
+    /** Меняет альфу цветов дорожки/заполнения. Оригиналы помним на объекте — повторные вызовы не накапливаются. */
+    static void applyColors(Object sc) {
+        try {
+            Field[] fs = colorFields(sc.getClass());
+            if (fs == null) return;
+            float fill = Prefs.volumeFill(null);
+            float track = Prefs.volumeTrack(null);
+            float[] f = {fill, fill, track, track};
+
+            long[] cur = new long[4];
+            for (int i = 0; i < 4; i++) cur[i] = fs[i].getLong(sc);
+            long[] st = (long[]) XposedHelpers.getAdditionalInstanceField(sc, "shadealpha_slider");
+            if (st == null) {
+                st = new long[8];
+                for (int i = 0; i < 4; i++) {
+                    st[i] = cur[i];
+                    st[4 + i] = cur[i];
+                }
+                XposedHelpers.setAdditionalInstanceField(sc, "shadealpha_slider", st);
+            } else {
+                for (int i = 0; i < 4; i++) {
+                    if (cur[i] != st[4 + i]) st[i] = cur[i]; // цвет поменяла система: это новый оригинал
+                }
+            }
+            if (!trackLogged) {
+                trackLogged = true;
+                XposedBridge.log(TAG + ": volume slider first hit fill=" + fill + " track=" + track);
+            }
+            for (int i = 0; i < 4; i++) {
+                long nv = (f[i] >= 0.999f) ? st[i] : scaleComposeColor(st[i], f[i]);
+                if (nv != cur[i]) fs[i].setLong(sc, nv);
+                st[4 + i] = nv;
+            }
+        } catch (Throwable t) {
+            if (++errors <= 3) XposedBridge.log(TAG + ": volume slider colors failed: " + t);
+        }
+    }
+
+    private static Field[] colorFields(Class<?> cls) {
+        if (colorFields != null) return colorFields;
+        if (colorFieldsFailed) return null;
+        try {
+            Field[] fs = new Field[4];
+            for (int i = 0; i < 4; i++) {
+                fs[i] = cls.getDeclaredField(COLOR_FIELDS[i]);
+                fs[i].setAccessible(true);
+            }
+            colorFields = fs;
+            return fs;
+        } catch (Throwable t) {
+            colorFieldsFailed = true;
+            XposedBridge.log(TAG + ": volume slider: SliderColors fields not found: " + t);
+            return null;
+        }
+    }
+
+    /** Compose Color упакован в Long: sRGB = a8 r8 g8 b8 в старших 32 битах, иначе альфа — 10 бит в позициях 6..15. */
+    static long scaleComposeColor(long v, float f) {
+        if ((v & 0x3FL) == 0L) {
+            int a = (int) ((v >>> 56) & 0xFFL);
+            int na = Math.max(0, Math.min(255, Math.round(a * f)));
+            return (v & 0x00FFFFFFFFFFFFFFL) | ((long) na << 56);
+        }
+        int a = (int) ((v >>> 6) & 0x3FFL);
+        int na = Math.max(0, Math.min(1023, Math.round(a * f)));
+        return (v & ~(0x3FFL << 6)) | ((long) na << 6);
     }
 
     private static void apply(Object self) {

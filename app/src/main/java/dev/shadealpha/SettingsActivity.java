@@ -9,6 +9,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.transition.AutoTransition;
+import android.transition.TransitionManager;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -81,14 +83,6 @@ public class SettingsActivity extends AppCompatActivity {
         tv.setTextSize(sp);
         if (bold) tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
         tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
-        return tv;
-    }
-
-    private TextView sectionHeader(String s) {
-        TextView tv = text(s, 13, true);
-        tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFF4CAF50));
-        tv.setAllCaps(true);
-        tv.setLetterSpacing(0.08f);
         return tv;
     }
 
@@ -298,33 +292,12 @@ public class SettingsActivity extends AppCompatActivity {
         }
         root.addView(moduleText, lp(2));
 
-        root.addView(sectionHeader(t("Шторка уведомлений", "Notification shade")), lp(24));
-        topBar = addSlider(root, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
-        bottomBar = addSlider(root, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
+        // ---- Шторка уведомлений ----
+        final LinearLayout shadeBox = addGroup(root, t("Шторка уведомлений", "Notification shade"), "shade", true);
+        topBar = addSlider(shadeBox, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
+        bottomBar = addSlider(shadeBox, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
 
-        root.addView(sectionHeader(t("Экран блокировки", "Lock screen")), lp(32));
-        addSlider(root, t("Ввод PIN-кода / пароля", "PIN / password entry"), Keys.BOUNCER);
-        root.addView(text(t(
-                "Применяется при следующем показе экрана ввода. После первого включения нажми «Перезапустить SystemUI».",
-                "Applied the next time the entry screen is shown. After enabling it for the first time, tap \"Restart SystemUI\"."),
-                13, false), lp(8));
-
-        root.addView(sectionHeader(t("Другие панели", "Other panels")), lp(32));
-        addSlider(root, t("Панель громкости", "Volume panel"), Keys.VOLUME);
-        root.addView(text(t(
-                "Фон панели и кнопок звонка. Применяется при следующем показе панели. После первого включения нажми «Перезапустить SystemUI».",
-                "Panel and ringer button background. Applied the next time the panel is shown. After enabling it for the first time, tap \"Restart SystemUI\"."),
-                13, false), lp(8));
-
-        root.addView(sectionHeader(t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)")), lp(32));
-        addSlider(root, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
-        addSlider(root, t("Список приложений", "App drawer"), Keys.APPDRAWER);
-        root.addView(text(t(
-                "Работает при включённом модуле для Pixel Launcher в LSPosed. После первого включения нажми «Перезапустить лаунчер».",
-                "Needs the module enabled for Pixel Launcher in LSPosed. After enabling it for the first time, tap \"Restart launcher\"."),
-                13, false), lp(8));
-
-        root.addView(headerWithHelp(
+        shadeBox.addView(headerWithHelp(
                 t("Режим отрисовки шторки", "Shade rendering mode"),
                 t("Режимы отрисовки", "Rendering modes"),
                 modesHelpText()), lp(24));
@@ -353,47 +326,143 @@ public class SettingsActivity extends AppCompatActivity {
                 if (ids[i] == id) save(Keys.MODE, i);
             }
         });
-        root.addView(modes, lp(4));
-        root.addView(text(
+        shadeBox.addView(modes, lp(4));
+        shadeBox.addView(text(
                 t("После смены режима нажми «Перезапустить SystemUI».", 
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
-        MaterialButton showShade = new MaterialButton(this);
-        showShade.setText(t("Показать шторку", "Show shade"));
-        addPressPhysics(showShade);
-        showShade.setOnClickListener(v -> new Thread(() -> {
+        // ---- Экран блокировки ----
+        LinearLayout lockBox = addGroup(root, t("Экран блокировки", "Lock screen"), "lock", false);
+        addSlider(lockBox, t("Ввод PIN-кода / пароля", "PIN / password entry"), Keys.BOUNCER);
+        lockBox.addView(note(t(
+                "Применяется при следующем показе экрана ввода. После первого включения нажми «Перезапустить SystemUI».",
+                "Applied the next time the entry screen is shown. After enabling it for the first time, tap \"Restart SystemUI\".")), lp(8));
+
+        // ---- Панель громкости ----
+        LinearLayout volBox = addGroup(root, t("Панель громкости", "Volume panel"), "volume", false);
+        addSlider(volBox, t("Фон панели", "Panel background"), Keys.VOLUME);
+        addSlider(volBox, t("Слайдер: дорожка", "Slider: track"), Keys.VOL_TRACK);
+        addSlider(volBox, t("Слайдер: заполнение", "Slider: fill"), Keys.VOL_FILL);
+        volBox.addView(note(t(
+                "Дорожка — неактивная часть слайдера, заполнение — активная. Применяется при следующем показе панели. После первого включения нажми «Перезапустить SystemUI».",
+                "Track is the inactive part of the slider, fill is the active part. Applied the next time the panel is shown. After enabling it for the first time, tap \"Restart SystemUI\".")), lp(8));
+
+        // ---- Лаунчер ----
+        LinearLayout launcherBox = addGroup(root, t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)"), "launcher", false);
+        addSlider(launcherBox, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
+        addSlider(launcherBox, t("Список приложений", "App drawer"), Keys.APPDRAWER);
+        launcherBox.addView(note(t(
+                "Работает при включённом модуле для Pixel Launcher в LSPosed. После первого включения нажми «Перезапустить лаунчер».",
+                "Needs the module enabled for Pixel Launcher in LSPosed. After enabling it for the first time, tap \"Restart launcher\".")), lp(8));
+
+        // ---- Действия ----
+        LinearLayout actions = addGroup(root, t("Действия", "Actions"), "actions", true);
+
+        MaterialButton showShade = actionButton(t("Показать шторку", "Show shade"), v -> new Thread(() -> {
             runRoot("cmd statusbar expand-notifications || cmd statusbar expand-settings");
         }).start());
-        root.addView(showShade, lp(24));
-
-        MaterialButton showRecents = new MaterialButton(this);
-        showRecents.setText(t("Показать недавние", "Show recents"));
-        addPressPhysics(showRecents);
-        showRecents.setOnClickListener(v -> new Thread(() -> runRoot("input keyevent 187")).start());
-        root.addView(showRecents, lp(8));
-
-        MaterialButton restart = new MaterialButton(this);
-        restart.setText(t("Перезапустить SystemUI", "Restart SystemUI"));
-        addPressPhysics(restart);
-        restart.setOnClickListener(v -> new Thread(() -> {
+        MaterialButton showRecents = actionButton(t("Показать недавние", "Show recents"),
+                v -> new Thread(() -> runRoot("input keyevent 187")).start());
+        MaterialButton restart = actionButton(t("Перезапустить SystemUI", "Restart SystemUI"), v -> new Thread(() -> {
             runRoot("killall com.android.systemui || pkill -f com.android.systemui");
             runOnUiThread(() -> status.setText(t("Команда перезапуска отправлена.", "Restart command sent.")));
         }).start());
-        root.addView(restart, lp(8));
-
-        MaterialButton restartLauncher = new MaterialButton(this);
-        restartLauncher.setText(t("Перезапустить лаунчер", "Restart launcher"));
-        addPressPhysics(restartLauncher);
-        restartLauncher.setOnClickListener(v -> new Thread(() -> {
+        MaterialButton restartLauncher = actionButton(t("Перезапустить лаунчер", "Restart launcher"), v -> new Thread(() -> {
             runRoot("killall com.google.android.apps.nexuslauncher; killall com.android.launcher3");
             runOnUiThread(() -> status.setText(t("Лаунчер перезапущен.", "Launcher restarted.")));
         }).start());
-        root.addView(restartLauncher, lp(8));
+        addButtonRow(actions, showShade, showRecents, 16);
+        addButtonRow(actions, restart, restartLauncher, 8);
 
         status = text("", 14, false);
         root.addView(status, lp(12));
 
         setContentView(scroll);
+    }
+
+    private TextView note(String s) {
+        TextView tv = text(s, 13, false);
+        tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
+        return tv;
+    }
+
+    private MaterialButton actionButton(String label, View.OnClickListener l) {
+        MaterialButton b = new MaterialButton(this);
+        b.setText(label);
+        b.setTextSize(13);
+        addPressPhysics(b);
+        b.setOnClickListener(l);
+        return b;
+    }
+
+    private void addButtonRow(LinearLayout box, View left, View right, int topDp) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams l = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        l.setMarginEnd(dp(4));
+        LinearLayout.LayoutParams r = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        r.setMarginStart(dp(4));
+        row.addView(left, l);
+        row.addView(right, r);
+        box.addView(row, lp(topDp));
+    }
+
+    /**
+     * Сворачиваемая карточка-группа (Material 3, filled card). Возвращает контейнер для содержимого.
+     * Состояние «открыта/закрыта» запоминается между запусками.
+     */
+    private LinearLayout addGroup(final LinearLayout root, String title, String id, boolean defaultOpen) {
+        final MaterialCardView card = new MaterialCardView(this);
+        card.setRadius(dp(24));
+        card.setCardElevation(0f);
+        card.setStrokeWidth(0);
+        card.setCardBackgroundColor(MaterialColors.getColor(this,
+                com.google.android.material.R.attr.colorSurfaceContainer, 0x22888888));
+        root.addView(card, lp(12));
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        card.addView(col, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(20), dp(16), dp(20), dp(16));
+        header.setClickable(true);
+        header.setFocusable(true);
+        TypedValue ripple = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+        header.setBackgroundResource(ripple.resourceId);
+
+        TextView titleTv = text(title, 17, true);
+        header.addView(titleTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        final TextView chevron = text("\u25BE", 18, false);
+        chevron.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF888888));
+        header.addView(chevron);
+        col.addView(header);
+
+        final LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(20), 0, dp(20), dp(16));
+        col.addView(body, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final String prefKey = "grp_" + id;
+        final boolean[] open = {prefs.getBoolean(prefKey, defaultOpen)};
+        body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+        chevron.setRotation(open[0] ? 180f : 0f);
+
+        header.setOnClickListener(v -> {
+            open[0] = !open[0];
+            prefs.edit().putBoolean(prefKey, open[0]).apply();
+            TransitionManager.beginDelayedTransition(root, new AutoTransition().setDuration(180));
+            body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+            chevron.animate().rotation(open[0] ? 180f : 0f).setDuration(180).start();
+            v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+        });
+        return body;
     }
 
     private Slider addSlider(LinearLayout root, String label, final String key) {
@@ -422,7 +491,7 @@ public class SettingsActivity extends AppCompatActivity {
                 lastVal[0] = v;
             }
 
-            boolean showWarning = !key.equals(Keys.RECENTS) && !key.equals(Keys.APPDRAWER);
+            boolean showWarning = key.equals(Keys.TOP) || key.equals(Keys.BOTTOM) || key.equals(Keys.BOUNCER);
                 if (p < 20 && fromUser && showWarning) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
@@ -466,7 +535,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.BOUNCER, Keys.VOLUME, Keys.MODE}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.BOUNCER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

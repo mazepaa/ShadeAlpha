@@ -114,7 +114,10 @@ final class VolumePanelHook {
 
             Set<String> names = new HashSet<String>();
             for (Method method : cls.getDeclaredMethods()) {
-                if (method.getName().startsWith("Surface")) names.add(method.getName());
+                String name = method.getName();
+                // Kotlin creates a $default bridge which delegates to the real composable.
+                // Hooking both would multiply the alpha twice.
+                if (name.startsWith("Surface") && !name.contains("$default")) names.add(name);
             }
 
             int count = 0;

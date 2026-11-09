@@ -341,12 +341,8 @@ public class SettingsActivity extends AppCompatActivity {
         // ---- Панель громкости ----
         LinearLayout volBox = addGroup(root, t("Панель громкости", "Volume panel"), "volume", false);
         addSlider(volBox, t("Фон панели", "Panel background"), Keys.VOLUME);
-        addSlider(volBox, t("Раскрытые каналы громкости", "Expanded volume streams"), Keys.VOLUME_EXPANDED);
         addSlider(volBox, t("Слайдер: дорожка", "Slider: track"), Keys.VOL_TRACK);
         addSlider(volBox, t("Слайдер: заполнение", "Slider: fill"), Keys.VOL_FILL);
-        volBox.addView(note(t(
-                "Новый ползунок отдельно управляет раскрытыми каналами: будильник, звонок, вызовы и уведомления. Дорожка — неактивная часть, заполнение — активная. Изменения применяются при следующем показе панели.",
-                "The new slider controls the expanded streams separately: alarm, ringtone, calls and notifications. Track is inactive; fill is active. Changes apply when the panel is shown again.")), lp(8));
 
         // ---- Лаунчер ----
         LinearLayout launcherBox = addGroup(root, t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)"), "launcher", false);
@@ -536,7 +532,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.BOUNCER, Keys.VOLUME, Keys.VOLUME_EXPANDED, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.BOUNCER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

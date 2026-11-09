@@ -429,6 +429,7 @@ public class SettingsActivity extends AppCompatActivity {
         header.setBackgroundResource(ripple.resourceId);
 
         TextView titleTv = text(title, 17, true);
+        titleTv.setGravity(Gravity.CENTER);
         header.addView(titleTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         col.addView(header);

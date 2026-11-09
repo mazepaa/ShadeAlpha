@@ -18,6 +18,7 @@ final class Prefs {
     private static volatile int drawer = 100;
     private static volatile int bouncer = 100;
     private static volatile int volume = 100;
+    private static volatile int volumeExpanded = 100;
     private static volatile int volTrack = 100;
     private static volatile int volFill = 100;
     private static volatile long lastRead = 0;
@@ -50,6 +51,12 @@ final class Prefs {
     }
 
     /** Неактивная часть (дорожка) слайдера громкости. */
+    /** Прозрачность раскрытых строк каналов громкости. */
+    static float volumeExpanded(Context c) {
+        refresh(c);
+        return volumeExpanded / 100f;
+    }
+
     static float volumeTrack(Context c) {
         refresh(c);
         return volTrack / 100f;
@@ -71,6 +78,7 @@ final class Prefs {
         drawer = read(c, Keys.APPDRAWER);
         bouncer = read(c, Keys.BOUNCER);
         volume = read(c, Keys.VOLUME);
+        volumeExpanded = read(c, Keys.VOLUME_EXPANDED);
         volTrack = read(c, Keys.VOL_TRACK);
         volFill = read(c, Keys.VOL_FILL);
     }

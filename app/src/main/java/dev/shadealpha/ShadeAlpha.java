@@ -107,8 +107,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (m == Keys.MODE_VIEW_ALPHA) {
                             applyViewAlpha(v, f);
                         } else {
+                            // Experimental: fade the complete ScrimView rendering, including internal color fills.
                             resetViewAlpha(v);
-                            if (m == Keys.MODE_LAYER && f < 0.999f) {
+                            if (f < 0.999f) {
                                 Canvas c = (Canvas) param.args[0];
                                 int count = c.saveLayerAlpha(0, 0, v.getWidth(), v.getHeight(), Math.round(255 * f));
                                 param.setObjectExtra(EXTRA, Integer.valueOf(count));
@@ -150,7 +151,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             lastScrimDiagnostic = diagnostic;
                             XposedBridge.log(TAG + ": scrim diagnostic " + diagnostic);
                         }
-                        if (m == Keys.MODE_SCRIM_ALPHA) param.args[0] = applied;
+                        // Scrim alpha is applied around the complete onDraw() output above.
+                        // Do not multiply setViewAlpha too, otherwise the scrim becomes doubly transparent.
                     } catch (Throwable t) { fail("setViewAlpha", t); }
                 }
             });

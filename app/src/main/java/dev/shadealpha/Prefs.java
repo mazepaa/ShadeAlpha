@@ -16,7 +16,6 @@ final class Prefs {
 
     private static volatile int recents = 100;
     private static volatile int drawer = 100;
-    private static volatile int bouncer = 100;
     private static volatile int volume = 100;
     private static volatile int volTrack = 100;
     private static volatile int volFill = 100;
@@ -35,12 +34,6 @@ final class Prefs {
     static float drawer(Context c) {
         refresh(c);
         return drawer / 100f;
-    }
-
-    /** То же самое для экрана ввода PIN / пароля / ключа на экране блокировки. */
-    static float bouncer(Context c) {
-        refresh(c);
-        return bouncer / 100f;
     }
 
     /** То же самое для панели громкости. */
@@ -69,7 +62,6 @@ final class Prefs {
         lastRead = now;
         recents = read(c, Keys.RECENTS);
         drawer = read(c, Keys.APPDRAWER);
-        bouncer = read(c, Keys.BOUNCER);
         volume = read(c, Keys.VOLUME);
         volTrack = read(c, Keys.VOL_TRACK);
         volFill = read(c, Keys.VOL_FILL);

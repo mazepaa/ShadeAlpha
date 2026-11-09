@@ -21,7 +21,15 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.0
+## What's new in v3.1
+
+- 🧩 Settings are organized into collapsible Material 3 cards for a cleaner interface.
+- 🔊 Volume panel transparency now has separate controls for the panel background, slider track and slider fill.
+- 🔐 Removed the PIN/password transparency control; lock-screen rendering is left to SystemUI.
+- 🌐 Russian and English interface retained.
+- 📱 Android 16 support (API 36).
+
+## What's new in v3.0 (previous release)
 
 - 🪟 **Recents and app drawer transparency** now actually work: the module scope includes Pixel Launcher (`com.google.android.apps.nexuslauncher`) and Launcher3 (`com.android.launcher3`).
 - 🧱 App drawer: works on Android 15/16 (background drawn through `drawOnScrim*`, wrapped in a layer) and on older versions (scrim colour fields), never both at once.
@@ -43,7 +51,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 ## Installation
 
-1. Install `ShadeAlpha-v3.0.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-v3.1.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha** (for status detection). The scope list is recommended automatically; make sure the boxes are ticked.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent.
@@ -99,7 +107,15 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.0
+## Что нового в v3.1
+
+- 🧩 Настройки собраны в сворачиваемые карточки Material 3 — интерфейс стал компактнее и понятнее.
+- 🔊 Для панели громкости доступны отдельные настройки фона, дорожки и заполнения слайдера.
+- 🔐 Настройка прозрачности PIN-кода и пароля удалена; экран блокировки остаётся под управлением SystemUI.
+- 🌐 Сохранены русский и английский языки.
+- 📱 Поддержка Android 16 (API 36).
+
+## Что нового в v3.0 (предыдущая версия)
 
 - 🪟 **Прозрачность недавних и списка приложений** теперь работает: в область модуля добавлены Pixel Launcher (`com.google.android.apps.nexuslauncher`) и Launcher3 (`com.android.launcher3`).
 - 🧱 Список приложений: работает на Android 15/16 (фон рисуется через `drawOnScrim*` и оборачивается в слой) и на старых версиях (поля цвета скрима), обе ветки никогда не применяются одновременно.
@@ -121,7 +137,7 @@ An LSPosed module that makes the notification shade, the **recents screen** and 
 
 ## Установка
 
-1. Установи `ShadeAlpha-v3.0.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-v3.1.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha** (для определения статуса). Список области предлагается автоматически, проверь, что галочки стоят.
 3. Открой приложение ShadeAlpha и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее.

@@ -331,13 +331,6 @@ public class SettingsActivity extends AppCompatActivity {
                 t("После смены режима нажми «Перезапустить SystemUI».", 
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
-        // ---- Экран блокировки ----
-        LinearLayout lockBox = addGroup(root, t("Экран блокировки", "Lock screen"), "lock", false);
-        addSlider(lockBox, t("Ввод PIN-кода / пароля", "PIN / password entry"), Keys.BOUNCER);
-        lockBox.addView(note(t(
-                "Применяется при следующем показе экрана ввода. После первого включения нажми «Перезапустить SystemUI».",
-                "Applied the next time the entry screen is shown. After enabling it for the first time, tap \"Restart SystemUI\".")), lp(8));
-
         // ---- Панель громкости ----
         LinearLayout volBox = addGroup(root, t("Панель громкости", "Volume panel"), "volume", false);
         addSlider(volBox, t("Фон панели", "Panel background"), Keys.VOLUME);
@@ -491,7 +484,7 @@ public class SettingsActivity extends AppCompatActivity {
                 lastVal[0] = v;
             }
 
-            boolean showWarning = key.equals(Keys.TOP) || key.equals(Keys.BOTTOM) || key.equals(Keys.BOUNCER);
+            boolean showWarning = key.equals(Keys.TOP) || key.equals(Keys.BOTTOM);
                 if (p < 20 && fromUser && showWarning) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
@@ -535,7 +528,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.BOUNCER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

@@ -24,8 +24,6 @@ final class VolumePanelHook {
     private static final String ACTIVITY =
             "com.android.systemui.volume.panel.ui.activity.VolumePanelActivity";
     private static final String SURFACE_KT = "androidx.compose.material3.SurfaceKt";
-    private static final String ROOT_KT =
-            "com.android.systemui.volume.panel.ui.composable.VolumePanelRootKt";
     private static final String ORIGINAL_DIM = "shadealpha_volume_panel_original_dim";
 
     private static volatile Activity activeActivity;

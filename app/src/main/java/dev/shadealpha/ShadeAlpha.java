@@ -35,7 +35,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int TAG_ALPHA_SET = 0x7ffa0002;
 
     private static final int MAX_FAILURES = 20;
-    private static final boolean[] SVA_LOGGED = new boolean[3];
+    private static final boolean[] SVA_LOGGED = new boolean[4];
 
     private static volatile float fTop = 1f;
     private static volatile float fBottom = 1f;
@@ -138,7 +138,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (role == ROLE_OTHER) return;
                         float a = (Float) param.args[0];
                         if (!SVA_LOGGED[role]) { SVA_LOGGED[role] = true; XposedBridge.log(TAG + ": first setViewAlpha role=" + role + " value=" + a); }
-                        float f = factor(v, role == ROLE_TOP);
+                        float f = roleFactor(v.getContext(), role);
                         if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
                     } catch (Throwable t) { fail("setViewAlpha", t); }
                 }

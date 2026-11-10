@@ -1,5 +1,6 @@
 package dev.shadealpha;
 
+import android.app.KeyguardManager;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.os.SystemClock;
@@ -27,7 +28,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int TAG_ROLE = 0x7ffa0001, TAG_ALPHA_SET = 0x7ffa0002;
     private static final int MAX_FAILURES = 20;
     private static final boolean[] SVA_LOGGED = new boolean[4];
-    private static volatile float fTop = 1f, fBottom = 1f;
+    private static volatile float fTop = 1f, fBottom = 1f, fBouncer = 1f;
     private static volatile int mode = Keys.MODE_VIEW_ALPHA;
     private static volatile long lastRead = 0;
     private static volatile boolean disabled = false;
@@ -120,9 +121,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         float f = roleFactor(v.getContext(), role);
                         if (mode == Keys.MODE_SCRIM_ALPHA) {
                             param.args[0] = a * f;
-                        } else if ((role == ROLE_TOP || role == ROLE_FRONT)
-                                && BouncerHook.isLockscreenDimActive()
-                                && !BouncerHook.isShadeExpanded()) {
+                        } else if ((role == ROLE_TOP || role == ROLE_FRONT) && useBouncerForTop(v.getContext())) {
                             param.args[0] = a * f;
                         }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
@@ -174,23 +173,35 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { return v.getResources().getResourceEntryName(id); } catch (Throwable t) { return "(unknown)"; }
     }
 
-    /**
-     * TOP/BOTTOM control the notification shade.
-     * PIN slider is used for TOP/FRONT only when lockscreen is positively detected
-     * and the shade is not expanded. Never steal QS control when lockscreen is unknown.
-     */
+    private static boolean isKeyguardLocked(Context c) {
+        try {
+            KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
+            return km != null && km.isKeyguardLocked();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static boolean useBouncerForTop(Context c) {
+        try {
+            if (BouncerHook.isShadeExpanded()) return false;
+        } catch (Throwable ignored) {}
+        if (isKeyguardLocked(c)) return true;
+        try {
+            return BouncerHook.isLockscreenDimActive();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static float roleFactor(Context c, int role) {
         if (role == ROLE_OTHER) return 1f;
         boolean topOrFront = (role == ROLE_TOP || role == ROLE_FRONT);
-        if (topOrFront) {
-            try {
-                if (BouncerHook.isLockscreenDimActive() && !BouncerHook.isShadeExpanded()) {
-                    return Prefs.bouncer(c);
-                }
-            } catch (Throwable ignored) {}
-            return factor(c, true);
+        if (topOrFront && useBouncerForTop(c)) {
+            refreshPrefs(c);
+            return fBouncer;
         }
-        return factor(c, false);
+        return factor(c, topOrFront);
     }
 
     private static void applyViewAlpha(View v, float f) {
@@ -214,16 +225,22 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 
-    private static float factor(Context c, boolean top) {
+    private static void refreshPrefs(Context c) {
         long now = SystemClock.uptimeMillis();
-        if (now - lastRead > 500) {
+        if (now - lastRead > 300) {
             lastRead = now;
-            float nt = read(c, Keys.TOP), nb = read(c, Keys.BOTTOM);
+            float nt = read(c, Keys.TOP), nb = read(c, Keys.BOTTOM), nbo = read(c, Keys.BOUNCER);
             int nm = readMode(c);
-            if (nt != fTop || nb != fBottom || nm != mode)
-                XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb + " mode=" + nm);
-            fTop = nt; fBottom = nb; mode = nm;
+            if (nt != fTop || nb != fBottom || nbo != fBouncer || nm != mode)
+                XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb
+                        + " bouncer=" + nbo + " mode=" + nm
+                        + " keyguardLocked=" + isKeyguardLocked(c));
+            fTop = nt; fBottom = nb; fBouncer = nbo; mode = nm;
         }
+    }
+
+    private static float factor(Context c, boolean top) {
+        refreshPrefs(c);
         return top ? fTop : fBottom;
     }
 

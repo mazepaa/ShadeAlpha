@@ -1,0 +1,5 @@
+-keep class dev.shadealpha.** { *; }
+-dontwarn androidx.appcompat.**
+-dontwarn com.google.android.material.**
+-keep class de.robv.android.xposed.** { *; }
+-dontwarn de.robv.android.xposed.**

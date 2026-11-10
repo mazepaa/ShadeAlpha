@@ -1,0 +1,10 @@
+// Заглушки Xposed API только для компиляции (в APK не попадают: compileOnly).
+// Настоящие классы подставляет LSPosed во время работы.
+plugins {
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}

@@ -118,13 +118,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         float f = roleFactor(v.getContext(), role);
-                        boolean lock = false;
-                        try {
-                            lock = BouncerHook.isLockscreenDimActive()
-                                    && (role == ROLE_TOP || role == ROLE_FRONT)
-                                    && !BouncerHook.isShadeExpanded();
-                        } catch (Throwable ignored) {}
-                        if (mode == Keys.MODE_SCRIM_ALPHA || lock) {
+                        // Mode 2 (SCRIM_ALPHA): always scale system alpha.
+                        // Shade closed + TOP: roleFactor returns PIN slider.
+                        if (mode == Keys.MODE_SCRIM_ALPHA) {
+                            param.args[0] = a * f;
+                        } else if ((role == ROLE_TOP || role == ROLE_FRONT)
+                                && !BouncerHook.isShadeExpanded()
+                                && BouncerHook.isLockscreenDimActive()) {
                             param.args[0] = a * f;
                         }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
@@ -176,16 +176,27 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { return v.getResources().getResourceEntryName(id); } catch (Throwable t) { return "(unknown)"; }
     }
 
+    /**
+     * TOP/FRONT with shade collapsed:
+     * - mode SCRIM_ALPHA/LAYER: always PIN slider (system alpha on home is ~0 → safe)
+     * - mode VIEW_ALPHA: PIN slider only if keyguard detected
+     * Shade open: normal TOP/BOTTOM sliders.
+     */
     private static float roleFactor(Context c, int role) {
         if (role == ROLE_OTHER) return 1f;
+        boolean topOrFront = (role == ROLE_TOP || role == ROLE_FRONT);
+        if (!topOrFront) return factor(c, false);
+
         try {
-            if ((role == ROLE_TOP || role == ROLE_FRONT)
-                    && BouncerHook.isLockscreenDimActive()
-                    && !BouncerHook.isShadeExpanded()) {
-                return Prefs.bouncer(c);
+            if (!BouncerHook.isShadeExpanded()) {
+                if (mode == Keys.MODE_SCRIM_ALPHA
+                        || mode == Keys.MODE_LAYER
+                        || BouncerHook.isLockscreenDimActive()) {
+                    return Prefs.bouncer(c);
+                }
             }
         } catch (Throwable ignored) {}
-        return factor(c, role == ROLE_TOP || role == ROLE_FRONT);
+        return factor(c, true);
     }
 
     private static void applyViewAlpha(View v, float f) {

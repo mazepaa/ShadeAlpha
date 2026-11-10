@@ -103,8 +103,6 @@ final class BouncerHook {
     static void hook(ClassLoader cl) {
         hookScrimState(cl);
         hookShadeExpansion(cl);
-        // The hierarchy scanner hooked ViewGroup.dispatchDraw globally and was diagnostic only.
-        // Keep the targeted bouncer/unlock hooks without per-frame SystemUI overhead.
         hookScrimBehindTransparent(cl);
         hookKeyguardFadeOut(cl);
         try {

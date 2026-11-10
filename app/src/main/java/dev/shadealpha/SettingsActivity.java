@@ -296,6 +296,7 @@ public class SettingsActivity extends AppCompatActivity {
         final LinearLayout shadeBox = addGroup(root, t("Шторка уведомлений", "Notification shade"), "shade", true);
         topBar = addSlider(shadeBox, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         bottomBar = addSlider(shadeBox, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
+        addSlider(shadeBox, t("Экран блокировки (PIN / пароль)", "Lock screen (PIN / password)"), Keys.BOUNCER);
 
         shadeBox.addView(headerWithHelp(
                 t("Режим отрисовки шторки", "Shade rendering mode"),
@@ -524,7 +525,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.RECENTS, Keys.APPDRAWER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
+            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.BOUNCER, Keys.RECENTS, Keys.APPDRAWER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

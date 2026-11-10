@@ -8,6 +8,7 @@ public class Keys {
     public static final String VOLUME = "shade_alpha_volume_percent";
     public static final String VOL_TRACK = "shade_alpha_vol_track_percent";
     public static final String VOL_FILL = "shade_alpha_vol_fill_percent";
+    public static final String BOUNCER = "shade_alpha_bouncer_percent";
     public static final String MODE = "shade_alpha_mode";
 
     public static final int MODE_LAYER = 0;

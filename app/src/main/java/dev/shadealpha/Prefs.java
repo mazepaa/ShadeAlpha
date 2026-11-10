@@ -19,39 +19,40 @@ final class Prefs {
     private static volatile int volume = 100;
     private static volatile int volTrack = 100;
     private static volatile int volFill = 100;
+    private static volatile int bouncer = 100;
     private static volatile long lastRead = 0;
     private static Method currentApplication;
 
     private Prefs() {}
 
-    /** Доля «оригинальной» непрозрачности для недавних: 1.0 = как в системе, 0 = полностью прозрачно. */
     static float recents(Context c) {
         refresh(c);
         return recents / 100f;
     }
 
-    /** То же самое для списка приложений. */
     static float drawer(Context c) {
         refresh(c);
         return drawer / 100f;
     }
 
-    /** То же самое для панели громкости. */
     static float volume(Context c) {
         refresh(c);
         return volume / 100f;
     }
 
-    /** Неактивная часть (дорожка) слайдера громкости. */
     static float volumeTrack(Context c) {
         refresh(c);
         return volTrack / 100f;
     }
 
-    /** Активная часть (заполнение) слайдера громкости. */
     static float volumeFill(Context c) {
         refresh(c);
         return volFill / 100f;
+    }
+
+    static float bouncer(Context c) {
+        refresh(c);
+        return bouncer / 100f;
     }
 
     private static void refresh(Context c) {
@@ -65,6 +66,7 @@ final class Prefs {
         volume = read(c, Keys.VOLUME);
         volTrack = read(c, Keys.VOL_TRACK);
         volFill = read(c, Keys.VOL_FILL);
+        bouncer = read(c, Keys.BOUNCER);
     }
 
     private static int read(Context c, String key) {

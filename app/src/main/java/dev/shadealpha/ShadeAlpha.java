@@ -118,7 +118,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         float f = roleFactor(v.getContext(), role);
-                        if (mode == Keys.MODE_SCRIM_ALPHA) param.args[0] = a * f;
+                        if (mode == Keys.MODE_SCRIM_ALPHA) {
+                            param.args[0] = a * f;
+                        } else if (BouncerHook.isLockscreenDimActive()
+                                && (role == ROLE_TOP || role == ROLE_FRONT)
+                                && !BouncerHook.isShadeExpanded()) {
+                            param.args[0] = a * f;
+                        }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
                 }
             });
@@ -168,20 +174,18 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     }
 
     private static float roleFactor(Context c, int role) {
-        float base = factor(c, role == ROLE_TOP || role == ROLE_FRONT);
-        if (role == ROLE_FRONT || role == ROLE_OTHER) return base;
-        float bVis = 0f;
+        if (role == ROLE_OTHER) return 1f;
+
+        boolean lockDim = false;
         try {
-            int st = BouncerHook.scrimState();
-            boolean hold = BouncerHook.isBouncerToGoneTransitionRunning() || BouncerHook.shouldForceUnlockScrimZero();
-            if (!BouncerHook.isShadeExpanded()
-                    && (st == BouncerHook.STATE_BOUNCER || st == BouncerHook.STATE_BOUNCER_SCRIMMED || hold)) {
-                bVis = BouncerHook.visibility();
-            }
+            lockDim = BouncerHook.isLockscreenDimActive() && !BouncerHook.isShadeExpanded();
         } catch (Throwable ignored) {}
-        if (bVis <= 0.001f) return base;
-        float bouncerTarget = Prefs.bouncer(c);
-        return base + (bouncerTarget - base) * bVis;
+
+        if (lockDim && (role == ROLE_TOP || role == ROLE_FRONT)) {
+            return Prefs.bouncer(c);
+        }
+
+        return factor(c, role == ROLE_TOP || role == ROLE_FRONT);
     }
 
     private static void applyViewAlpha(View v, float f) {

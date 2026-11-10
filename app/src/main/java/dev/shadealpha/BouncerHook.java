@@ -37,7 +37,6 @@ final class BouncerHook {
     public static void hook(ClassLoader cl) {
         hookScrimState(cl);
         hookShadeExpansion(cl);
-        hookScrimBehindTransparent(cl);
         hookKeyguardFadeOut(cl);
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(CONTAINER, cl);
@@ -52,6 +51,14 @@ final class BouncerHook {
                             apply(param);
                         }
                     });
+            try {
+                XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        apply(param);
+                    }
+                });
+            } catch (Throwable ignored) {}
             XposedBridge.log(TAG + ": BOUNCER_HOOK_READY methods=" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t);
@@ -61,6 +68,14 @@ final class BouncerHook {
     public static int scrimState() { return scrimState; }
     public static boolean isBouncerToGoneTransitionRunning() { return bouncerToGoneTransitionRunning; }
     public static boolean isShadeExpanded() { return shadeExpansionFraction > 0.05f; }
+
+    public static boolean isLockscreenDimActive() {
+        int st = scrimState;
+        return st == STATE_BOUNCER
+                || st == STATE_BOUNCER_SCRIMMED
+                || st == STATE_KEYGUARD
+                || bouncerToGoneTransitionRunning;
+    }
 
     public static boolean shouldForceUnlockScrimZero() {
         if (scrimState == STATE_UNLOCKED) return true;
@@ -88,12 +103,13 @@ final class BouncerHook {
             View view = (View) thiz;
             containerRef = new WeakReference<>(view);
             float factor = Prefs.bouncer(view.getContext());
-            if (factor >= 0.999f) return;
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {
                 ColorDrawable cd = (ColorDrawable) bg;
                 int c = cd.getColor();
-                int a = Math.round(Color.alpha(c) * factor);
+                int baseA = Color.alpha(c);
+                if (baseA == 0) baseA = 255;
+                int a = Math.round(baseA * factor);
                 int nc = Color.argb(a, Color.red(c), Color.green(c), Color.blue(c));
                 if (c != nc) {
                     cd.setColor(nc);
@@ -241,35 +257,6 @@ final class BouncerHook {
         }
     }
 
-    private static void hookScrimBehindTransparent(ClassLoader cl) {
-        for (String name : new String[]{
-                "com.android.systemui.scrim.ScrimView",
-                "com.android.systemui.statusbar.ScrimView"
-        }) {
-            try {
-                Class<?> cls = XposedHelpers.findClassIfExists(name, cl);
-                if (cls == null) continue;
-                XposedBridge.hookAllMethods(cls, "setViewAlpha", new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        try {
-                            if (param.args == null || param.args.length != 1 || !(param.args[0] instanceof Float)) return;
-                            int st = scrimState;
-                            boolean force = shouldForceUnlockScrimZero()
-                                    || st == STATE_BOUNCER || st == STATE_BOUNCER_SCRIMMED;
-                            if (!force) return;
-                            View v = (View) param.thisObject;
-                            String id = idName(v);
-                            if ("scrim_behind".equals(id) || "scrim_in_front".equals(id) || id.contains("behind")) {
-                                param.args[0] = 0f;
-                            }
-                        } catch (Throwable ignored) {}
-                    }
-                });
-            } catch (Throwable ignored) {}
-        }
-    }
-
     private static void hookKeyguardFadeOut(ClassLoader cl) {
         try {
             String[] candidates = {
@@ -297,11 +284,5 @@ final class BouncerHook {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": UNLOCK_FADE_HOOK_ERROR " + t);
         }
-    }
-
-    private static String idName(View v) {
-        int id = v.getId();
-        if (id == View.NO_ID) return "(no-id)";
-        try { return v.getResources().getResourceEntryName(id); } catch (Throwable t) { return "(unknown)"; }
     }
 }

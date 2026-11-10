@@ -29,6 +29,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int ROLE_OTHER = 0;
     private static final int ROLE_TOP = 1;
     private static final int ROLE_BOTTOM = 2;
+    private static final int ROLE_FRONT = 3;
 
     private static final int TAG_ROLE = 0x7ffa0001;
     private static final int TAG_ALPHA_SET = 0x7ffa0002;
@@ -99,7 +100,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
-                        float f = factor(v, role == ROLE_TOP);
+                        float f = roleFactor(v.getContext(), role);
                         int m = mode;
                         if (m == Keys.MODE_VIEW_ALPHA) {
                             applyViewAlpha(v, f);
@@ -151,7 +152,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         Object cached = v.getTag(TAG_ROLE);
         if (cached instanceof Integer) return (Integer) cached;
         String id = idName(v);
-        int r = "scrim_behind".equals(id) ? ROLE_TOP : "scrim_notifications".equals(id) ? ROLE_BOTTOM : ROLE_OTHER;
+        int r = "scrim_behind".equals(id) ? ROLE_TOP : "scrim_notifications".equals(id) ? ROLE_BOTTOM : "scrim_in_front".equals(id) ? ROLE_FRONT : ROLE_OTHER;
         v.setTag(TAG_ROLE, Integer.valueOf(r));
         XposedBridge.log(TAG + ": scrim view id=" + id + " role=" + r);
         return r;
@@ -181,12 +182,37 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         if (n >= MAX_FAILURES && !disabled) { disabled = true; XposedBridge.log(TAG + ": too many failures, hook disabled"); }
     }
 
-    private static float factor(View v, boolean top) {
-        // During PIN entry, the behind/front scrim is part of the lock screen background,
-        // not the normal notification shade. Use the dedicated PIN opacity slider.
-        float bouncer = BouncerHook.scrimFactor(v);
-        if (bouncer >= 0f) return bouncer;
-        return factor(v.getContext(), top);
+    private static int bouncerLogs;
+
+    /**
+     * Smoothly blends the regular shade opacity into the PIN opacity using the real
+     * visibility of KeyguardSecurityContainer. This follows the lockscreen swipe
+     * animation instead of waiting for ScrimController to switch to BOUNCER.
+     */
+    private static float roleFactor(Context c, int role) {
+        float base = factor(c, role == ROLE_TOP);
+        if (role == ROLE_FRONT) base = 1f;
+        else if (role == ROLE_OTHER) return base;
+
+        int state = BouncerHook.scrimState();
+        float progress;
+        if (state == BouncerHook.STATE_BOUNCER
+                || state == BouncerHook.STATE_BOUNCER_SCRIMMED
+                || BouncerHook.isBouncerToGoneTransitionRunning()) {
+            progress = 1f;
+        } else {
+            progress = BouncerHook.visibility();
+        }
+        if (progress <= 0.001f) return base;
+
+        float target = Prefs.bouncer(c);
+        float result = base + (target - base) * progress;
+        if (++bouncerLogs <= 80) {
+            XposedBridge.log(TAG + ": LOCKSCREEN SCRIM_FACTOR role=" + role
+                    + " state=" + state + " visibility=" + progress
+                    + " base=" + base + " target=" + target + " result=" + result);
+        }
+        return result;
     }
 
     private static float factor(Context c, boolean top) {

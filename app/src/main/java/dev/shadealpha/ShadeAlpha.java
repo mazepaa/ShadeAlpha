@@ -33,6 +33,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile long lastRead = 0;
     private static volatile boolean disabled = false;
     private static int failures = 0;
+    private static volatile Boolean lastKeyguardLog = null;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -173,25 +174,28 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { return v.getResources().getResourceEntryName(id); } catch (Throwable t) { return "(unknown)"; }
     }
 
+    /** Only the system keyguard API. No sticky Xposed flags. */
     private static boolean isKeyguardLocked(Context c) {
         try {
             KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
-            return km != null && km.isKeyguardLocked();
+            boolean locked = km != null && km.isKeyguardLocked();
+            Boolean prev = lastKeyguardLog;
+            if (prev == null || prev != locked) {
+                lastKeyguardLog = locked;
+                XposedBridge.log(TAG + ": keyguardLocked=" + locked);
+            }
+            return locked;
         } catch (Throwable t) {
             return false;
         }
     }
 
+    /**
+     * PIN slider drives TOP/FRONT only while the device keyguard is locked.
+     * Unlocked home / QS always use the TOP slider — never the PIN value.
+     */
     private static boolean useBouncerForTop(Context c) {
-        try {
-            if (BouncerHook.isShadeExpanded()) return false;
-        } catch (Throwable ignored) {}
-        if (isKeyguardLocked(c)) return true;
-        try {
-            return BouncerHook.isLockscreenDimActive();
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return isKeyguardLocked(c);
     }
 
     private static float roleFactor(Context c, int role) {

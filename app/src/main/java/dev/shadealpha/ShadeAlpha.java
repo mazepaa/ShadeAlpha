@@ -118,11 +118,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         float f = roleFactor(v.getContext(), role);
-                        if (mode == Keys.MODE_SCRIM_ALPHA) {
-                            param.args[0] = a * f;
-                        } else if (BouncerHook.isLockscreenDimActive()
-                                && (role == ROLE_TOP || role == ROLE_FRONT)
-                                && !BouncerHook.isShadeExpanded()) {
+                        boolean lock = false;
+                        try {
+                            lock = BouncerHook.isLockscreenDimActive()
+                                    && (role == ROLE_TOP || role == ROLE_FRONT)
+                                    && !BouncerHook.isShadeExpanded();
+                        } catch (Throwable ignored) {}
+                        if (mode == Keys.MODE_SCRIM_ALPHA || lock) {
                             param.args[0] = a * f;
                         }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
@@ -154,7 +156,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             } catch (Throwable ignored) {}
         }
         v.setTag(TAG_ROLE, Integer.valueOf(r));
-        XposedBridge.log(TAG + ": scrim view id=" + id + " role=" + roleName(r) + " size=" + v.getWidth() + "x" + v.getHeight());
+        XposedBridge.log(TAG + ": scrim view id=" + id + " role=" + roleName(r)
+                + " size=" + v.getWidth() + "x" + v.getHeight());
         return r;
     }
 
@@ -175,16 +178,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private static float roleFactor(Context c, int role) {
         if (role == ROLE_OTHER) return 1f;
-
-        boolean lockDim = false;
         try {
-            lockDim = BouncerHook.isLockscreenDimActive() && !BouncerHook.isShadeExpanded();
+            if ((role == ROLE_TOP || role == ROLE_FRONT)
+                    && BouncerHook.isLockscreenDimActive()
+                    && !BouncerHook.isShadeExpanded()) {
+                return Prefs.bouncer(c);
+            }
         } catch (Throwable ignored) {}
-
-        if (lockDim && (role == ROLE_TOP || role == ROLE_FRONT)) {
-            return Prefs.bouncer(c);
-        }
-
         return factor(c, role == ROLE_TOP || role == ROLE_FRONT);
     }
 
@@ -203,7 +203,10 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static void fail(String where, Throwable t) {
         int n = ++failures;
         if (n <= 3) XposedBridge.log(TAG + ": " + where + " failed: " + t);
-        if (n >= MAX_FAILURES && !disabled) { disabled = true; XposedBridge.log(TAG + ": too many failures, hook disabled"); }
+        if (n >= MAX_FAILURES && !disabled) {
+            disabled = true;
+            XposedBridge.log(TAG + ": too many failures, hook disabled");
+        }
     }
 
     private static float factor(Context c, boolean top) {

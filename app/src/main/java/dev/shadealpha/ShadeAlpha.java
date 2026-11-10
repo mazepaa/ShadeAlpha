@@ -118,13 +118,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         float f = roleFactor(v.getContext(), role);
-                        // Mode 2 (SCRIM_ALPHA): always scale system alpha.
-                        // Shade closed + TOP: roleFactor returns PIN slider.
                         if (mode == Keys.MODE_SCRIM_ALPHA) {
                             param.args[0] = a * f;
                         } else if ((role == ROLE_TOP || role == ROLE_FRONT)
-                                && !BouncerHook.isShadeExpanded()
-                                && BouncerHook.isLockscreenDimActive()) {
+                                && BouncerHook.isLockscreenDimActive()
+                                && !BouncerHook.isShadeExpanded()) {
                             param.args[0] = a * f;
                         }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
@@ -177,26 +175,22 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     }
 
     /**
-     * TOP/FRONT with shade collapsed:
-     * - mode SCRIM_ALPHA/LAYER: always PIN slider (system alpha on home is ~0 → safe)
-     * - mode VIEW_ALPHA: PIN slider only if keyguard detected
-     * Shade open: normal TOP/BOTTOM sliders.
+     * TOP/BOTTOM control the notification shade.
+     * PIN slider is used for TOP/FRONT only when lockscreen is positively detected
+     * and the shade is not expanded. Never steal QS control when lockscreen is unknown.
      */
     private static float roleFactor(Context c, int role) {
         if (role == ROLE_OTHER) return 1f;
         boolean topOrFront = (role == ROLE_TOP || role == ROLE_FRONT);
-        if (!topOrFront) return factor(c, false);
-
-        try {
-            if (!BouncerHook.isShadeExpanded()) {
-                if (mode == Keys.MODE_SCRIM_ALPHA
-                        || mode == Keys.MODE_LAYER
-                        || BouncerHook.isLockscreenDimActive()) {
+        if (topOrFront) {
+            try {
+                if (BouncerHook.isLockscreenDimActive() && !BouncerHook.isShadeExpanded()) {
                     return Prefs.bouncer(c);
                 }
-            }
-        } catch (Throwable ignored) {}
-        return factor(c, true);
+            } catch (Throwable ignored) {}
+            return factor(c, true);
+        }
+        return factor(c, false);
     }
 
     private static void applyViewAlpha(View v, float f) {

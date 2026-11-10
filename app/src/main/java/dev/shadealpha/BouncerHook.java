@@ -1,13 +1,10 @@
 package dev.shadealpha;
 
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.view.WindowManager;
 
 import java.lang.ref.WeakReference;
 
@@ -52,7 +49,6 @@ final class BouncerHook {
     private static int errors;
     private static int transitionLogs;
     private static float lastVisibility = -1f;
-    private static long lastHierarchyScan;
 
     private BouncerHook() {}
 
@@ -131,38 +127,6 @@ final class BouncerHook {
     }
 
     /**
-     * Диагностика полноэкранных слоёв вокруг PIN-интерфейса.
-     * Ничего не меняет: ищет крупные View с фоном/передним планом или собственной альфой,
-     * чтобы обнаружить дополнительную подложку, не относящуюся к ScrimView.
-     */
-    private static void hookHierarchyDiagnostics() {
-        try {
-            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(ViewGroup.class, "dispatchDraw",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam p) {
-                            try {
-                                View root = (View) p.thisObject;
-                                if (root != root.getRootView() || visibility() < 0.05f) return;
-                                long now = android.os.SystemClock.uptimeMillis();
-                                if (now - lastHierarchyScan < 500) return;
-                                WeakReference<View> ref = container;
-                                View target = ref == null ? null : ref.get();
-                                if (target == null || !containsView(root, target)) return;
-                                lastHierarchyScan = now;
-                                logHierarchy(root, target);
-                            } catch (Throwable t) {
-                                lockLog("HIERARCHY_SCAN_ERROR " + t.getClass().getSimpleName());
-                            }
-                        }
-                    });
-            lockLog("HIERARCHY_HOOK_READY methods=" + (hooks == null ? 0 : hooks.size()));
-        } catch (Throwable t) {
-            lockLog("HIERARCHY_HOOK_ERROR " + t);
-        }
-    }
-
-    /**
      * Точечный тест: меняет альфу только у ScrimView, который ScrimController
      * хранит в mScrimBehind. Передний и notification scrim не затрагиваются.
      */
@@ -179,7 +143,6 @@ final class BouncerHook {
                         protected void beforeHookedMethod(MethodHookParam p) {
                             int state = scrimState;
                             float bouncerVisibility = visibility();
-                            boolean shadeExpanded = isShadeExpanded();
                             boolean unlockTransition = shouldForceUnlockScrimZero();
                             // Do not force scrim_behind transparent on the ordinary lockscreen.
                             // ShadeAlpha must be allowed to apply the configured top-shade opacity there.
@@ -288,58 +251,6 @@ final class BouncerHook {
             lockLog("SCRIM_BEHIND_FIELD_MISSING controller=" + controller.getClass().getName());
         }
         return null;
-    }
-
-    private static boolean containsView(View root, View target) {
-        if (root == target) return true;
-        if (!(root instanceof ViewGroup)) return false;
-        ViewGroup group = (ViewGroup) root;
-        for (int i = 0; i < group.getChildCount(); i++) {
-            if (containsView(group.getChildAt(i), target)) return true;
-        }
-        return false;
-    }
-
-    private static void logHierarchy(View root, View target) {
-        int rw = root.getWidth();
-        int rh = root.getHeight();
-        lockLog("HIERARCHY_BEGIN root=" + root.getClass().getName()
-                + " size=" + rw + "x" + rh + " bouncer=" + viewId(target)
-                + " bouncerBackground=" + drawableInfo(target.getBackground()));
-        Object lp = root.getLayoutParams();
-        if (lp instanceof WindowManager.LayoutParams) {
-            WindowManager.LayoutParams wlp = (WindowManager.LayoutParams) lp;
-            lockLog("WINDOW_PARAMS type=" + wlp.type + " flags=0x"
-                    + Integer.toHexString(wlp.flags) + " dimAmount=" + wlp.dimAmount
-                    + " format=" + wlp.format);
-        } else {
-            lockLog("WINDOW_PARAMS unavailable class=" + (lp == null ? "null" : lp.getClass().getName()));
-        }
-        dumpLargeViews(root, root, rw, rh, 0);
-        lockLog("HIERARCHY_END");
-    }
-
-    private static void dumpLargeViews(View view, View root, int rw, int rh, int depth) {
-        if (depth > 30) return;
-        int w = view.getWidth();
-        int h = view.getHeight();
-        boolean large = rw > 0 && rh > 0 && w >= rw * 0.70f && h >= rh * 0.55f;
-        Drawable bg = view.getBackground();
-        Drawable fg = view.getForeground();
-        if (large && (bg != null || fg != null || view.getAlpha() < 0.995f)) {
-            lockLog("HIERARCHY_LAYER depth=" + depth + " class=" + view.getClass().getName()
-                    + " id=" + viewId(view) + " size=" + w + "x" + h
-                    + " visibility=" + view.getVisibility() + " shown=" + view.isShown()
-                    + " alpha=" + view.getAlpha() + " elevation=" + view.getElevation()
-                    + " translationZ=" + view.getTranslationZ()
-                    + " background=" + drawableInfo(bg) + " foreground=" + drawableInfo(fg));
-        }
-        if (view instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup) view;
-            for (int i = 0; i < group.getChildCount(); i++) {
-                dumpLargeViews(group.getChildAt(i), root, rw, rh, depth + 1);
-            }
-        }
     }
 
     /** ScrimController.internalTransitionTo(callback, state) вызывается при каждой смене состояния. */

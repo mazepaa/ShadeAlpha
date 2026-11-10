@@ -2,7 +2,10 @@ package dev.shadealpha;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.DrawableWrapper;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -198,7 +201,7 @@ final class VolumeHook {
             }
 
             setBackgroundAlpha(bg, f);
-            setBackgroundAlpha(ringer, f);
+            setupRingerCap(ringer, bg, f);
             if (floating instanceof ViewGroup) {
                 ViewGroup g = (ViewGroup) floating;
                 g.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
@@ -214,6 +217,72 @@ final class VolumeHook {
             }
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume apply failed: " + t);
+        }
+    }
+
+    /**
+     * Подложка ряда кнопок звонка того же цвета, что и фон панели. Она рисует скруглённый «колпачок»
+     * панели вокруг кнопки и частично лежит прямо на фоне. В стоке два непрозрачных слоя сливаются,
+     * а при полупрозрачности складываются и в зоне перекрытия появляется тёмная полоса.
+     * Поэтому при f < 1 рисуем подложку звонка только выше верхнего края фона (колпачок), а фон
+     * рисует всё остальное: панель остаётся одним ровным слоем и сохраняет скруглённый верх.
+     */
+    private static void setupRingerCap(View ringer, View plate, float f) {
+        if (ringer == null) return;
+        try {
+            Drawable d = ringer.getBackground();
+            if (d == null) return;
+            CapDrawable cap;
+            if (d instanceof CapDrawable) {
+                cap = (CapDrawable) d;
+            } else if (plate != null) {
+                cap = new CapDrawable(d, ringer, plate);
+                ringer.setBackground(cap);
+            } else {
+                setBackgroundAlpha(ringer, f);
+                return;
+            }
+            cap.clip = f < 0.999f;
+            setBackgroundAlpha(ringer, f);
+            ringer.invalidate();
+        } catch (Throwable t) {
+            if (++errors <= 3) XposedBridge.log(TAG + ": volume ringer cap failed: " + t);
+        }
+    }
+
+    /** Высота «колпачка»: от верха подложки звонка до верха фона панели (в координатах окна). */
+    static int capHeight(int ringerTopInWindow, int plateTopInWindow) {
+        return plateTopInWindow - ringerTopInWindow;
+    }
+
+    private static final class CapDrawable extends DrawableWrapper {
+        private final View ringer;
+        private final View plate;
+        volatile boolean clip;
+
+        CapDrawable(Drawable inner, View ringer, View plate) {
+            super(inner);
+            this.ringer = ringer;
+            this.plate = plate;
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            if (!clip) {
+                super.draw(canvas);
+                return;
+            }
+            int[] a = new int[2];
+            int[] b = new int[2];
+            ringer.getLocationInWindow(a);
+            plate.getLocationInWindow(b);
+            int h = capHeight(a[1], b[1]);
+            if (h <= 0) return; // фон панели закрывает всё — подложке звонка рисовать нечего
+            Rect r = getBounds();
+            int save = canvas.save();
+            canvas.clipRect(r.left, r.top, r.right, Math.min(r.bottom, r.top + h));
+            super.draw(canvas);
+            canvas.restoreToCount(save);
         }
     }
 

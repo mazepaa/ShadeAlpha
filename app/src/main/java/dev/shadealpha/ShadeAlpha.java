@@ -30,6 +30,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
+    private static volatile long unlockedAt = 0;
+    private static final long UNLOCK_WINDOW_MS = 700;
     private static volatile long traceUntil = 0;
     private static volatile long traceLast = 0;
     private static volatile int traceLines = 0;
@@ -77,7 +79,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
                         boolean forceZero = (role == ROLE_TOP || role == ROLE_FRONT)
-                                && BouncerHook.shouldForceUnlockScrimZero();
+                                && (inUnlockWindow() || BouncerHook.shouldForceUnlockScrimZero());
                         if (forceZero) {
                             trace("onDraw " + idName(v) + " role=" + roleName(role)
                                     + " forceZero=true viewAlpha=" + v.getAlpha());
@@ -129,6 +131,14 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (!SVA_LOGGED[role]) {
                             SVA_LOGGED[role] = true;
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
+                        }
+                        if ((role == ROLE_TOP || role == ROLE_FRONT) && inUnlockWindow()) {
+                            if (traceActive()) {
+                                trace("setViewAlpha " + idName(v) + " role=" + roleName(role)
+                                        + " in=" + a + " unlockWindow -> 0.0");
+                            }
+                            param.args[0] = 0f;
+                            return;
                         }
                         float f = roleFactor(v.getContext(), role);
                         if (Prefs.mode(v.getContext()) == Keys.MODE_SCRIM_ALPHA) {
@@ -211,12 +221,26 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             if (prev == null || prev.booleanValue() != locked) {
                 lastKeyguardLog = Boolean.valueOf(locked);
                 XposedBridge.log(TAG + ": keyguardLocked=" + locked);
-                if (!locked && prev != null && prev.booleanValue()) startUnlockTrace();
+                if (!locked && prev != null && prev.booleanValue()) {
+                    unlockedAt = SystemClock.uptimeMillis();
+                    startUnlockTrace();
+                }
             }
             return locked;
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /**
+     * True for a short window after unlocking. SystemUI fades {@code scrim_behind} and
+     * {@code scrim_in_front} out during that time; multiplying that fading alpha by the TOP or PIN
+     * value makes the scrim pop back to a visible alpha right after unlock and then fade away.
+     * The window keeps those scrims at zero so the transition stays invisible.
+     */
+    static boolean inUnlockWindow() {
+        long t = unlockedAt;
+        return t != 0 && SystemClock.uptimeMillis() - t < UNLOCK_WINDOW_MS;
     }
 
     /** Records what the module does to the scrims for a couple of seconds after unlocking. */

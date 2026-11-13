@@ -110,8 +110,7 @@ final class LauncherHooks {
         @Override
         protected void afterHookedMethod(MethodHookParam p) {
             try {
-                if (Experiment.bypass()) return;
-                Context ctx = contextOf(p);
+                    Context ctx = contextOf(p);
                 if (HookStatus.pending()) HookStatus.flush(ctx);
                 float f = drawer ? Prefs.drawer(ctx) : Prefs.recents(ctx);
                 Object r = p.getResult();

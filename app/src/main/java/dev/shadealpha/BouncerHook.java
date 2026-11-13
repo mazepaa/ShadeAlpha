@@ -119,7 +119,6 @@ final class BouncerHook {
             // Same guard as apply(): while the bouncer fades away the system animates the
             // background itself, and writing our factor into that animation makes it blink.
             if (bouncerToGoneTransitionRunning) return;
-            if (Experiment.bypass()) return;
             float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {
@@ -231,7 +230,6 @@ final class BouncerHook {
             // While the bouncer fades away the system animates the background itself; writing our
             // factor into that animation makes it blink between the slider value and zero.
             if (bouncerToGoneTransitionRunning) return;
-            if (Experiment.bypass()) return;
             float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {

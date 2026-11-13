@@ -77,7 +77,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         View v = (View) param.thisObject;
                         if (HookStatus.pending()) HookStatus.flush(v.getContext());
                         if (disabled) { resetViewAlpha(v); return; }
-                        if (Experiment.bypass()) { resetViewAlpha(v); return; }
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
                         boolean forceZero = (role == ROLE_TOP || role == ROLE_FRONT)
@@ -119,8 +118,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 protected void beforeHookedMethod(MethodHookParam param) {
                     try {
                         if (disabled) return;
-                        if (Experiment.bypass()) return;
-                        if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
+                                    if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
                         View v = (View) param.thisObject;
                         int role = role(v);
                         if (role == ROLE_OTHER) return;

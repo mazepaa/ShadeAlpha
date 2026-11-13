@@ -118,7 +118,6 @@ final class VolumeHook {
 
     /** Меняет альфу цветов дорожки/заполнения. Оригиналы помним на объекте — повторные вызовы не накапливаются. */
     static void applyColors(Object sc) {
-        if (Experiment.bypass()) return;
         try {
             Field[] fs = colorFields(sc.getClass());
             if (fs == null) return;
@@ -186,7 +185,6 @@ final class VolumeHook {
     }
 
     private static void apply(Object self) {
-        if (Experiment.bypass()) return;
         try {
             if (!(self instanceof Dialog)) return;
             Dialog d = (Dialog) self;

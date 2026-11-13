@@ -258,10 +258,6 @@ public class SettingsActivity extends AppCompatActivity {
                 t("Включить логи", "Enable logs"),
                 t("Подробный журнал хуков в Vector → Журналы", "Verbose hook log in Vector → Logs"),
                 Keys.DEBUG_LOGS), lp(20));
-        root.addView(addToggleRow(
-                t("Эксперимент A/B", "A/B experiment"),
-                t("Модуль перестаёт красить: сравните плавность с ним и без него", "The module stops painting: compare smoothness with and without it"),
-                Keys.EXPERIMENT), lp(8));
 
         dialog.setContentView(root);
 
@@ -507,26 +503,31 @@ public class SettingsActivity extends AppCompatActivity {
         box.addView(button, p);
     }
 
-    /** A labelled switch that writes 0/1 into {@code Settings.System} for the hooks to read. */
+    /** A labelled Material 3 switch that writes 0/1 into {@code Settings.System} for the hooks. */
     private View addToggleRow(String title, String subtitle, final String key) {
         LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView label = text(title, 15, true);
-        row.addView(label);
-        TextView hint = note(subtitle);
-        row.addView(hint);
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.addView(text(title, 15, true));
+        column.addView(note(subtitle));
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        row.addView(column, cp);
 
-        final android.widget.Switch toggle = new android.widget.Switch(this);
+        final com.google.android.material.materialswitch.MaterialSwitch toggle =
+                new com.google.android.material.materialswitch.MaterialSwitch(this);
         toggle.setChecked(readSystem(key, 0) == 1);
         toggle.setOnCheckedChangeListener((button, checked) -> {
             new Thread(() -> {
                 boolean ok = writeSetting(key, checked ? 1 : 0);
                 runOnUiThread(() -> {
                     status.setText(ok
-                            ? (checked ? t("Включено. Перезапусти SystemUI для логов.",
-                                          "Enabled. Restart SystemUI for the logs.")
-                                       : t("Выключено.", "Disabled."))
+                            ? (checked ? t("Логи включены. Перезапусти SystemUI.",
+                                          "Logs enabled. Restart SystemUI.")
+                                       : t("Логи выключены.", "Logs disabled."))
                             : t("Не удалось сохранить. Проверьте root.",
                                 "Could not save. Check root."));
                     if (!ok) toggle.setChecked(!checked);
@@ -535,7 +536,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tp.topMargin = dp(6);
+        tp.setMarginStart(dp(12));
         row.addView(toggle, tp);
         return row;
     }

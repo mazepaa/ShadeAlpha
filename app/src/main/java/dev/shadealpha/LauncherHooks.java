@@ -69,12 +69,12 @@ final class LauncherHooks {
         recents += hookScrimColor(cl, "com.android.quickstep.fallback.RecentsState", "getScrimColor", false);
         recents += hookScrimColor(cl, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor", false);
         recents += hookScrimColor(cl, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", false);
-        if (recents > 0) HookStatus.mark(HookStatus.LAUNCHER, "launcher recents");
+        if (recents > 0) HookStatus.mark(HookStatus.LAUNCHER);
 
         // ---- Список приложений ----
         int drawer = hookScrimColor(cl, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", true);
         drawer += hookAllApps(cl);
-        if (drawer > 0) HookStatus.mark(HookStatus.DRAWER, "launcher drawer");
+        if (drawer > 0) HookStatus.mark(HookStatus.DRAWER);
     }
 
     // ------------------------------------------------------------------ state scrims
@@ -110,6 +110,7 @@ final class LauncherHooks {
         protected void afterHookedMethod(MethodHookParam p) {
             try {
                 Context ctx = contextOf(p);
+                if (HookStatus.pending()) HookStatus.flush(ctx);
                 float f = drawer ? Prefs.drawer(ctx) : Prefs.recents(ctx);
                 Object r = p.getResult();
                 if (!logged) {
@@ -388,3 +389,4 @@ final class LauncherHooks {
         if (++errors <= 5) log(where + " failed: " + t);
     }
 }
+

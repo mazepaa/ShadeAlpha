@@ -58,7 +58,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private void hookSystemUI(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": SystemUI loaded");
-        HookStatus.reset();
         VolumeHook.hook(lpparam.classLoader);
         BouncerHook.hook(lpparam.classLoader);
         Class<?> scrim = null;
@@ -75,6 +74,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     try {
                         if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
                         View v = (View) param.thisObject;
+                        if (HookStatus.pending()) HookStatus.flush(v.getContext());
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
@@ -108,7 +108,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 }
             });
             XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
-            if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.SHADE, "shade onDraw");
+            if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.SHADE);
         } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }
 
         try {
@@ -296,3 +296,4 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 }
+

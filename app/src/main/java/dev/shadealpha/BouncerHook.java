@@ -99,7 +99,7 @@ final class BouncerHook {
                 });
             } catch (Throwable t) { logOnce("bouncer visibility hook", t); }
             XposedBridge.log(TAG + ": BOUNCER_HOOK_READY");
-            HookStatus.mark(HookStatus.BOUNCER, "bouncer");
+            HookStatus.mark(HookStatus.BOUNCER);
         } catch (Throwable t) { XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
     }
 
@@ -107,6 +107,7 @@ final class BouncerHook {
         try {
             if (!(param.thisObject instanceof View)) return;
             View view = (View) param.thisObject;
+            if (HookStatus.pending()) HookStatus.flush(view.getContext());
             containerRef = new WeakReference<>(view);
             if (view.getVisibility() == View.VISIBLE) containerVisible = true;
             float factor = Prefs.bouncer(view.getContext());
@@ -288,3 +289,4 @@ final class BouncerHook {
         if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: ShadeExpansionStateManager not found");
     }
 }
+

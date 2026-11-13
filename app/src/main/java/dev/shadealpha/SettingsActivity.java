@@ -570,7 +570,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void updateHookStatus() {
         if (hooksNote == null) return;
         int mask = readSystem(Keys.HOOKS, 0);
-        if (mask == 0) {
+        if ((mask & HookStatus.REPORTED) == 0) {
             hooksNote.setText(t("Хуки: нет данных — перезапусти SystemUI и лаунчер",
                     "Hooks: no data yet — restart SystemUI and the launcher"));
             return;

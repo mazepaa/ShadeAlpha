@@ -13,7 +13,7 @@
 
 **✨ Добавлено**
 - **Статус хуков** в приложении: построчно «Шторка / Экран блокировки / Панель громкости / Ползунок громкости / Недавние / Список приложений» с ✅, ❌ или ❓.
-- **Диагностика**: кнопка в «Действиях» и в шите «О приложении» копирует в буфер версию, устройство, состояние хуков и все значения ползунков.
+- **Диагностика**: кнопка «Скопировать диагностику» в шите «О приложении» копирует в буфер версию, устройство, состояние хуков и все значения ползунков.
 - **Сброс значений**: кнопка с подтверждением удаляет все ключи из `Settings.System`.
 - **Запись без root**: при выданном разрешении «Изменение системных настроек» значения пишутся напрямую, `su` остаётся запасным путём.
 
@@ -32,7 +32,7 @@
 
 **✨ Added**
 - Hook status in the app: one line per hook with ✅, ❌ or ❓.
-- Diagnostics: a button in Actions and in the About sheet copies version, device, hook states and every slider value.
+- Diagnostics: the "Copy diagnostics" button in the About sheet copies version, device, hook states and every slider value.
 - Reset values: a confirmed button that deletes every key from `Settings.System`.
 - Root-free writes: with "modify system settings" granted the values are written directly; `su` stays as the fallback.
 

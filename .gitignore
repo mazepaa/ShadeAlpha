@@ -10,5 +10,4 @@ local.properties
 .idea/
 *.iml
 build_output/
-*.ps1 
-apply_update.ps1
+*.ps1

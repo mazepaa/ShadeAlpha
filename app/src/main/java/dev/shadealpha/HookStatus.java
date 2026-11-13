@@ -76,11 +76,21 @@ final class HookStatus {
             int current = Settings.System.getInt(c.getContentResolver(), Keys.HOOKS, 0);
             int merged = (current & ~owner) | mine | flag;
             Settings.System.putInt(c.getContentResolver(), Keys.HOOKS, merged);
+            Settings.System.putInt(c.getContentResolver(), Keys.HOOKS_BOOT,
+                    bootCount(c.getContentResolver()));
         } catch (Throwable t) {
             synchronized (LOCK) {
                 written = -1;
             }
             XposedBridge.log(TAG + ": hook status write failed: " + t);
+        }
+    }
+
+    static int bootCount(android.content.ContentResolver resolver) {
+        try {
+            return Settings.Global.getInt(resolver, Settings.Global.BOOT_COUNT, -1);
+        } catch (Throwable t) {
+            return -1;
         }
     }
 

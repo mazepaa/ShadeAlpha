@@ -12,6 +12,8 @@ public class Keys {
     public static final String MODE = "shade_alpha_mode";
     /** Bitmask of the hooks that reported a successful install; written by SystemUI. */
     public static final String HOOKS = "shade_alpha_hooks";
+    /** BOOT_COUNT at the moment the mask was written, so a stale row can be detected. */
+    public static final String HOOKS_BOOT = "shade_alpha_hooks_boot";
 
     public static final int MODE_LAYER = 0;
     public static final int MODE_VIEW_ALPHA = 1;

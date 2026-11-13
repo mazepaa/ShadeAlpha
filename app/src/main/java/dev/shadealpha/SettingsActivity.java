@@ -570,11 +570,17 @@ public class SettingsActivity extends AppCompatActivity {
     private void updateHookStatus() {
         if (hooksNote == null) return;
         int mask = readSystem(Keys.HOOKS, 0);
-        boolean sysUi = (mask & HookStatus.REPORTED_SYSTEM_UI) != 0;
-        boolean launcher = (mask & HookStatus.REPORTED_LAUNCHER) != 0;
+        int storedBoot = readSystem(Keys.HOOKS_BOOT, -1);
+        int currentBoot = HookStatus.bootCount(getContentResolver());
+        boolean fresh = storedBoot == currentBoot;
+        boolean sysUi = fresh && (mask & HookStatus.REPORTED_SYSTEM_UI) != 0;
+        boolean launcher = fresh && (mask & HookStatus.REPORTED_LAUNCHER) != 0;
         if (!sysUi && !launcher) {
-            hooksNote.setText(t("Хуки: нет данных — перезапусти SystemUI и лаунчер",
-                    "Hooks: no data yet — restart SystemUI and the launcher"));
+            hooksNote.setText(fresh
+                    ? t("Хуки: нет данных — перезапусти SystemUI и лаунчер",
+                        "Hooks: no data yet — restart SystemUI and the launcher")
+                    : t("Хуки: статус устарел после перезагрузки — перезапусти SystemUI и лаунчер",
+                        "Hooks: status is from before the reboot — restart SystemUI and the launcher"));
             return;
         }
 

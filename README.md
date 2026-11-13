@@ -17,7 +17,7 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
     <td align="center"><small>Shade 50%</small></td>
     <td align="center"><small>Lock screen 0%</small></td>
     <td align="center"><small>Recents 25%</small></td>
-    <td align="center"><small>Volume 50</small></td>
+    <td align="center"><small>Volume 50%</small></td>
   </tr>
 </table>
 
@@ -102,7 +102,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
     <td align="center"><small>Шторка 50%</small></td>
     <td align="center"><small>Экран блокировки 0%</small></td>
     <td align="center"><small>Недавние 25%</small></td>
-    <td align="center"><small>Громкость 50</small></td>
+    <td align="center"><small>Громкость 50%</small></td>
   </tr>
 </table>
 

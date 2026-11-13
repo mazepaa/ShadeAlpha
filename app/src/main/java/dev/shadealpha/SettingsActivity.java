@@ -570,23 +570,34 @@ public class SettingsActivity extends AppCompatActivity {
     private void updateHookStatus() {
         if (hooksNote == null) return;
         int mask = readSystem(Keys.HOOKS, 0);
-        if ((mask & HookStatus.REPORTED) == 0) {
+        boolean sysUi = (mask & HookStatus.REPORTED_SYSTEM_UI) != 0;
+        boolean launcher = (mask & HookStatus.REPORTED_LAUNCHER) != 0;
+        if (!sysUi && !launcher) {
             hooksNote.setText(t("Хуки: нет данных — перезапусти SystemUI и лаунчер",
                     "Hooks: no data yet — restart SystemUI and the launcher"));
             return;
         }
-        String sep = "  ";
-        hooksNote.setText(t("Хуки: ", "Hooks: ")
-                + hookMark(t("шторка", "shade"), HookStatus.SHADE, mask) + sep
-                + hookMark(t("локскрин", "lock screen"), HookStatus.BOUNCER, mask) + sep
-                + hookMark(t("громкость", "volume"), HookStatus.VOLUME, mask) + sep
-                + hookMark(t("ползунок", "slider"), HookStatus.VOLUME_TRACK, mask) + sep
-                + hookMark(t("недавние", "recents"), HookStatus.LAUNCHER, mask) + sep
-                + hookMark(t("список", "drawer"), HookStatus.DRAWER, mask));
+
+        StringBuilder sb = new StringBuilder(t("Хуки:", "Hooks:"));
+        sb.append('\n').append(hookLine(t("Шторка", "Shade"), HookStatus.SHADE, mask, sysUi));
+        sb.append('\n').append(hookLine(t("Экран блокировки", "Lock screen"), HookStatus.BOUNCER, mask, sysUi));
+        sb.append('\n').append(hookLine(t("Панель громкости", "Volume panel"), HookStatus.VOLUME, mask, sysUi));
+        sb.append('\n').append(hookLine(t("Ползунок громкости", "Volume slider"), HookStatus.VOLUME_TRACK, mask, sysUi));
+        sb.append('\n').append(hookLine(t("Недавние", "Recents"), HookStatus.LAUNCHER, mask, launcher));
+        sb.append('\n').append(hookLine(t("Список приложений", "App drawer"), HookStatus.DRAWER, mask, launcher));
+        hooksNote.setText(sb.toString());
     }
 
-    private String hookMark(String name, int bit, int mask) {
-        return name + ((mask & bit) != 0 ? " ✓" : " ✗");
+    private String hookLine(String name, int bit, int mask, boolean reported) {
+        String state;
+        if (!reported) {
+            state = t("нет данных", "no data");
+        } else if ((mask & bit) != 0) {
+            state = t("работает", "ok");
+        } else {
+            state = t("не найден", "not found");
+        }
+        return "• " + name + ": " + state;
     }
 
     private void syncToSystem() {

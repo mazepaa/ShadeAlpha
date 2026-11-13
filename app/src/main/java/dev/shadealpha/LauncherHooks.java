@@ -61,6 +61,7 @@ final class LauncherHooks {
     static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         ClassLoader cl = lpparam.classLoader;
         log("Launcher loaded (" + lpparam.packageName + ")");
+        HookStatus.owner(HookStatus.LAUNCHER_BITS, HookStatus.REPORTED_LAUNCHER);
 
         // ---- Недавние ----
         int recents = 0;

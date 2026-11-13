@@ -3,6 +3,7 @@ package dev.shadealpha;
 import android.app.KeyguardManager;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.os.SystemClock;
 import android.view.View;
 
 import java.util.Set;
@@ -29,6 +30,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
+    private static volatile long traceUntil = 0;
+    private static volatile long traceLast = 0;
+    private static volatile int traceLines = 0;
+    private static final int TRACE_MAX_LINES = 30;
+    private static final long TRACE_WINDOW_MS = 2500;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -70,11 +76,21 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
-                        if ((role == ROLE_TOP || role == ROLE_FRONT) && BouncerHook.shouldForceUnlockScrimZero()) {
-                            applyViewAlpha(v, 0f); return;
+                        boolean forceZero = (role == ROLE_TOP || role == ROLE_FRONT)
+                                && BouncerHook.shouldForceUnlockScrimZero();
+                        if (forceZero) {
+                            trace("onDraw " + idName(v) + " role=" + roleName(role)
+                                    + " forceZero=true viewAlpha=" + v.getAlpha());
+                            applyViewAlpha(v, 0f);
+                            return;
                         }
                         float f = roleFactor(v.getContext(), role);
                         int m = Prefs.mode(v.getContext());
+                        if (traceActive()) {
+                            trace("onDraw " + idName(v) + " role=" + roleName(role) + " f=" + f
+                                    + " mode=" + m + " viewAlpha=" + v.getAlpha()
+                                    + " h=" + v.getHeight());
+                        }
                         if (m == Keys.MODE_VIEW_ALPHA) {
                             applyViewAlpha(v, f);
                         } else {
@@ -116,8 +132,16 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         }
                         float f = roleFactor(v.getContext(), role);
                         if (Prefs.mode(v.getContext()) == Keys.MODE_SCRIM_ALPHA) {
+                            if (traceActive()) {
+                                trace("setViewAlpha " + idName(v) + " role=" + roleName(role)
+                                        + " in=" + a + " f=" + f + " out=" + (a * f));
+                            }
                             param.args[0] = a * f;
                         } else if ((role == ROLE_TOP || role == ROLE_FRONT) && useBouncerForTop(v.getContext())) {
+                            if (traceActive()) {
+                                trace("setViewAlpha " + idName(v) + " role=" + roleName(role)
+                                        + " in=" + a + " f=" + f + " out=" + (a * f));
+                            }
                             param.args[0] = a * f;
                         }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
@@ -187,11 +211,33 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             if (prev == null || prev.booleanValue() != locked) {
                 lastKeyguardLog = Boolean.valueOf(locked);
                 XposedBridge.log(TAG + ": keyguardLocked=" + locked);
+                if (!locked && prev != null && prev.booleanValue()) startUnlockTrace();
             }
             return locked;
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /** Records what the module does to the scrims for a couple of seconds after unlocking. */
+    private static void startUnlockTrace() {
+        traceUntil = SystemClock.uptimeMillis() + TRACE_WINDOW_MS;
+        traceLast = 0;
+        traceLines = 0;
+        XposedBridge.log(TAG + ": UNLOCK_TRACE start");
+    }
+
+    static boolean traceActive() {
+        return traceLines < TRACE_MAX_LINES && SystemClock.uptimeMillis() < traceUntil;
+    }
+
+    static void trace(String message) {
+        if (!traceActive()) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - traceLast < 50) return;
+        traceLast = now;
+        traceLines++;
+        XposedBridge.log(TAG + ": TRACE " + message);
     }
 
     /**

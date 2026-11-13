@@ -57,6 +57,8 @@ public class SettingsActivity extends AppCompatActivity {
     };
 
     private TextView hooksNote;
+    private MaterialButton grantButton;
+    private TextView grantNote;
 
     private SharedPreferences prefs;
     private String lang;
@@ -80,6 +82,19 @@ public class SettingsActivity extends AppCompatActivity {
         super.onResume();
         syncToSystem();
         updateHookStatus();
+        updateWriteAccess();
+    }
+
+    /** Hides the "allow writing" button once the permission is granted (returns from Settings). */
+    private void updateWriteAccess() {
+        if (!canWriteSystem()) return;
+        boolean wasVisible = grantButton != null && grantButton.getVisibility() == View.VISIBLE;
+        if (grantButton != null) grantButton.setVisibility(View.GONE);
+        if (grantNote != null) grantNote.setVisibility(View.GONE);
+        if (wasVisible && status != null) {
+            status.setText(t("Запись без root разрешена: значения сохраняются напрямую.",
+                    "Writing without root is allowed: values are saved directly."));
+        }
     }
 
     private String t(String ru, String en) {
@@ -406,7 +421,7 @@ public class SettingsActivity extends AppCompatActivity {
         addWideButton(actions, reset, 8);
 
         if (!canWriteSystem()) {
-            MaterialButton grant = actionButton(t("Разрешить запись без root", "Allow writing without root"), v -> {
+            grantButton = actionButton(t("Разрешить запись без root", "Allow writing without root"), v -> {
                 try {
                     startActivity(new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
                             Uri.parse("package:" + getPackageName())));
@@ -414,7 +429,11 @@ public class SettingsActivity extends AppCompatActivity {
                     startActivity(new Intent(Settings.ACTION_SETTINGS));
                 }
             });
-            addWideButton(actions, grant, 8);
+            addWideButton(actions, grantButton, 8);
+
+            grantNote = note(t("Разрешение «Изменение системных настроек» позволяет писать значения ползунков напрямую, без su. Root всё равно нужен для перезапуска SystemUI и лаунчера.",
+                    "The \"modify system settings\" permission lets the sliders write their values directly, without su. Root is still needed to restart SystemUI and the launcher."));
+            root.addView(grantNote, lp(6));
         }
 
         MaterialButton diagnostics = actionButton(t("Диагностика (копировать)", "Diagnostics (copy)"),

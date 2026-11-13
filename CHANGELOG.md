@@ -1,5 +1,10 @@
 # ShadeAlpha — Changelog
 
+## v3.3.2
+
+- **Блокировка: фон больше не мигает на свайпе.** Система анимирует прозрачность фона от 0 к 100%, а хук каждый кадр принимал её текущее значение за «исходное» и принудительно делал непрозрачным. Теперь прозрачный фон остаётся прозрачным, и анимация идёт ровно.
+- **Lock screen: no more blinking on the swipe.** SystemUI animates the background opacity from 0 to 100 and the hook took each intermediate value as the original, forcing it back to opaque. A transparent background now stays transparent, so the animation runs smoothly.
+
 ## v3.3.1
 
 ### 🇷🇺 Исправлено

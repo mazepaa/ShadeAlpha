@@ -130,6 +130,9 @@ final class BouncerHook {
             if (HookStatus.pending()) HookStatus.flush(view.getContext());
             containerRef = new WeakReference<>(view);
             if (view.getVisibility() == View.VISIBLE) containerVisible = true;
+            // While the bouncer fades away the system animates the background itself; writing our
+            // factor into that animation makes it blink between the slider value and zero.
+            if (bouncerToGoneTransitionRunning) return;
             float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {
@@ -137,7 +140,6 @@ final class BouncerHook {
                 int current = cd.getColor();
                 int base = baseOf(cd, current, BASE_COLOR, APPLIED_COLOR);
                 int baseA = Color.alpha(base);
-                if (baseA == 0) baseA = 255;
                 int next = Color.argb(Math.round(baseA * factor),
                         Color.red(base), Color.green(base), Color.blue(base));
                 if (current != next) cd.setColor(next);

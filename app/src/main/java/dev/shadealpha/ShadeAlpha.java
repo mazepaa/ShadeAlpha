@@ -32,11 +32,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile Boolean lastKeyguardLog = null;
     private static volatile long unlockedAt = 0;
     private static final long UNLOCK_WINDOW_MS = 700;
-    private static volatile long traceUntil = 0;
-    private static volatile long traceLast = 0;
-    private static volatile int traceLines = 0;
-    private static final int TRACE_MAX_LINES = 30;
-    private static final long TRACE_WINDOW_MS = 2500;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -81,18 +76,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         boolean forceZero = (role == ROLE_TOP || role == ROLE_FRONT)
                                 && (inUnlockWindow() || BouncerHook.shouldForceUnlockScrimZero());
                         if (forceZero) {
-                            trace("onDraw " + idName(v) + " role=" + roleName(role)
-                                    + " forceZero=true viewAlpha=" + v.getAlpha());
                             applyViewAlpha(v, 0f);
                             return;
                         }
                         float f = roleFactor(v.getContext(), role);
                         int m = Prefs.mode(v.getContext());
-                        if (traceActive()) {
-                            trace("onDraw " + idName(v) + " role=" + roleName(role) + " f=" + f
-                                    + " mode=" + m + " viewAlpha=" + v.getAlpha()
-                                    + " h=" + v.getHeight());
-                        }
                         if (m == Keys.MODE_VIEW_ALPHA) {
                             applyViewAlpha(v, f);
                         } else {
@@ -133,25 +121,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         if ((role == ROLE_TOP || role == ROLE_FRONT) && inUnlockWindow()) {
-                            if (traceActive()) {
-                                trace("setViewAlpha " + idName(v) + " role=" + roleName(role)
-                                        + " in=" + a + " unlockWindow -> 0.0");
-                            }
                             param.args[0] = 0f;
                             return;
                         }
                         float f = roleFactor(v.getContext(), role);
                         if (Prefs.mode(v.getContext()) == Keys.MODE_SCRIM_ALPHA) {
-                            if (traceActive()) {
-                                trace("setViewAlpha " + idName(v) + " role=" + roleName(role)
-                                        + " in=" + a + " f=" + f + " out=" + (a * f));
-                            }
                             param.args[0] = a * f;
                         } else if ((role == ROLE_TOP || role == ROLE_FRONT) && useBouncerForTop(v.getContext())) {
-                            if (traceActive()) {
-                                trace("setViewAlpha " + idName(v) + " role=" + roleName(role)
-                                        + " in=" + a + " f=" + f + " out=" + (a * f));
-                            }
                             param.args[0] = a * f;
                         }
                     } catch (Throwable t) { fail("setViewAlpha", t); }
@@ -172,7 +148,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         int r = ROLE_OTHER;
         if ("scrim_behind".equals(id) || "scrimBehind".equals(id) || id.endsWith("_behind")) r = ROLE_TOP;
         else if ("scrim_notifications".equals(id) || "scrimNotifications".equals(id)
-                || id.contains("notification") || id.endsWith("_notifications")) r = ROLE_BOTTOM;
+                || (id.contains("scrim") && id.contains("notification"))
+                || id.endsWith("_notifications")) r = ROLE_BOTTOM;
         else if ("scrim_in_front".equals(id) || "scrimInFront".equals(id)
                 || id.endsWith("_front") || "scrim_front".equals(id)) r = ROLE_FRONT;
         else if (!"(no-id)".equals(id) && !"(unknown)".equals(id)) {
@@ -223,7 +200,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 XposedBridge.log(TAG + ": keyguardLocked=" + locked);
                 if (!locked && prev != null && prev.booleanValue()) {
                     unlockedAt = SystemClock.uptimeMillis();
-                    startUnlockTrace();
                 }
             }
             return locked;
@@ -241,27 +217,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     static boolean inUnlockWindow() {
         long t = unlockedAt;
         return t != 0 && SystemClock.uptimeMillis() - t < UNLOCK_WINDOW_MS;
-    }
-
-    /** Records what the module does to the scrims for a couple of seconds after unlocking. */
-    private static void startUnlockTrace() {
-        traceUntil = SystemClock.uptimeMillis() + TRACE_WINDOW_MS;
-        traceLast = 0;
-        traceLines = 0;
-        XposedBridge.log(TAG + ": UNLOCK_TRACE start");
-    }
-
-    static boolean traceActive() {
-        return traceLines < TRACE_MAX_LINES && SystemClock.uptimeMillis() < traceUntil;
-    }
-
-    static void trace(String message) {
-        if (!traceActive()) return;
-        long now = SystemClock.uptimeMillis();
-        if (now - traceLast < 50) return;
-        traceLast = now;
-        traceLines++;
-        XposedBridge.log(TAG + ": TRACE " + message);
     }
 
     /**

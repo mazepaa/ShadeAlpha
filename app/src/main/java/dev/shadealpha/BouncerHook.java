@@ -110,13 +110,6 @@ final class BouncerHook {
             if (view.getVisibility() == View.VISIBLE) containerVisible = true;
             float factor = Prefs.bouncer(view.getContext());
             Drawable bg = view.getBackground();
-            if (ShadeAlpha.traceActive()) {
-                String kind = bg instanceof ColorDrawable
-                        ? "color=" + Integer.toHexString(((ColorDrawable) bg).getColor())
-                        : (bg == null ? "none" : bg.getClass().getSimpleName() + " a=" + bg.getAlpha());
-                ShadeAlpha.trace("bouncerApply view=" + view.getClass().getSimpleName() + " " + kind
-                        + " factor=" + factor + " viewAlpha=" + view.getAlpha());
-            }
             if (bg instanceof ColorDrawable) {
                 ColorDrawable cd = (ColorDrawable) bg;
                 int c = cd.getColor();

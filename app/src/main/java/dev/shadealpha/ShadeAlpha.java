@@ -58,6 +58,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private void hookSystemUI(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": SystemUI loaded");
+        HookStatus.reset();
         VolumeHook.hook(lpparam.classLoader);
         BouncerHook.hook(lpparam.classLoader);
         Class<?> scrim = null;

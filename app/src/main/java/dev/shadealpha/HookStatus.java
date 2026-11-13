@@ -29,6 +29,20 @@ final class HookStatus {
 
     private HookStatus() {}
 
+    /** Clears the row when SystemUI starts, so a hook that stopped installing cannot stay "ok". */
+    static void reset() {
+        Context c = Prefs.appContext();
+        if (c == null) return;
+        synchronized (LOCK) {
+            written = 0;
+            try {
+                Settings.System.putInt(c.getContentResolver(), Keys.HOOKS, 0);
+            } catch (Throwable t) {
+                XposedBridge.log(TAG + ": hook status reset failed: " + t);
+            }
+        }
+    }
+
     static void mark(int bit, String name) {
         Context c = Prefs.appContext();
         if (c == null) return;

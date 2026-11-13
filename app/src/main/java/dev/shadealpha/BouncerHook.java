@@ -6,6 +6,8 @@ import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
 import android.view.View;
 import java.lang.ref.WeakReference;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -21,8 +23,15 @@ final class BouncerHook {
     private static volatile float shadeExpansionFraction;
     private static volatile long unlockTransitionStartedAt;
     private static int errors;
+    private static final Set<String> LOGGED = Collections.synchronizedSet(new HashSet<String>());
 
     private BouncerHook() {}
+
+    /** Reports a failure once per site: a silent catch here would hide a hook that never installed. */
+    private static void logOnce(String where, Throwable t) {
+        if (LOGGED.size() > 64 || !LOGGED.add(where)) return;
+        XposedBridge.log(TAG + ": " + where + " failed: " + t);
+    }
 
     public static void hook(ClassLoader cl) {
         hookScrimState(cl);
@@ -66,7 +75,10 @@ final class BouncerHook {
     private static void hookContainer(ClassLoader cl) {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists("com.android.keyguard.KeyguardSecurityContainer", cl);
-            if (cls == null) return;
+            if (cls == null) {
+                XposedBridge.log(TAG + ": BOUNCER_HOOK: KeyguardSecurityContainer not found");
+                return;
+            }
             XposedBridge.hookAllMethods(cls, "reloadBackgroundColor", new XC_MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam p) { apply(p); }
             });
@@ -74,7 +86,7 @@ final class BouncerHook {
                 XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam p) { apply(p); }
                 });
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) { logOnce("bouncer onDraw hook", t); }
             try {
                 XposedBridge.hookAllMethods(cls, "onVisibilityChanged", new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
@@ -82,10 +94,10 @@ final class BouncerHook {
                             View v = (View) p.thisObject;
                             containerRef = new WeakReference<>(v);
                             containerVisible = v.getVisibility() == View.VISIBLE && v.isShown();
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable t) { logOnce("bouncer visibility", t); }
                     }
                 });
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) { logOnce("bouncer visibility hook", t); }
             XposedBridge.log(TAG + ": BOUNCER_HOOK_READY");
         } catch (Throwable t) { XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
     }
@@ -116,11 +128,13 @@ final class BouncerHook {
     }
 
     private static void hookStatusBarState(ClassLoader cl) {
+        boolean found = false;
         for (String name : new String[]{
                 "com.android.systemui.statusbar.StatusBarStateControllerImpl",
                 "com.android.systemui.statusbar.SysuiStatusBarStateController"}) {
             Class<?> cls = XposedHelpers.findClassIfExists(name, cl);
             if (cls == null) continue;
+            found = true;
             for (String m : new String[]{"setState", "setAndInstrumentState"}) {
                 try {
                     XposedBridge.hookAllMethods(cls, m, new XC_MethodHook() {
@@ -143,17 +157,20 @@ final class BouncerHook {
                             } catch (Throwable ignored) {}
                         }
                     });
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) { logOnce("status bar state hook", t); }
             }
         }
+        if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: StatusBarStateController not found");
     }
 
     private static void hookKeyguardState(ClassLoader cl) {
+        boolean found = false;
         for (String name : new String[]{
                 "com.android.systemui.statusbar.policy.KeyguardStateControllerImpl",
                 "com.android.systemui.keyguard.KeyguardViewMediator"}) {
             Class<?> cls = XposedHelpers.findClassIfExists(name, cl);
             if (cls == null) continue;
+            found = true;
             for (String m : new String[]{"notifyKeyguardState", "setKeyguardShowing", "setShowing", "isShowing"}) {
                 try {
                     XposedBridge.hookAllMethods(cls, m, new XC_MethodHook() {
@@ -169,9 +186,10 @@ final class BouncerHook {
                             } catch (Throwable ignored) {}
                         }
                     });
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) { logOnce("keyguard state hook", t); }
             }
         }
+        if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: KeyguardStateController not found");
     }
 
     private static void hookScrimState(ClassLoader cl) {
@@ -180,13 +198,16 @@ final class BouncerHook {
             cls = XposedHelpers.findClassIfExists(n, cl);
             if (cls != null) break;
         }
-        if (cls == null) return;
+        if (cls == null) {
+            XposedBridge.log(TAG + ": BOUNCER_HOOK: ScrimController not found");
+            return;
+        }
         for (String method : new String[]{"transitionTo", "setState", "applyState"}) {
             try {
                 XposedBridge.hookAllMethods(cls, method, new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) { onTransition(p.thisObject, p.args); }
                 });
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) { logOnce("scrim state hook", t); }
         }
     }
 
@@ -234,12 +255,14 @@ final class BouncerHook {
     }
 
     private static void hookShadeExpansion(ClassLoader cl) {
+        boolean found = false;
         for (String name : new String[]{
                 "com.android.systemui.shade.ShadeExpansionStateManager",
                 "com.android.systemui.statusbar.phone.NotificationPanelViewController",
                 "com.android.systemui.shade.NotificationPanelViewController"}) {
             Class<?> cls = XposedHelpers.findClassIfExists(name, cl);
             if (cls == null) continue;
+            found = true;
             for (String m : new String[]{"setExpandedFraction", "onExpansionChanged", "setExpansionFraction"}) {
                 try {
                     XposedBridge.hookAllMethods(cls, m, new XC_MethodHook() {
@@ -259,8 +282,9 @@ final class BouncerHook {
                             } catch (Throwable ignored) {}
                         }
                     });
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) { logOnce("shade expansion hook", t); }
             }
         }
+        if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: ShadeExpansionStateManager not found");
     }
 }

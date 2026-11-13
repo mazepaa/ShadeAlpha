@@ -55,6 +55,7 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 
 - Root (KernelSU / APatch / Magisk) and LSPosed (JingMatrix).
 - Android 12+ (minSdk 31). Tested on Redmi 12, Evolution X, Android 16 (API 36).
+- Launchers: Pixel Launcher (`com.google.android.apps.nexuslauncher`) and Launcher3 (`com.android.launcher3`). Other launchers are not hooked and are reported as unsupported in the log.
 
 ## Installation
 
@@ -62,6 +63,13 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 2. LSPosed / Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha** (for status detection). The scope list is recommended automatically; make sure the boxes are ticked.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent.
+
+All releases are signed with the same key, so updates install over the previous version. To check an APK you did not download from Releases:
+
+```
+apksigner verify --print-certs ShadeAlpha-v3.2.apk
+# SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
+```
 
 ## How it works
 
@@ -152,6 +160,7 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 
 - Root (KernelSU / APatch / Magisk) и LSPosed (JingMatrix).
 - Android 12+ (minSdk 31). Проверено на Redmi 12, Evolution X, Android 16 (API 36).
+- Лаунчеры: Pixel Launcher (`com.google.android.apps.nexuslauncher`) и Launcher3 (`com.android.launcher3`). Остальные не хукаются, в журнале появится сообщение о неподдерживаемой версии лаунчера.
 
 ## Установка
 
@@ -159,6 +168,13 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 2. LSPosed / Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha** (для определения статуса). Список области предлагается автоматически, проверь, что галочки стоят.
 3. Открой приложение ShadeAlpha и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее.
+
+Все релизы подписаны одним ключом, поэтому обновление встаёт поверх предыдущей версии. Проверить APK, скачанный не из Releases, можно так:
+
+```
+apksigner verify --print-certs ShadeAlpha-v3.2.apk
+# SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
+```
 
 ## Как это работает
 

@@ -44,7 +44,7 @@
 - Experimental bouncer opacity code and related preference storage.
 
 ### Maintenance / Очистка
-- Removed the GitHub Actions release workflow as requested.
+- Release workflow builds and signs the APK; it can be run manually and also runs on a tag push, attaching the APK to the GitHub release.
 - Increased Android versionCode to 15; versionName remains 3.1.
 - Kept the working notification shade, launcher and volume slider implementations unchanged.
 

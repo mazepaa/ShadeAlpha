@@ -74,7 +74,9 @@ final class BouncerHook {
             XposedBridge.log(TAG + ": BOUNCER_VIEWS hooked x" + (hooks == null ? 0 : hooks.size()));
             // The real proof is a keyguard background view being found, not the hook installing;
             // wantsBouncer() reports it the first time one shows up.
-            if (hooks == null || hooks.isEmpty()) return;
+            if (hooks == null || hooks.isEmpty()) {
+                XposedBridge.log(TAG + ": BOUNCER_VIEWS: no hooks installed");
+            }
         } catch (Throwable t) { logOnce("keyguard view hook", t); }
     }
 

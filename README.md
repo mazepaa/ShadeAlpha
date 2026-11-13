@@ -19,6 +19,12 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
   </tr>
 </table>
 
+<p align="center">
+  <img src="screenshots/vol_50-50-50.jpg" width="18%" />
+  <br />
+  <sub>Volume panel: 50% background, 50% track, 50% fill</sub>
+</p>
+
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
 ## What's new in v3.3
@@ -101,6 +107,12 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
     <td width="33%" align="center" valign="middle"><img src="screenshots/rec0_ru.jpg" width="100%" /></td>
   </tr>
 </table>
+
+<p align="center">
+  <img src="screenshots/vol_50-50-50.jpg" width="18%" />
+  <br />
+  <sub>Панель громкости: фон 50%, дорожка 50%, заполнение 50%</sub>
+</p>
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 

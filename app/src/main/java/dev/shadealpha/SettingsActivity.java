@@ -51,6 +51,8 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String GITHUB_LINK = "https://github.com/mazepaa/ShadeAlpha";
     /** Upper bound for one su invocation; a stuck root prompt must not block the worker. */
     private static final int ROOT_TIMEOUT_SEC = 10;
+    /** Vertical gap between the rows of the About sheet. */
+    private static final int SHEET_GAP_DP = 12;
     private static final String[] ALL_KEYS = {
             Keys.TOP, Keys.BOTTOM, Keys.BOUNCER, Keys.RECENTS, Keys.APPDRAWER,
             Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE,
@@ -119,6 +121,11 @@ public class SettingsActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         p.topMargin = dp(topDp);
         return p;
+    }
+
+    /** One spacing for every row of the About sheet, so the gaps read as a single rhythm. */
+    private LinearLayout.LayoutParams sheetRow() {
+        return lp(SHEET_GAP_DP);
     }
 
     private boolean checkRoot() {
@@ -221,10 +228,7 @@ public class SettingsActivity extends AppCompatActivity {
                 Toast.makeText(this, t("Диагностика скопирована", "Diagnostics copied"), Toast.LENGTH_SHORT).show();
             });
         }).start());
-        LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        copyLp.topMargin = dp(8);
-        root.addView(btnCopy, copyLp);
+        root.addView(btnCopy, sheetRow());
 
         MaterialCardView devCard = new MaterialCardView(this);
         devCard.setRadius(dp(16));
@@ -244,15 +248,12 @@ public class SettingsActivity extends AppCompatActivity {
             Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show();
         });
 
-        LinearLayout.LayoutParams devLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        devLp.topMargin = dp(24);
-        root.addView(devCard, devLp);
+        root.addView(devCard, sheetRow());
 
         root.addView(addToggleRow(
                 t("Включить логи", "Enable logs"),
                 t("Подробный журнал хуков в Vector → Журналы", "Verbose hook log in Vector → Logs"),
-                Keys.DEBUG_LOGS), lp(20));
+                Keys.DEBUG_LOGS), sheetRow());
 
         dialog.setContentView(root);
 

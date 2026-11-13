@@ -53,7 +53,9 @@ public class SettingsActivity extends AppCompatActivity {
     private static final int ROOT_TIMEOUT_SEC = 10;
     private static final String[] ALL_KEYS = {
             Keys.TOP, Keys.BOTTOM, Keys.BOUNCER, Keys.RECENTS, Keys.APPDRAWER,
-            Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE
+            Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE,
+            // Retired keys from earlier builds: cleaning them up keeps the system tidy.
+            Keys.LEGACY_EXPERIMENT, Keys.LEGACY_VOLUME_EXPANDED
     };
 
     private TextView hooksNote;
@@ -749,7 +751,7 @@ public class SettingsActivity extends AppCompatActivity {
     private boolean resetStoredValues() {
         boolean direct = canWriteSystem();
         for (String key : ALL_KEYS) {
-            int def = Keys.MODE.equals(key) ? Keys.MODE_VIEW_ALPHA : 100;
+            int def = defaultValue(key);
             if (direct) {
                 try {
                     Settings.System.putInt(getContentResolver(), key, def);
@@ -760,13 +762,22 @@ public class SettingsActivity extends AppCompatActivity {
             // A direct write that silently did nothing and a missing permission both land here.
             if (readSystem(key, -1) != def) runRoot("settings delete system " + key);
         }
-        // Report success only when every key really holds its default (or is gone).
+        // Report success only when every live key really holds its default (or is gone).
         for (String key : ALL_KEYS) {
-            int def = Keys.MODE.equals(key) ? Keys.MODE_VIEW_ALPHA : 100;
+            if (isLegacy(key)) continue;
+            int def = defaultValue(key);
             int now = readSystem(key, -1);
             if (now != def && now != -1) return false;
         }
         return true;
+    }
+
+    private static boolean isLegacy(String key) {
+        return Keys.LEGACY_EXPERIMENT.equals(key) || Keys.LEGACY_VOLUME_EXPANDED.equals(key);
+    }
+
+    private static int defaultValue(String key) {
+        return Keys.MODE.equals(key) ? Keys.MODE_VIEW_ALPHA : 100;
     }
 
     private boolean canWriteSystem() {

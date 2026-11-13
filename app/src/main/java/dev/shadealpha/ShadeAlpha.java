@@ -25,6 +25,56 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     };
     private static final int ROLE_OTHER = 0, ROLE_TOP = 1, ROLE_BOTTOM = 2, ROLE_FRONT = 3;
     private static final int TAG_ROLE = 0x7ffa0001, TAG_ALPHA_SET = 0x7ffa0002, TAG_ROLE_SIZE = 0x7ffa0003;
+
+    /** Live scrims: in mode 2 the system only calls setViewAlpha while it animates, so a changed
+     * slider value has to be pushed by invalidating the scrims that are currently on screen. */
+    private static final java.util.List<java.lang.ref.WeakReference<View>> LIVE =
+            java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+    private static final android.os.Handler UI = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    private static void rememberLive(View v) {
+        synchronized (LIVE) {
+            for (java.util.Iterator<java.lang.ref.WeakReference<View>> it = LIVE.iterator(); it.hasNext(); ) {
+                View w = it.next().get();
+                if (w == null) it.remove();
+                else if (w == v) return;
+            }
+            LIVE.add(new java.lang.ref.WeakReference<>(v));
+        }
+    }
+
+    private static void hookLiveRepaint() {
+        UI.post(new Runnable() {
+            private long last = 0;
+            @Override public void run() {
+                try {
+                    if (last != 0 && android.os.SystemClock.uptimeMillis() - last >= 150) {
+                        last = 0;
+                        repaintLive();
+                    } else if (last == 0) {
+                        last = android.os.SystemClock.uptimeMillis();
+                    }
+                } catch (Throwable t) { fail("repaint", t); }
+                UI.postDelayed(this, 150);
+            }
+        });
+    }
+
+    private static void repaintLive() {
+        synchronized (LIVE) {
+            java.util.Iterator<java.lang.ref.WeakReference<View>> it = LIVE.iterator();
+            while (it.hasNext()) {
+                View v = it.next().get();
+                if (v == null || !v.isShown()) { it.remove(); continue; }
+                float f = roleFactor(v.getContext(), role(v));
+                if (Prefs.mode(v.getContext()) == Keys.MODE_VIEW_ALPHA) {
+                    // Cheap idempotent write: the view repaints and onDraw applies the value.
+                    applyViewAlpha(v, f);
+                    v.invalidate();
+                }
+            }
+        }
+    }
     private static final int MAX_FAILURES = 20;
     private static final boolean[] SVA_LOGGED = new boolean[4];
     private static volatile boolean disabled = false;
@@ -76,6 +126,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
                         View v = (View) param.thisObject;
                         if (HookStatus.pending()) HookStatus.flush(v.getContext());
+                        rememberLive(v);
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
@@ -108,6 +159,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     } catch (Throwable t) { fail("after onDraw", t); }
                 }
             });
+            if (hooks != null) hookLiveRepaint();
             XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
             if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.SHADE);
         } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }

@@ -249,13 +249,6 @@ public class SettingsActivity extends AppCompatActivity {
         devLp.topMargin = dp(24);
         root.addView(devCard, devLp);
 
-        TextView desc = text(t(
-            "Модуль для LSPosed: полупрозрачная шторка уведомлений, недавние приложения и список приложений в Pixel Launcher.",
-            "LSPosed module: translucent notification shade, recents and app drawer in Pixel Launcher."), 14, false);
-        desc.setPadding(0, dp(24), 0, 0);
-        desc.setGravity(Gravity.CENTER);
-        root.addView(desc);
-
         root.addView(addToggleRow(
                 t("Включить логи", "Enable logs"),
                 t("Подробный журнал хуков в Vector → Журналы", "Verbose hook log in Vector → Logs"),

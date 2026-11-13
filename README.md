@@ -8,14 +8,14 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 
 <table align="center">
   <tr>
-    <th align="center">100%</th>
-    <th align="center">50%</th>
-    <th align="center">0%</th>
+    <th align="center">Shade 50%</th>
+    <th align="center">Lock screen 0%</th>
+    <th align="center">Recents 0%</th>
   </tr>
   <tr>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/100_en.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/50_en.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/0_en.jpg" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/qs50_en.jpg" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/pin0_en.jpg" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/rec0_en.jpg" width="100%" /></td>
   </tr>
 </table>
 
@@ -122,14 +122,14 @@ apksigner verify --print-certs ShadeAlpha-v3.3.apk
 
 <table align="center">
   <tr>
-    <th align="center">100%</th>
-    <th align="center">50%</th>
-    <th align="center">0%</th>
+    <th align="center">Шторка 50%</th>
+    <th align="center">Экран блокировки 0%</th>
+    <th align="center">Недавние 0%</th>
   </tr>
   <tr>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/100_ru.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/50_ru.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/0_ru.jpg" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/qs50_ru.jpg" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/pin0_ru.jpg" width="100%" /></td>
+    <td width="33%" align="center" valign="middle"><img src="screenshots/rec0_ru.jpg" width="100%" /></td>
   </tr>
 </table>
 

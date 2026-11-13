@@ -1,5 +1,17 @@
 # ShadeAlpha — Changelog
 
+## v3.3.1
+
+### 🇷🇺 Исправлено
+- **Фон экрана блокировки больше не исчезает:** прозрачность считалась от уже изменённого цвета на каждом кадре (255 → 128 → 64 → …), и фон PIN-экрана таял за несколько кадров. Теперь исходный цвет запоминается и используется как база.
+- **Статус «Экран блокировки ✅»** ставится только когда хук действительно установлен, а не когда найден класс.
+- **«Сбросить значения» работает без root**, если выдано разрешение «Изменение системных настроек»; при неудаче приложение сообщает об ошибке вместо ложного успеха.
+
+### 🇬🇧 Fixed
+- **The lock screen background no longer fades away:** the alpha was derived from the colour it had already written on every frame (255 → 128 → 64 → …), so the PIN background vanished within a few frames. The original colour is remembered and used as the base.
+- **"Lock screen ✅"** is reported only when a hook actually installed, not when the class was merely found.
+- **"Reset values" works without root** when the system-settings permission is granted, and reports a failure instead of a false success.
+
 ## v3.3
 
 ### 🇷🇺 Что нового

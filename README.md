@@ -23,8 +23,10 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.3
+## What's new in v3.3.1
 
+- 🐛 **Lock screen background no longer fades out:** the opacity is computed from the original colour instead of the value written on the previous frame.
+- ✅ **Hook status tells the truth:** the lock screen hook is reported only when it actually installed, and reset works without root when the system-settings permission is granted.
 - 🐛 **No more green flash after unlocking:** the keyguard scrims stay at zero for half a second after the lock screen is dismissed, and the window ends as soon as SystemUI finishes the fade.
 - ✅ **Hook status in the app:** one line per hook (shade, lock screen, volume panel, volume slider, recents, app drawer) with a tick, a cross or a question mark.
 - 🩺 **Copy diagnostics:** one button in the About sheet copies the module version, device, hook states and all slider values, ready for a bug report.
@@ -48,7 +50,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 ## Installation
 
-1. Install `ShadeAlpha-3.3.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-3.3.1.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha**.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent. Check the **Hooks:** line — every entry should be ✅.
@@ -56,7 +58,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 All releases are signed with the same key, so updates install over the previous version. To check an APK you did not download from Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.3.apk
+apksigner verify --print-certs ShadeAlpha-3.3.1.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 
@@ -108,8 +110,10 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.3
+## Что нового в v3.3.1
 
+- 🐛 **Фон экрана блокировки больше не тает:** прозрачность считается от исходного цвета, а не от значения, записанного на прошлом кадре.
+- ✅ **Статус хуков честнее:** «Экран блокировки» отмечается только при реально установленном хуке, а сброс работает без root при выданном разрешении.
 - 🐛 **Зелёный «флеш» после разблокировки убран:** полсекунды после снятия keyguard скримы держатся в нуле, а окно закрывается досрочно, как только SystemUI догасил анимацию.
 - ✅ **Статус хуков в приложении:** по строке на хук (шторка, экран блокировки, панель громкости, ползунок, недавние, список приложений) с галочкой, крестиком или вопросительным знаком.
 - 🩺 **Копирование диагностики:** одна кнопка в шите «О приложении» копирует версию модуля, устройство, состояние хуков и все значения ползунков — готовый блок для issue.
@@ -133,7 +137,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 
 ## Установка
 
-1. Установи `ShadeAlpha-3.3.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-3.3.1.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha**.
 3. Открой приложение и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее. Проверь строку **«Хуки:»** — все пункты должны быть ✅.
@@ -141,7 +145,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 Все релизы подписаны одним ключом, поэтому обновление встаёт поверх. Проверить APK, скачанный не из Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.3.apk
+apksigner verify --print-certs ShadeAlpha-3.3.1.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 

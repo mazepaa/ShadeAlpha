@@ -8,10 +8,10 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 <table align="center">
   <tr>
-    <td width="28.6%" align="center" valign="middle"><img src="screenshots/qs50_en.jpg" width="100%" /></td>
-    <td width="28.6%" align="center" valign="middle"><img src="screenshots/pin0_en.jpg" width="100%" /></td>
-    <td width="28.6%" align="center" valign="middle"><img src="screenshots/rec0_en.jpg" width="100%" /></td>
-    <td width="14.2%" align="center" valign="middle"><img src="screenshots/vol_50-50-50.jpg" width="100%" /></td>
+    <td width="260" align="center" valign="middle"><img src="screenshots/qs50_en.jpg" width="260" /></td>
+    <td width="260" align="center" valign="middle"><img src="screenshots/pin0_en.jpg" width="260" /></td>
+    <td width="260" align="center" valign="middle"><img src="screenshots/rec0_en.jpg" width="260" /></td>
+    <td width="120" align="center" valign="middle"><img src="screenshots/vol_50-50-50.jpg" width="120" /></td>
   </tr>
   <tr>
     <td align="center"><small>Shade 50%</small></td>
@@ -93,10 +93,10 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 
 <table align="center">
   <tr>
-    <td width="28.6%" align="center" valign="middle"><img src="screenshots/qs50_ru.jpg" width="100%" /></td>
-    <td width="28.6%" align="center" valign="middle"><img src="screenshots/pin0_ru.jpg" width="100%" /></td>
-    <td width="28.6%" align="center" valign="middle"><img src="screenshots/rec0_ru.jpg" width="100%" /></td>
-    <td width="14.2%" align="center" valign="middle"><img src="screenshots/vol_50-50-50.jpg" width="100%" /></td>
+    <td width="260" align="center" valign="middle"><img src="screenshots/qs50_ru.jpg" width="260" /></td>
+    <td width="260" align="center" valign="middle"><img src="screenshots/pin0_ru.jpg" width="260" /></td>
+    <td width="260" align="center" valign="middle"><img src="screenshots/rec0_ru.jpg" width="260" /></td>
+    <td width="120" align="center" valign="middle"><img src="screenshots/vol_50-50-50.jpg" width="120" /></td>
   </tr>
   <tr>
     <td align="center"><small>Шторка 50%</small></td>

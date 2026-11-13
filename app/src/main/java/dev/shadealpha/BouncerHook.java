@@ -71,6 +71,9 @@ final class BouncerHook {
             } catch (Throwable t) { logOnce("keyguard view hook", t); }
         }
         XposedBridge.log(TAG + ": BOUNCER_VIEWS hooked");
+        // The guard hook is the one that actually finds the background on ROMs where the
+        // container methods do nothing, so it counts as a working lock screen hook too.
+        HookStatus.mark(HookStatus.BOUNCER);
     }
 
     private static final int TAG_BOUNCER = 0x7ffa0010;
@@ -105,6 +108,9 @@ final class BouncerHook {
 
     private static void applyTo(View view) {
         try {
+            // Same guard as apply(): while the bouncer fades away the system animates the
+            // background itself, and writing our factor into that animation makes it blink.
+            if (bouncerToGoneTransitionRunning) return;
             float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {

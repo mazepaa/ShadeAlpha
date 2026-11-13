@@ -702,14 +702,20 @@ public class SettingsActivity extends AppCompatActivity {
             if (direct) {
                 try {
                     Settings.System.putInt(getContentResolver(), key, def);
-                    continue;
                 } catch (Throwable ignored) {
-                    // fall back to su for this key
+                    // fall back to su for this key below
                 }
             }
-            runRoot("settings delete system " + key);
+            // A direct write that silently did nothing and a missing permission both land here.
+            if (readSystem(key, -1) != def) runRoot("settings delete system " + key);
         }
-        return readSystem(Keys.TOP, -1) == 100 || readSystem(Keys.TOP, -1) == -1;
+        // Report success only when every key really holds its default (or is gone).
+        for (String key : ALL_KEYS) {
+            int def = Keys.MODE.equals(key) ? Keys.MODE_VIEW_ALPHA : 100;
+            int now = readSystem(key, -1);
+            if (now != def && now != -1) return false;
+        }
+        return true;
     }
 
     private boolean canWriteSystem() {

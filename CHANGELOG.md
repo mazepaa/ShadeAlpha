@@ -2,20 +2,17 @@
 
 ## v3.3.2
 
-- **Блокировка: фон больше не мигает на свайпе.** Система анимирует прозрачность фона от 0 к 100%, а хук каждый кадр принимал её текущее значение за «исходное» и принудительно делал непрозрачным. Теперь прозрачный фон остаётся прозрачным, и анимация идёт ровно.
-- **Lock screen: no more blinking on the swipe.** SystemUI animates the background opacity from 0 to 100 and the hook took each intermediate value as the original, forcing it back to opaque. A transparent background now stays transparent, so the animation runs smoothly.
-
-## v3.3.1
-
 ### 🇷🇺 Исправлено
-- **Фон экрана блокировки больше не исчезает:** прозрачность считалась от уже изменённого цвета на каждом кадре (255 → 128 → 64 → …), и фон PIN-экрана таял за несколько кадров. Теперь исходный цвет запоминается и используется как база.
-- **Статус «Экран блокировки ✅»** ставится только когда хук действительно установлен, а не когда найден класс.
-- **«Сбросить значения» работает без root**, если выдано разрешение «Изменение системных настроек»; при неудаче приложение сообщает об ошибке вместо ложного успеха.
+- **Прозрачность экрана блокировки наконец работает.** На части прошивок (проверено на Evolution X, Android 16) хук цеплялся к методам, которые система не вызывает, и ползунок ничего не менял. Теперь фон PIN / пароля / графического ключа находится по id (keyguard_security_container, keyguard_bouncer_container, keyguard_pin_view) и красится напрямую, всегда от исходного цвета, так что фон не тает по кадрам.
+- **Нет мигания на свайпе.** Обе ветки хука пропускают кадры, пока бонсер закрывается и системная анимация сама ведёт прозрачность.
+- **Сброс значений проверяет все ключи**, а не только верхний; неудачная запись больше не выдаётся за успех.
+- **Статус «Экран блокировки»** отмечается и тогда, когда фон найден по id, а не только через класс контейнера.
 
 ### 🇬🇧 Fixed
-- **The lock screen background no longer fades away:** the alpha was derived from the colour it had already written on every frame (255 → 128 → 64 → …), so the PIN background vanished within a few frames. The original colour is remembered and used as the base.
-- **"Lock screen ✅"** is reported only when a hook actually installed, not when the class was merely found.
-- **"Reset values" works without root** when the system-settings permission is granted, and reports a failure instead of a false success.
+- **Lock screen transparency works.** On some ROMs (verified on Evolution X, Android 16) the hook targeted methods the system never calls, so the slider changed nothing. The PIN / password / pattern background is now found by id and painted directly, always from the original colour, so it no longer fades away frame by frame.
+- **No blinking on the swipe:** both hook paths skip frames while the bouncer fades out and the system animates the opacity itself.
+- **Reset verifies every key**, not just the top one, and a failed write is no longer reported as success.
+- **The lock screen status** is also reported when the background was found by id.
 
 ## v3.3
 

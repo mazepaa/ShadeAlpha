@@ -4,7 +4,6 @@ import android.app.KeyguardManager;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.view.View;
 
 import java.util.Set;
@@ -25,12 +24,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             "com.android.systemui.statusbar.ScrimView"
     };
     private static final int ROLE_OTHER = 0, ROLE_TOP = 1, ROLE_BOTTOM = 2, ROLE_FRONT = 3;
-    private static final int TAG_ROLE = 0x7ffa0001, TAG_ALPHA_SET = 0x7ffa0002;
+    private static final int TAG_ROLE = 0x7ffa0001, TAG_ALPHA_SET = 0x7ffa0002, TAG_ROLE_SIZE = 0x7ffa0003;
     private static final int MAX_FAILURES = 20;
     private static final boolean[] SVA_LOGGED = new boolean[4];
-    private static volatile float fTop = 1f, fBottom = 1f, fBouncer = 1f;
-    private static volatile int mode = Keys.MODE_VIEW_ALPHA;
-    private static volatile long lastRead = 0;
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
@@ -82,7 +78,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             applyViewAlpha(v, 0f); return;
                         }
                         float f = roleFactor(v.getContext(), role);
-                        int m = mode;
+                        int m = Prefs.mode(v.getContext());
                         if (m == Keys.MODE_VIEW_ALPHA) {
                             applyViewAlpha(v, f);
                         } else {
@@ -123,7 +119,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         float f = roleFactor(v.getContext(), role);
-                        if (mode == Keys.MODE_SCRIM_ALPHA) {
+                        if (Prefs.mode(v.getContext()) == Keys.MODE_SCRIM_ALPHA) {
                             param.args[0] = a * f;
                         } else if ((role == ROLE_TOP || role == ROLE_FRONT) && useBouncerForTop(v.getContext())) {
                             param.args[0] = a * f;
@@ -137,7 +133,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private static int role(View v) {
         Object cached = v.getTag(TAG_ROLE);
-        if (cached instanceof Integer) return (Integer) cached;
+        Object cachedSize = v.getTag(TAG_ROLE_SIZE);
+        int size = (v.getWidth() << 16) ^ v.getHeight();
+        if (cached instanceof Integer && cachedSize instanceof Integer && (Integer) cachedSize == size) {
+            return (Integer) cached;
+        }
         String id = idName(v);
         int r = ROLE_OTHER;
         if ("scrim_behind".equals(id) || "scrimBehind".equals(id) || id.endsWith("_behind")) r = ROLE_TOP;
@@ -157,6 +157,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             } catch (Throwable ignored) {}
         }
         v.setTag(TAG_ROLE, Integer.valueOf(r));
+        v.setTag(TAG_ROLE_SIZE, Integer.valueOf(size));
         XposedBridge.log(TAG + ": scrim view id=" + id + " role=" + roleName(r)
                 + " size=" + v.getWidth() + "x" + v.getHeight());
         return r;
@@ -178,12 +179,23 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     }
 
     /**
+     * Called by {@link BouncerHook} the moment SystemUI reports a keyguard transition, so the
+     * PIN-top slider hands over to the TOP slider on the same frame instead of waiting for the
+     * cache to expire. That matters while unlocking: the keyguard scrim is still fading out, and
+     * a stale "locked" answer would keep painting it with the PIN value.
+     */
+    static void onKeyguardTransition(boolean locked) {
+        kgLocked = locked;
+        kgRead = SystemClock.uptimeMillis();
+    }
+
+    /**
      * Only the system keyguard API. No sticky Xposed flags.
      *
      * Called from the draw path, so the answer is cached for a short while: a bare
      * {@code isKeyguardLocked()} is a synchronous binder call into system_server and would
-     * otherwise run on every frame of the top and front scrims. 100 ms keeps the transition
-     * lag to a frame or two while cutting the calls from ~60/s to at most 10/s.
+     * otherwise run on every frame of the top and front scrims. Transitions invalidate the cache
+     * immediately, so this bound only applies to the steady state.
      */
     private static boolean isKeyguardLocked(Context c) {
         long now = SystemClock.uptimeMillis();
@@ -215,11 +227,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static float roleFactor(Context c, int role) {
         if (role == ROLE_OTHER) return 1f;
         boolean topOrFront = (role == ROLE_TOP || role == ROLE_FRONT);
-        if (topOrFront && useBouncerForTop(c)) {
-            refreshPrefs(c);
-            return fBouncer;
-        }
-        return factor(c, topOrFront);
+        if (topOrFront && useBouncerForTop(c)) return Prefs.bouncer(c);
+        return topOrFront ? Prefs.top(c) : Prefs.bottom(c);
     }
 
     private static void applyViewAlpha(View v, float f) {
@@ -241,38 +250,5 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             disabled = true;
             XposedBridge.log(TAG + ": too many failures, hook disabled");
         }
-    }
-
-    private static void refreshPrefs(Context c) {
-        long now = SystemClock.uptimeMillis();
-        if (now - lastRead > 300) {
-            lastRead = now;
-            float nt = read(c, Keys.TOP), nb = read(c, Keys.BOTTOM), nbo = read(c, Keys.BOUNCER);
-            int nm = readMode(c);
-            if (nt != fTop || nb != fBottom || nbo != fBouncer || nm != mode)
-                XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb
-                        + " bouncer=" + nbo + " mode=" + nm
-                        + " keyguardLocked=" + isKeyguardLocked(c));
-            fTop = nt; fBottom = nb; fBouncer = nbo; mode = nm;
-        }
-    }
-
-    private static float factor(Context c, boolean top) {
-        refreshPrefs(c);
-        return top ? fTop : fBottom;
-    }
-
-    private static float read(Context c, String key) {
-        try {
-            int p = Settings.System.getInt(c.getContentResolver(), key, 100);
-            return Math.max(0, Math.min(100, p)) / 100f;
-        } catch (Throwable e) { return 1f; }
-    }
-
-    private static int readMode(Context c) {
-        try {
-            int m = Settings.System.getInt(c.getContentResolver(), Keys.MODE, Keys.MODE_VIEW_ALPHA);
-            return Math.max(0, Math.min(2, m));
-        } catch (Throwable e) { return Keys.MODE_VIEW_ALPHA; }
     }
 }

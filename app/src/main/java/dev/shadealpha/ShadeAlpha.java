@@ -3,7 +3,6 @@ package dev.shadealpha;
 import android.app.KeyguardManager;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.os.SystemClock;
 import android.view.View;
 
 import java.util.Set;
@@ -30,9 +29,6 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
-    private static volatile boolean kgLocked = false;
-    private static volatile long kgRead = 0;
-    private static final long KEYGUARD_TTL_MS = 100;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -179,28 +175,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     }
 
     /**
-     * Called by {@link BouncerHook} the moment SystemUI reports a keyguard transition, so the
-     * PIN-top slider hands over to the TOP slider on the same frame instead of waiting for the
-     * cache to expire. That matters while unlocking: the keyguard scrim is still fading out, and
-     * a stale "locked" answer would keep painting it with the PIN value.
-     */
-    static void onKeyguardTransition(boolean locked) {
-        kgLocked = locked;
-        kgRead = SystemClock.uptimeMillis();
-    }
-
-    /**
-     * Only the system keyguard API. No sticky Xposed flags.
-     *
-     * Called from the draw path, so the answer is cached for a short while: a bare
-     * {@code isKeyguardLocked()} is a synchronous binder call into system_server and would
-     * otherwise run on every frame of the top and front scrims. Transitions invalidate the cache
-     * immediately, so this bound only applies to the steady state.
+     * Only the system keyguard API, asked on every call. No caching and no sticky Xposed flags:
+     * a cached answer kept the top scrim on the PIN value for a moment after unlocking, and the
+     * keyguard scrim was still fading out at that point, so the user saw it linger.
      */
     private static boolean isKeyguardLocked(Context c) {
-        long now = SystemClock.uptimeMillis();
-        if (now - kgRead < KEYGUARD_TTL_MS) return kgLocked;
-        kgRead = now;
         try {
             KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
             boolean locked = km != null && km.isKeyguardLocked();
@@ -209,11 +188,10 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 lastKeyguardLog = Boolean.valueOf(locked);
                 XposedBridge.log(TAG + ": keyguardLocked=" + locked);
             }
-            kgLocked = locked;
+            return locked;
         } catch (Throwable t) {
-            // keep the previous value: a transient binder failure must not flip the slider
+            return false;
         }
-        return kgLocked;
     }
 
     /**

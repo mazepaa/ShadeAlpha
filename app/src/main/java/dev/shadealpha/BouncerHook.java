@@ -243,10 +243,7 @@ final class BouncerHook {
                     unlockTransitionStartedAt = 0;
                     keyguardShowing = true;
                 }
-                ShadeAlpha.onKeyguardTransition(
-                        code == STATE_KEYGUARD || code == STATE_BOUNCER || code == STATE_BOUNCER_SCRIMMED);
-                XposedBridge.log(TAG + ": STATE_TRANSITION code=" + code + " keyguard=" + keyguardShowing);
-            }
+                XposedBridge.log(TAG + ": STATE_TRANSITION code=" + code + " keyguard=" + keyguardShowing);            }
             try {
                 Object f = XposedHelpers.getObjectField(controller, "mIsBouncerToGoneTransitionRunning");
                 if (f instanceof Boolean) bouncerToGoneTransitionRunning = (Boolean) f;

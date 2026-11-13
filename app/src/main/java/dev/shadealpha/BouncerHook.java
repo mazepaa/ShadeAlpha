@@ -15,6 +15,8 @@ import de.robv.android.xposed.XposedHelpers;
 
 final class BouncerHook {
     private static final String TAG = "ShadeAlpha";
+    /** Per-view logs are only useful while chasing a ROM; keep them out of release builds. */
+    private static final boolean DEBUG = false;
     static final int STATE_OTHER = 0, STATE_BOUNCER = 1, STATE_BOUNCER_SCRIMMED = 2, STATE_KEYGUARD = 3, STATE_UNLOCKED = 4;
     private static final int SB_KEYGUARD = 1, SB_SHADE_LOCKED = 2;
     private static volatile WeakReference<View> containerRef;
@@ -101,14 +103,14 @@ final class BouncerHook {
                 }
             } catch (Throwable ignored) { /* not a named resource */ }
         }
-        if (hit && viewErrors < MAX_ERRORS) {
-            XposedBridge.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
-                    + " id=" + id + " bg=" + (v.getBackground() == null
-                    ? "none" : v.getBackground().getClass().getSimpleName()));
-        }
         if (hit) {
             // A keyguard background view showing up is the honest "the lock screen hook works".
             HookStatus.mark(HookStatus.BOUNCER);
+            if (DEBUG) {
+                XposedBridge.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
+                        + " id=" + id + " bg=" + (v.getBackground() == null
+                        ? "none" : v.getBackground().getClass().getSimpleName()));
+            }
         }
         v.setTag(TAG_BOUNCER, Boolean.valueOf(hit));
         return hit;
@@ -225,7 +227,7 @@ final class BouncerHook {
             if (!(param.thisObject instanceof View)) return;
             View view = (View) param.thisObject;
             if (HookStatus.pending()) HookStatus.flush(view.getContext());
-            containerRef = new WeakReference<>(view);
+            if (containerRef == null || containerRef.get() != view) containerRef = new WeakReference<>(view);
             if (view.getVisibility() == View.VISIBLE) containerVisible = true;
             // While the bouncer fades away the system animates the background itself; writing our
             // factor into that animation makes it blink between the slider value and zero.

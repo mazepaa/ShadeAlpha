@@ -262,11 +262,29 @@ final class VolumeHook {
         private final View ringer;
         private final View plate;
         volatile boolean clip;
+        // Reused between frames: draw() runs on every panel frame and must not allocate.
+        private final int[] ringerPos = new int[2];
+        private final int[] platePos = new int[2];
+        private int cachedHeight = -1;
+        private int cachedRingerTop = Integer.MIN_VALUE;
+        private int cachedPlateTop = Integer.MIN_VALUE;
 
         CapDrawable(Drawable inner, View ringer, View plate) {
             super(inner);
             this.ringer = ringer;
             this.plate = plate;
+        }
+
+        /** Positions only change on layout, so the query is skipped while they stay the same. */
+        private int capHeightCached() {
+            ringer.getLocationInWindow(ringerPos);
+            plate.getLocationInWindow(platePos);
+            if (ringerPos[1] != cachedRingerTop || platePos[1] != cachedPlateTop) {
+                cachedRingerTop = ringerPos[1];
+                cachedPlateTop = platePos[1];
+                cachedHeight = capHeight(cachedRingerTop, cachedPlateTop);
+            }
+            return cachedHeight;
         }
 
         @Override
@@ -275,11 +293,7 @@ final class VolumeHook {
                 super.draw(canvas);
                 return;
             }
-            int[] a = new int[2];
-            int[] b = new int[2];
-            ringer.getLocationInWindow(a);
-            plate.getLocationInWindow(b);
-            int h = capHeight(a[1], b[1]);
+            int h = capHeightCached();
             if (h <= 0) return; // фон панели закрывает всё — подложке звонка рисовать нечего
             Rect r = getBounds();
             int save = canvas.save();

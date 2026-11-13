@@ -30,6 +30,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
+    private static volatile boolean kgLocked = false;
+    private static volatile long kgReadAt = 0;
+    private static final long KEYGUARD_TTL_MS = 50;
     private static volatile long unlockedAt = 0;
     private static final long UNLOCK_WINDOW_MS = 500;
 
@@ -186,26 +189,39 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     }
 
     /**
-     * Only the system keyguard API, asked on every call. No caching and no sticky Xposed flags:
-     * a cached answer kept the top scrim on the PIN value for a moment after unlocking, and the
-     * keyguard scrim was still fading out at that point, so the user saw it linger.
+     * Keyguard state, asked of the system at most once per {@link #KEYGUARD_TTL_MS}.
+     *
+     * The draw path calls this for every top and front scrim frame, and a bare call is a
+     * synchronous binder round-trip into system_server, so the answer is reused for 50 ms:
+     * that keeps the transition lag inside the {@link #UNLOCK_WINDOW_MS} zero window while the
+     * binder calls drop from ~60/s to ~20/s. A failed call keeps the previous answer instead of
+     * flipping the slider to the TOP value on a locked screen.
      */
     private static boolean isKeyguardLocked(Context c) {
+        long now = SystemClock.uptimeMillis();
+        long readAt = kgReadAt;
+        if (readAt != 0 && now - readAt < KEYGUARD_TTL_MS) return kgLocked;
+
+        kgReadAt = now;
+        boolean locked;
         try {
             KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
-            boolean locked = km != null && km.isKeyguardLocked();
-            Boolean prev = lastKeyguardLog;
-            if (prev == null || prev.booleanValue() != locked) {
-                lastKeyguardLog = Boolean.valueOf(locked);
-                XposedBridge.log(TAG + ": keyguardLocked=" + locked);
-                if (!locked && prev != null && prev.booleanValue()) {
-                    unlockedAt = SystemClock.uptimeMillis();
-                }
-            }
-            return locked;
+            if (km == null) return kgLocked;
+            locked = km.isKeyguardLocked();
         } catch (Throwable t) {
-            return false;
+            return kgLocked;
         }
+
+        Boolean prev = lastKeyguardLog;
+        if (prev == null || prev.booleanValue() != locked) {
+            lastKeyguardLog = Boolean.valueOf(locked);
+            XposedBridge.log(TAG + ": keyguardLocked=" + locked);
+            if (!locked && prev != null && prev.booleanValue()) {
+                unlockedAt = now;
+            }
+        }
+        kgLocked = locked;
+        return locked;
     }
 
     /**

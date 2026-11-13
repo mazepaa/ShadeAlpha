@@ -34,6 +34,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
+    private static volatile boolean kgLocked = false;
+    private static volatile long kgRead = 0;
+    private static final long KEYGUARD_TTL_MS = 100;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -174,20 +177,31 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         try { return v.getResources().getResourceEntryName(id); } catch (Throwable t) { return "(unknown)"; }
     }
 
-    /** Only the system keyguard API. No sticky Xposed flags. */
+    /**
+     * Only the system keyguard API. No sticky Xposed flags.
+     *
+     * Called from the draw path, so the answer is cached for a short while: a bare
+     * {@code isKeyguardLocked()} is a synchronous binder call into system_server and would
+     * otherwise run on every frame of the top and front scrims. 100 ms keeps the transition
+     * lag to a frame or two while cutting the calls from ~60/s to at most 10/s.
+     */
     private static boolean isKeyguardLocked(Context c) {
+        long now = SystemClock.uptimeMillis();
+        if (now - kgRead < KEYGUARD_TTL_MS) return kgLocked;
+        kgRead = now;
         try {
             KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
             boolean locked = km != null && km.isKeyguardLocked();
             Boolean prev = lastKeyguardLog;
-            if (prev == null || prev != locked) {
-                lastKeyguardLog = locked;
+            if (prev == null || prev.booleanValue() != locked) {
+                lastKeyguardLog = Boolean.valueOf(locked);
                 XposedBridge.log(TAG + ": keyguardLocked=" + locked);
             }
-            return locked;
+            kgLocked = locked;
         } catch (Throwable t) {
-            return false;
+            // keep the previous value: a transient binder failure must not flip the slider
         }
+        return kgLocked;
     }
 
     /**

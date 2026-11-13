@@ -1,5 +1,7 @@
 package dev.shadealpha;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -7,6 +9,7 @@ import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.transition.AutoTransition;
@@ -402,6 +405,22 @@ public class SettingsActivity extends AppCompatActivity {
                         .show());
         addWideButton(actions, reset, 8);
 
+        if (!canWriteSystem()) {
+            MaterialButton grant = actionButton(t("Разрешить запись без root", "Allow writing without root"), v -> {
+                try {
+                    startActivity(new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                            Uri.parse("package:" + getPackageName())));
+                } catch (Throwable ignored) {
+                    startActivity(new Intent(Settings.ACTION_SETTINGS));
+                }
+            });
+            addWideButton(actions, grant, 8);
+        }
+
+        MaterialButton diagnostics = actionButton(t("Диагностика (копировать)", "Diagnostics (copy)"),
+                v -> new Thread(this::copyDiagnostics).start());
+        addWideButton(actions, diagnostics, 8);
+
         status = text("", 14, false);
         root.addView(status, lp(12));
 
@@ -625,8 +644,84 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private boolean writeSetting(String key, int p) {
-        runRoot("settings put system " + key + " " + p);
+        // With the "modify system settings" permission the write needs no root at all, which
+        // removes one su process per slider release.
+        if (Settings.System.canWrite(this)) {
+            try {
+                Settings.System.putInt(getContentResolver(), key, p);
+            } catch (Throwable ignored) {
+                // fall through to su below and let the read-back decide
+            }
+        }
+        if (readSystem(key, -1) != p) runRoot("settings put system " + key + " " + p);
         return readSystem(key, -1) == p;
+    }
+
+    private boolean canWriteSystem() {
+        return Settings.System.canWrite(this);
+    }
+
+    /** Builds the block a user can paste into a bug report. */
+    private void copyDiagnostics() {
+        String version = "?";
+        long code = -1;
+        try {
+            android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+            version = pi.versionName;
+            code = pi.getLongVersionCode();
+        } catch (Throwable ignored) { }
+
+        int mask = readSystem(Keys.HOOKS, 0);
+        int storedBoot = readSystem(Keys.HOOKS_BOOT, -1);
+        int currentBoot = HookStatus.bootCount(getContentResolver());
+        boolean fresh = storedBoot == currentBoot;
+        boolean sysUi = fresh && (mask & HookStatus.REPORTED_SYSTEM_UI) != 0;
+        boolean launcher = fresh && (mask & HookStatus.REPORTED_LAUNCHER) != 0;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("ShadeAlpha ").append(version).append(" (").append(code).append(")\n");
+        sb.append("Android ").append(Build.VERSION.RELEASE)
+                .append(" (SDK ").append(Build.VERSION.SDK_INT).append(") · ")
+                .append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n');
+        sb.append(t("Хуки", "Hooks")).append(": ")
+                .append("shade=").append(state(mask, HookStatus.SHADE, sysUi))
+                .append(" bouncer=").append(state(mask, HookStatus.BOUNCER, sysUi))
+                .append(" volume=").append(state(mask, HookStatus.VOLUME, sysUi))
+                .append(" track=").append(state(mask, HookStatus.VOLUME_TRACK, sysUi))
+                .append(" launcher=").append(state(mask, HookStatus.LAUNCHER, launcher))
+                .append(" drawer=").append(state(mask, HookStatus.DRAWER, launcher)).append('\n');
+        sb.append("boot=").append(currentBoot).append(fresh ? " fresh" : " stale").append('\n');
+        sb.append("top=").append(readSystem(Keys.TOP, -1))
+                .append(" bottom=").append(readSystem(Keys.BOTTOM, -1))
+                .append(" bouncer=").append(readSystem(Keys.BOUNCER, -1))
+                .append(" recents=").append(readSystem(Keys.RECENTS, -1))
+                .append(" drawer=").append(readSystem(Keys.APPDRAWER, -1))
+                .append(" volume=").append(readSystem(Keys.VOLUME, -1))
+                .append(" track=").append(readSystem(Keys.VOL_TRACK, -1))
+                .append(" fill=").append(readSystem(Keys.VOL_FILL, -1))
+                .append(" mode=").append(readSystem(Keys.MODE, -1)).append('\n');
+        sb.append("root=").append(rootAccess() ? "yes" : "no")
+                .append(" writeSettings=").append(canWriteSystem() ? "yes" : "no");
+
+        String text = sb.toString();
+        runOnUiThread(() -> {
+            try {
+                ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                cm.setPrimaryClip(ClipData.newPlainText("ShadeAlpha diagnostics", text));
+                status.setText(t("Диагностика скопирована в буфер.", "Diagnostics copied to the clipboard."));
+            } catch (Throwable e) {
+                status.setText(t("Не удалось скопировать.", "Could not copy."));
+            }
+        });
+    }
+
+    private String state(int mask, int bit, boolean reported) {
+        if (!reported) return "?";
+        return (mask & bit) != 0 ? "ok" : "no";
+    }
+
+    private boolean rootAccess() {
+        return checkRoot();
     }
 
     /**

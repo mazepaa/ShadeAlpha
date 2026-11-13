@@ -73,11 +73,18 @@ final class HookStatus {
             written = mine;
         }
         try {
-            int current = Settings.System.getInt(c.getContentResolver(), Keys.HOOKS, 0);
+            android.content.ContentResolver cr = c.getContentResolver();
+            int boot = bootCount(cr);
+            int storedBoot = Settings.System.getInt(cr, Keys.HOOKS_BOOT, -1);
+            int current = Settings.System.getInt(cr, Keys.HOOKS, 0);
+            if (storedBoot != boot) {
+                // The row is from an earlier boot: its bits and "reported" flags say nothing
+                // about this boot, so start from scratch before merging this process's answer.
+                current = 0;
+            }
             int merged = (current & ~owner) | mine | flag;
-            Settings.System.putInt(c.getContentResolver(), Keys.HOOKS, merged);
-            Settings.System.putInt(c.getContentResolver(), Keys.HOOKS_BOOT,
-                    bootCount(c.getContentResolver()));
+            Settings.System.putInt(cr, Keys.HOOKS, merged);
+            Settings.System.putInt(cr, Keys.HOOKS_BOOT, boot);
         } catch (Throwable t) {
             synchronized (LOCK) {
                 written = -1;

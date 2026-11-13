@@ -425,11 +425,14 @@ public class SettingsActivity extends AppCompatActivity {
                                 "All sliders go back to 100%. The values live in Settings.System and survive uninstalling the app, so they are deleted separately."))
                         .setNegativeButton(t("Отмена", "Cancel"), null)
                         .setPositiveButton(t("Сбросить", "Reset"), (d, w) -> new Thread(() -> {
-                            for (String key : ALL_KEYS) runRoot("settings delete system " + key);
+                            boolean ok = resetStoredValues();
                             prefs.edit().clear().apply();
                             runOnUiThread(() -> {
-                                status.setText(t("Значения сброшены. Перезапусти SystemUI.",
-                                        "Values reset. Restart SystemUI."));
+                                status.setText(ok
+                                        ? t("Значения сброшены. Перезапусти SystemUI.",
+                                            "Values reset. Restart SystemUI.")
+                                        : t("Не удалось сбросить: нет ни root, ни разрешения на системные настройки.",
+                                            "Reset failed: neither root nor the system-settings permission."));
                                 recreate();
                             });
                         }).start())
@@ -686,6 +689,27 @@ public class SettingsActivity extends AppCompatActivity {
         }
         if (readSystem(key, -1) != p) runRoot("settings put system " + key + " " + p);
         return readSystem(key, -1) == p;
+    }
+
+    /**
+     * Puts every stored value back to its default. With the system-settings permission the write
+     * is direct; otherwise the rows are deleted through su. Returns whether the values are gone.
+     */
+    private boolean resetStoredValues() {
+        boolean direct = canWriteSystem();
+        for (String key : ALL_KEYS) {
+            int def = Keys.MODE.equals(key) ? Keys.MODE_VIEW_ALPHA : 100;
+            if (direct) {
+                try {
+                    Settings.System.putInt(getContentResolver(), key, def);
+                    continue;
+                } catch (Throwable ignored) {
+                    // fall back to su for this key
+                }
+            }
+            runRoot("settings delete system " + key);
+        }
+        return readSystem(Keys.TOP, -1) == 100 || readSystem(Keys.TOP, -1) == -1;
     }
 
     private boolean canWriteSystem() {

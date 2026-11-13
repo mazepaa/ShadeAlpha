@@ -23,6 +23,12 @@ final class BouncerHook {
     private static volatile float shadeExpansionFraction;
     private static volatile long unlockTransitionStartedAt;
     private static int errors;
+    private static final String BASE_COLOR = "shadealpha_bouncer_base_color";
+    private static final String APPLIED_COLOR = "shadealpha_bouncer_applied_color";
+    private static final String BASE_ALPHA = "shadealpha_bouncer_base_alpha";
+    private static final String APPLIED_ALPHA = "shadealpha_bouncer_applied_alpha";
+    private static final String BASE_VIEW_ALPHA = "shadealpha_bouncer_base_view_alpha";
+    private static final String APPLIED_VIEW_ALPHA = "shadealpha_bouncer_applied_view_alpha";
     private static final Set<String> LOGGED = Collections.synchronizedSet(new HashSet<String>());
 
     private BouncerHook() {}
@@ -79,16 +85,20 @@ final class BouncerHook {
                 XposedBridge.log(TAG + ": BOUNCER_HOOK: KeyguardSecurityContainer not found");
                 return;
             }
-            XposedBridge.hookAllMethods(cls, "reloadBackgroundColor", new XC_MethodHook() {
-                @Override protected void afterHookedMethod(MethodHookParam p) { apply(p); }
-            });
+            int installed = 0;
+            Set<XC_MethodHook.Unhook> reload = XposedBridge.hookAllMethods(cls, "reloadBackgroundColor",
+                    new XC_MethodHook() {
+                        @Override protected void afterHookedMethod(MethodHookParam p) { apply(p); }
+                    });
+            installed += reload == null ? 0 : reload.size();
             try {
-                XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
+                Set<XC_MethodHook.Unhook> draw = XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam p) { apply(p); }
                 });
+                installed += draw == null ? 0 : draw.size();
             } catch (Throwable t) { logOnce("bouncer onDraw hook", t); }
             try {
-                XposedBridge.hookAllMethods(cls, "onVisibilityChanged", new XC_MethodHook() {
+                Set<XC_MethodHook.Unhook> vis = XposedBridge.hookAllMethods(cls, "onVisibilityChanged", new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
                         try {
                             View v = (View) p.thisObject;
@@ -97,12 +107,22 @@ final class BouncerHook {
                         } catch (Throwable t) { logOnce("bouncer visibility", t); }
                     }
                 });
+                installed += vis == null ? 0 : vis.size();
             } catch (Throwable t) { logOnce("bouncer visibility hook", t); }
-            XposedBridge.log(TAG + ": BOUNCER_HOOK_READY");
-            HookStatus.mark(HookStatus.BOUNCER);
+            XposedBridge.log(TAG + ": BOUNCER_HOOK_READY x" + installed);
+            // A found class is not a working hook: only report it when something was installed.
+            if (installed > 0) HookStatus.mark(HookStatus.BOUNCER);
         } catch (Throwable t) { XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
     }
 
+    /**
+     * Applies the bouncer opacity to the container background.
+     *
+     * {@code onDraw} runs on every frame, so the alpha must always be computed from the original
+     * colour: multiplying the current value again would fade the background to nothing within a
+     * few frames (255 → 128 → 64 → …). The original value is remembered on the drawable itself and
+     * re-read whenever the system replaces the colour.
+     */
     static void apply(XC_MethodHook.MethodHookParam param) {
         try {
             if (!(param.thisObject instanceof View)) return;
@@ -110,23 +130,48 @@ final class BouncerHook {
             if (HookStatus.pending()) HookStatus.flush(view.getContext());
             containerRef = new WeakReference<>(view);
             if (view.getVisibility() == View.VISIBLE) containerVisible = true;
-            float factor = Prefs.bouncer(view.getContext());
+            float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {
                 ColorDrawable cd = (ColorDrawable) bg;
-                int c = cd.getColor();
-                int baseA = Color.alpha(c); if (baseA == 0) baseA = 255;
-                int nc = Color.argb(Math.round(baseA * factor), Color.red(c), Color.green(c), Color.blue(c));
-                if (c != nc) cd.setColor(nc);
+                int current = cd.getColor();
+                int base = baseOf(cd, current, BASE_COLOR, APPLIED_COLOR);
+                int baseA = Color.alpha(base);
+                if (baseA == 0) baseA = 255;
+                int next = Color.argb(Math.round(baseA * factor),
+                        Color.red(base), Color.green(base), Color.blue(base));
+                if (current != next) cd.setColor(next);
+                remember(cd, BASE_COLOR, base, APPLIED_COLOR, next);
             } else if (bg != null) {
-                int da = Math.round(255 * factor);
-                if (bg.getAlpha() != da) bg.setAlpha(da);
-            } else if (Math.abs(view.getAlpha() - factor) > 0.01f) {
-                view.setAlpha(factor);
+                int current = bg.getAlpha();
+                int base = baseOf(bg, current, BASE_ALPHA, APPLIED_ALPHA);
+                int next = Math.round(base * factor);
+                if (current != next) bg.setAlpha(next);
+                remember(bg, BASE_ALPHA, base, APPLIED_ALPHA, next);
+            } else {
+                int current = Math.round(view.getAlpha() * 1000f);
+                int base = baseOf(view, current, BASE_VIEW_ALPHA, APPLIED_VIEW_ALPHA);
+                int next = Math.round(base * factor);
+                if (current != next) view.setAlpha(next / 1000f);
+                remember(view, BASE_VIEW_ALPHA, base, APPLIED_VIEW_ALPHA, next);
             }
         } catch (Throwable t) {
             if (++errors <= 5) XposedBridge.log(TAG + ": BOUNCER_APPLY_ERROR " + t);
         }
+    }
+
+    /** Returns the untouched value: the remembered one, or the current value if it changed underneath. */
+    private static int baseOf(Object target, int current, String baseKey, String appliedKey) {
+        Object base = XposedHelpers.getAdditionalInstanceField(target, baseKey);
+        Object applied = XposedHelpers.getAdditionalInstanceField(target, appliedKey);
+        if (!(base instanceof Integer)) return current;
+        if (applied instanceof Integer && ((Integer) applied).intValue() != current) return current;
+        return ((Integer) base).intValue();
+    }
+
+    private static void remember(Object target, String baseKey, int base, String appliedKey, int applied) {
+        XposedHelpers.setAdditionalInstanceField(target, baseKey, Integer.valueOf(base));
+        XposedHelpers.setAdditionalInstanceField(target, appliedKey, Integer.valueOf(applied));
     }
 
     private static void hookStatusBarState(ClassLoader cl) {

@@ -1,6 +1,8 @@
 name: Build release APK
 
 on:
+  push:
+    tags: ['*']
   workflow_dispatch:
     inputs:
       build_type:
@@ -13,12 +15,16 @@ on:
           - debug
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  BUILD_TYPE: ${{ inputs.build_type || 'release' }}
 
 jobs:
   build:
     name: Build ShadeAlpha APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,10 +35,8 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
 
       - name: Install Android SDK packages
         shell: bash
@@ -62,7 +66,7 @@ jobs:
           "$SDKMANAGER" --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Prepare release signing key
-        if: inputs.build_type == 'release'
+        if: inputs.build_type != 'debug'
         shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -85,8 +89,9 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ "${{ inputs.build_type }}" = "debug" ]; then
-            gradle --no-daemon assembleDebug
+          set -euo pipefail
+          if [ "$BUILD_TYPE" = "debug" ]; then
+            ./gradlew --no-daemon assembleDebug
           else
             for name in KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
               if [ -z "${!name:-}" ]; then
@@ -94,26 +99,61 @@ jobs:
                 exit 1
               fi
             done
-            gradle --no-daemon assembleRelease
+            ./gradlew --no-daemon assembleRelease
           fi
 
-      - name: Verify release APK signature
-        if: inputs.build_type == 'release'
+      - name: Name APK after the version
+        id: apk
         shell: bash
         run: |
-          APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
-          if [ -z "$APK" ]; then
-            echo "::error::Release APK not found"
+          set -euo pipefail
+          if [ "$BUILD_TYPE" = "debug" ]; then
+            src="$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit)"
+          else
+            src="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
+          fi
+          if [ -z "$src" ]; then
+            echo "::error::APK not found"
             exit 1
           fi
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
 
-      - name: Upload APK
+          version="$(grep -oP 'versionName\s+"\K[^"]+' app/build.gradle)"
+          if [ -z "$version" ]; then
+            echo "::error::versionName not found in app/build.gradle"
+            exit 1
+          fi
+
+          suffix=""
+          if [ "$BUILD_TYPE" = "debug" ]; then suffix="-debug"; fi
+          name="ShadeAlpha-${version}${suffix}.apk"
+          cp "$src" "$name"
+          echo "path=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release APK signature
+        if: inputs.build_type != 'debug'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$ANDROID_HOME/build-tools/36.0.0"
+          [ -d "$bt" ] || bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
+          "$bt/apksigner" verify --print-certs "${{ steps.apk.outputs.path }}" | tee verify.txt
+          if grep -qi "Android Debug" verify.txt; then
+            echo "::error::APK is signed with the debug key"
+            exit 1
+          fi
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ShadeAlpha-3.1-${{ inputs.build_type }}
-          path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/apk/debug/*.apk
+          name: ShadeAlpha-${{ steps.apk.outputs.version }}-${{ env.BUILD_TYPE }}
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
+
+      - name: Attach APK to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.apk.outputs.path }}

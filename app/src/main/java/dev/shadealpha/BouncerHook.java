@@ -15,8 +15,6 @@ import de.robv.android.xposed.XposedHelpers;
 
 final class BouncerHook {
     private static final String TAG = "ShadeAlpha";
-    /** Per-view logs are only useful while chasing a ROM; keep them out of release builds. */
-    private static final boolean DEBUG = false;
     static final int STATE_OTHER = 0, STATE_BOUNCER = 1, STATE_BOUNCER_SCRIMMED = 2, STATE_KEYGUARD = 3, STATE_UNLOCKED = 4;
     private static final int SB_KEYGUARD = 1, SB_SHADE_LOCKED = 2;
     private static volatile WeakReference<View> containerRef;
@@ -106,7 +104,7 @@ final class BouncerHook {
         if (hit) {
             // A keyguard background view showing up is the honest "the lock screen hook works".
             HookStatus.mark(HookStatus.BOUNCER);
-            if (DEBUG) {
+            if (Logs.on()) {
                 XposedBridge.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
                         + " id=" + id + " bg=" + (v.getBackground() == null
                         ? "none" : v.getBackground().getClass().getSimpleName()));
@@ -121,6 +119,7 @@ final class BouncerHook {
             // Same guard as apply(): while the bouncer fades away the system animates the
             // background itself, and writing our factor into that animation makes it blink.
             if (bouncerToGoneTransitionRunning) return;
+            if (Experiment.bypass()) return;
             float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {
@@ -232,6 +231,7 @@ final class BouncerHook {
             // While the bouncer fades away the system animates the background itself; writing our
             // factor into that animation makes it blink between the slider value and zero.
             if (bouncerToGoneTransitionRunning) return;
+            if (Experiment.bypass()) return;
             float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
             Drawable bg = view.getBackground();
             if (bg instanceof ColorDrawable) {

@@ -254,6 +254,15 @@ public class SettingsActivity extends AppCompatActivity {
         desc.setGravity(Gravity.CENTER);
         root.addView(desc);
 
+        root.addView(addToggleRow(
+                t("Включить логи", "Enable logs"),
+                t("Подробный журнал хуков в Vector → Журналы", "Verbose hook log in Vector → Logs"),
+                Keys.DEBUG_LOGS), lp(20));
+        root.addView(addToggleRow(
+                t("Эксперимент A/B", "A/B experiment"),
+                t("Модуль перестаёт красить: сравните плавность с ним и без него", "The module stops painting: compare smoothness with and without it"),
+                Keys.EXPERIMENT), lp(8));
+
         dialog.setContentView(root);
 
         ViewGroup bottomSheet = (ViewGroup) dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
@@ -496,6 +505,39 @@ public class SettingsActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         p.topMargin = dp(topDp);
         box.addView(button, p);
+    }
+
+    /** A labelled switch that writes 0/1 into {@code Settings.System} for the hooks to read. */
+    private View addToggleRow(String title, String subtitle, final String key) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+
+        TextView label = text(title, 15, true);
+        row.addView(label);
+        TextView hint = note(subtitle);
+        row.addView(hint);
+
+        final android.widget.Switch toggle = new android.widget.Switch(this);
+        toggle.setChecked(readSystem(key, 0) == 1);
+        toggle.setOnCheckedChangeListener((button, checked) -> {
+            new Thread(() -> {
+                boolean ok = writeSetting(key, checked ? 1 : 0);
+                runOnUiThread(() -> {
+                    status.setText(ok
+                            ? (checked ? t("Включено. Перезапусти SystemUI для логов.",
+                                          "Enabled. Restart SystemUI for the logs.")
+                                       : t("Выключено.", "Disabled."))
+                            : t("Не удалось сохранить. Проверьте root.",
+                                "Could not save. Check root."));
+                    if (!ok) toggle.setChecked(!checked);
+                });
+            }).start();
+        });
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tp.topMargin = dp(6);
+        row.addView(toggle, tp);
+        return row;
     }
 
     /**

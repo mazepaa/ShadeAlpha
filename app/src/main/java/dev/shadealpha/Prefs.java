@@ -20,7 +20,6 @@ final class Prefs {
     private static final String TAG = "ShadeAlpha";
     private static final long TTL_MS = 300;
     private static final long LOG_THROTTLE_MS = 1500;
-    private static final boolean DEBUG = false;
     private static volatile long lastLogAt = 0;
 
     private static volatile int top = 100;
@@ -116,7 +115,7 @@ final class Prefs {
     }
 
     private static void logValues(int t, int b, int r, int d, int v, int vt, int vf, int bo, int m) {
-        if (!DEBUG) return;
+        if (!Logs.on()) return;
         long now = SystemClock.uptimeMillis();
         if (now - lastLogAt < LOG_THROTTLE_MS) return;
         lastLogAt = now;

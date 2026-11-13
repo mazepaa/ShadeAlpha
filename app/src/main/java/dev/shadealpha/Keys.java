@@ -14,6 +14,10 @@ public class Keys {
     public static final String HOOKS = "shade_alpha_hooks";
     /** BOOT_COUNT at the moment the mask was written, so a stale row can be detected. */
     public static final String HOOKS_BOOT = "shade_alpha_hooks_boot";
+    /** Verbose logging for the hooks, toggled from the settings screen (1 = on). */
+    public static final String DEBUG_LOGS = "shade_alpha_debug_logs";
+    /** Experimental render-budget comparison, toggled from the settings screen (1 = on). */
+    public static final String EXPERIMENT = "shade_alpha_experiment";
 
     public static final int MODE_LAYER = 0;
     public static final int MODE_VIEW_ALPHA = 1;

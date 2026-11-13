@@ -189,7 +189,7 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout linksRow = new LinearLayout(this);
         linksRow.setOrientation(LinearLayout.HORIZONTAL);
         linksRow.setGravity(Gravity.CENTER);
-        linksRow.setPadding(0, dp(24), 0, dp(24));
+        linksRow.setPadding(0, dp(24), 0, 0);
 
         MaterialButton btnTg = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnTg.setText("Telegram");
@@ -221,7 +221,7 @@ public class SettingsActivity extends AppCompatActivity {
         }).start());
         LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        copyLp.bottomMargin = dp(24);
+        copyLp.topMargin = dp(8);
         root.addView(btnCopy, copyLp);
 
         MaterialCardView devCard = new MaterialCardView(this);
@@ -242,7 +242,10 @@ public class SettingsActivity extends AppCompatActivity {
             Toast.makeText(this, "<3", Toast.LENGTH_SHORT).show();
         });
 
-        root.addView(devCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams devLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        devLp.topMargin = dp(24);
+        root.addView(devCard, devLp);
 
         TextView desc = text(t(
             "Модуль для LSPosed: полупрозрачная шторка уведомлений, недавние приложения и список приложений в Pixel Launcher.",
@@ -448,10 +451,6 @@ public class SettingsActivity extends AppCompatActivity {
                     "The \"modify system settings\" permission lets the sliders write their values directly, without su. Root is still needed to restart SystemUI and the launcher."));
             root.addView(grantNote, lp(6));
         }
-
-        MaterialButton diagnostics = actionButton(t("Диагностика (копировать)", "Diagnostics (copy)"),
-                v -> new Thread(this::copyDiagnostics).start());
-        addWideButton(actions, diagnostics, 8);
 
         status = text("", 14, false);
         root.addView(status, lp(12));
@@ -691,17 +690,6 @@ public class SettingsActivity extends AppCompatActivity {
 
     private boolean canWriteSystem() {
         return Settings.System.canWrite(this);
-    }
-
-    /** Copies the diagnostics block and reports on the main status line. Runs off the UI thread. */
-    private void copyDiagnostics() {
-        String text = buildDiagnostics();
-        runOnUiThread(() -> {
-            boolean ok = copyToClipboard(text);
-            status.setText(ok
-                    ? t("Диагностика скопирована в буфер.", "Diagnostics copied to the clipboard.")
-                    : t("Не удалось скопировать.", "Could not copy."));
-        });
     }
 
     private boolean copyToClipboard(String text) {

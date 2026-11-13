@@ -4,7 +4,7 @@
 
 [![Download APK](https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/mazepaa/ShadeAlpha/releases/latest) [![Telegram](https://img.shields.io/badge/Telegram-@mazepaa-blue?style=for-the-badge&logo=telegram)](https://t.me/mazepaa)
 
-An LSPosed module that makes the notification shade, the **recents screen**, the **app drawer** (Pixel Launcher / Launcher3) and the **volume panel** translucent, and sets the transparency of the background under the lock-screen keypad. Russian and English UI.
+A Vector module that makes the notification shade, the **recents screen**, the **app drawer** (Pixel Launcher / Launcher3) and the **volume panel** translucent, and sets the transparency of the background under the lock-screen keypad. Russian and English UI.
 
 <table align="center">
   <tr>
@@ -38,18 +38,18 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 - **Volume panel:** transparency for the panel background, the call-button backdrop and the floating sliders, plus separate opacity for the slider track and fill.
 - **Launcher:** recents and app drawer scrims (Pixel Launcher and Launcher3).
 - **Three rendering modes** for ROMs with different SystemUI builds: layer, view alpha, and scrim colour alpha.
-- Hook status, diagnostics and a reset button, so a missing hook is visible without the LSPosed log.
+- Hook status, diagnostics and a reset button, so a missing hook is visible without digging through the Vector log.
 
 ## Requirements
 
-- Root (KernelSU / APatch / Magisk) and LSPosed (JingMatrix).
+- Root (KernelSU / APatch / Magisk) and Vector.
 - Android 12+ (minSdk 31). Tested on Redmi 12, Evolution X, Android 16 (API 36).
 - Launchers: Pixel Launcher (`com.google.android.apps.nexuslauncher`) and Launcher3 (`com.android.launcher3`). Other launchers are not hooked.
 
 ## Installation
 
 1. Install `ShadeAlpha-3.3.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
-2. LSPosed / Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha**.
+2. Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha**.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent. Check the **Hooks:** line — every entry should be ✅.
 
@@ -71,8 +71,8 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 ## Troubleshooting
 
 - Use **Reset values** in the app, or run `su -c "settings delete system shade_alpha_top_percent"` and the same for the other keys.
-- Disable the module in LSPosed and restart SystemUI, or uninstall the app.
-- For a bug report, use **Copy diagnostics** and add the `ShadeAlpha` lines from LSPosed → Logs → Modules.
+- Disable the module in Vector and restart SystemUI, or uninstall the app.
+- For a bug report, use **Copy diagnostics** and add the `ShadeAlpha` lines from Vector → Logs → Modules.
 - No `Launcher loaded` line = the launcher is not ticked in the module scope (or was not restarted).
 - A ❌ next to a hook in the app means this SystemUI build does not have the class that hook needs.
 
@@ -89,7 +89,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 
 [English](#shadealpha) | **Русский**
 
-Модуль для LSPosed: делает полупрозрачными шторку уведомлений, **недавние приложения**, **список приложений** (Pixel Launcher / Launcher3) и **панель громкости**, а также настраивает прозрачность фона под кнопками экрана блокировки. Интерфейс на русском и английском.
+Модуль для Vector: делает полупрозрачными шторку уведомлений, **недавние приложения**, **список приложений** (Pixel Launcher / Launcher3) и **панель громкости**, а также настраивает прозрачность фона под кнопками экрана блокировки. Интерфейс на русском и английском.
 
 <table align="center">
   <tr>
@@ -123,18 +123,18 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 - **Панель громкости:** прозрачность фона панели, подложки кнопок звонка и плавающих слайдеров, плюс отдельные ползунки дорожки и заполнения.
 - **Лаунчер:** скримы недавних и списка приложений (Pixel Launcher и Launcher3).
 - **Три режима отрисовки** для разных сборок SystemUI: слой, alpha вьюхи и alpha цвета скрима.
-- Статус хуков, диагностика и сброс — чтобы пропавший хук было видно без журнала LSPosed.
+- Статус хуков, диагностика и сброс — чтобы пропавший хук было видно без журнала Vector.
 
 ## Требования
 
-- Root (KernelSU / APatch / Magisk) и LSPosed (JingMatrix).
+- Root (KernelSU / APatch / Magisk) и Vector.
 - Android 12+ (minSdk 31). Проверено на Redmi 12, Evolution X, Android 16 (API 36).
 - Лаунчеры: Pixel Launcher (`com.google.android.apps.nexuslauncher`) и Launcher3 (`com.android.launcher3`). Остальные не хукаются.
 
 ## Установка
 
 1. Установи `ShadeAlpha-3.3.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
-2. LSPosed / Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha**.
+2. Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha**.
 3. Открой приложение и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее. Проверь строку **«Хуки:»** — все пункты должны быть ✅.
 
@@ -156,8 +156,8 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 ## Если что-то пошло не так
 
 - Нажми **«Сбросить значения»** в приложении либо выполни `su -c "settings delete system shade_alpha_top_percent"` и то же для остальных ключей.
-- Выключи модуль в LSPosed и перезапусти SystemUI, либо удали приложение.
-- Для багрепорта нажми **«Скопировать диагностику»** и приложи строки `ShadeAlpha` из LSPosed → Журналы → Модули.
+- Выключи модуль в Vector и перезапусти SystemUI, либо удали приложение.
+- Для багрепорта нажми **«Скопировать диагностику»** и приложи строки `ShadeAlpha` из Vector → Журналы → Модули.
 - Нет строки `Launcher loaded` — лаунчер не отмечен в области модуля (или не был перезапущен).
 - ❌ рядом с хуком означает, что в этой сборке SystemUI нет нужного класса.
 

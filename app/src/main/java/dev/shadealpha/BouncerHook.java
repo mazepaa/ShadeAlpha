@@ -39,6 +39,23 @@ final class BouncerHook {
         XposedBridge.log(TAG + ": " + where + " failed: " + t);
     }
 
+    private static volatile long traceLast = 0;
+    private static volatile int traceLines = 0;
+    private static final int TRACE_MAX = 400;
+
+    private static void trace(String message) {
+        if (traceLines >= TRACE_MAX) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - traceLast < 8) return;
+        traceLast = now;
+        traceLines++;
+        XposedBridge.log(TAG + ": B " + message);
+    }
+
+    private static String hex(int c) {
+        return Integer.toHexString(c);
+    }
+
     public static void hook(ClassLoader cl) {
         hookScrimState(cl);
         hookStatusBarState(cl);
@@ -144,18 +161,24 @@ final class BouncerHook {
                         Color.red(base), Color.green(base), Color.blue(base));
                 if (current != next) cd.setColor(next);
                 remember(cd, BASE_COLOR, base, APPLIED_COLOR, next);
+                trace("color cur=" + hex(current) + " base=" + hex(base) + " next=" + hex(next)
+                        + " f=" + factor + " va=" + view.getAlpha());
             } else if (bg != null) {
                 int current = bg.getAlpha();
                 int base = baseOf(bg, current, BASE_ALPHA, APPLIED_ALPHA);
                 int next = Math.round(base * factor);
                 if (current != next) bg.setAlpha(next);
                 remember(bg, BASE_ALPHA, base, APPLIED_ALPHA, next);
+                trace("drawable " + bg.getClass().getSimpleName() + " cur=" + current + " base=" + base
+                        + " next=" + next + " f=" + factor + " va=" + view.getAlpha());
             } else {
                 int current = Math.round(view.getAlpha() * 1000f);
                 int base = baseOf(view, current, BASE_VIEW_ALPHA, APPLIED_VIEW_ALPHA);
                 int next = Math.round(base * factor);
                 if (current != next) view.setAlpha(next / 1000f);
                 remember(view, BASE_VIEW_ALPHA, base, APPLIED_VIEW_ALPHA, next);
+                trace("view cur=" + current + " base=" + base + " next=" + next
+                        + " f=" + factor + " va=" + view.getAlpha());
             }
         } catch (Throwable t) {
             if (++errors <= 5) XposedBridge.log(TAG + ": BOUNCER_APPLY_ERROR " + t);

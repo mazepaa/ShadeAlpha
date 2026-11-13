@@ -31,7 +31,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
     private static volatile long unlockedAt = 0;
-    private static final long UNLOCK_WINDOW_MS = 700;
+    private static final long UNLOCK_WINDOW_MS = 500;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {

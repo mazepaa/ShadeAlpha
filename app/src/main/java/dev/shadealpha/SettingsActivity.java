@@ -38,6 +38,7 @@ import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.google.android.material.slider.Slider;
 
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -45,6 +46,8 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String KEY_LANG = "lang";
     private static final String TG_LINK = "https://t.me/mazepaa";
     private static final String GITHUB_LINK = "https://github.com/mazepaa/ShadeAlpha";
+    /** Upper bound for one su invocation; a stuck root prompt must not block the worker. */
+    private static final int ROOT_TIMEOUT_SEC = 10;
 
     private SharedPreferences prefs;
     private String lang;
@@ -94,10 +97,16 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private boolean checkRoot() {
+        Process pr = null;
         try {
-            Process pr = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
-            return pr.waitFor() == 0;
+            pr = new ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start();
+            if (!pr.waitFor(ROOT_TIMEOUT_SEC, TimeUnit.SECONDS)) {
+                pr.destroy();
+                return false;
+            }
+            return pr.exitValue() == 0;
         } catch (Throwable e) {
+            if (pr != null) pr.destroy();
             return false;
         }
     }
@@ -546,15 +555,18 @@ public class SettingsActivity extends AppCompatActivity {
         return readSystem(key, -1) == p;
     }
 
+    /**
+     * Runs one shell command through su. Bounded by a timeout: a root manager that never answers
+     * the prompt must not hang the worker thread forever.
+     */
     private void runRoot(String cmd) {
+        Process pr = null;
         try {
-            Process pr = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
-            pr.waitFor();
+            pr = new ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start();
+            pr.getOutputStream().close();
+            if (!pr.waitFor(ROOT_TIMEOUT_SEC, TimeUnit.SECONDS)) pr.destroy();
         } catch (Throwable e) {
-            try {
-                Process pr = Runtime.getRuntime().exec("su -c " + cmd);
-                pr.waitFor();
-            } catch (Throwable ignored) {}
+            if (pr != null) pr.destroy();
         }
     }
 

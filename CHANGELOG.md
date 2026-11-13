@@ -1,5 +1,41 @@
 # ShadeAlpha — Changelog
 
+## v3.3
+
+### 🇷🇺 Что нового
+
+**🐛 Исправлено**
+- Убран зелёный «флеш» скрима сразу после разблокировки: 500 мс после снятия keyguard скримы `scrim_behind` / `scrim_in_front` держатся в нуле, и окно закрывается досрочно, как только система догасила анимацию.
+- Статус хуков больше не «залипает» после перезагрузки: рядом с маской пишется `boot_count`, после ребута показывается «статус устарел».
+- Роль скрима пересчитывается при изменении размера View (поворот, планшет, складной экран).
+- Настройки читаются через один кэш (`Prefs`) вместо двух параллельных.
+- `su` вызывается с таймаутом 10 с, зависший запрос root больше не подвешивает поток.
+
+**✨ Добавлено**
+- **Статус хуков** в приложении: построчно «Шторка / Экран блокировки / Панель громкости / Ползунок громкости / Недавние / Список приложений» с ✅, ❌ или ❓.
+- **Диагностика**: кнопка в «Действиях» и в шите «О приложении» копирует в буфер версию, устройство, состояние хуков и все значения ползунков.
+- **Сброс значений**: кнопка с подтверждением удаляет все ключи из `Settings.System`.
+- **Запись без root**: при выданном разрешении «Изменение системных настроек» значения пишутся напрямую, `su` остаётся запасным путём.
+
+**🔧 Прочее**
+- `versionCode 18`, `versionName 3.3`.
+- Сборка по тегу автоматически прикладывает APK к релизу.
+
+### 🇬🇧 What's new
+
+**🐛 Fixed**
+- The green scrim flash right after unlocking is gone: `scrim_behind` / `scrim_in_front` stay at zero for 500 ms after the keyguard is dismissed, and the window ends as soon as the system finishes the fade.
+- The hook status no longer survives a reboot as truth: the mask is stored together with `boot_count` and a different boot is reported as stale.
+- The scrim role is recomputed when the view size changes (rotation, tablets, foldables).
+- Settings are read through one shared cache instead of two.
+- `su` calls are bounded by a 10 s timeout.
+
+**✨ Added**
+- Hook status in the app: one line per hook with ✅, ❌ or ❓.
+- Diagnostics: a button in Actions and in the About sheet copies version, device, hook states and every slider value.
+- Reset values: a confirmed button that deletes every key from `Settings.System`.
+- Root-free writes: with "modify system settings" granted the values are written directly; `su` stays as the fallback.
+
 ## v3.2
 
 ### 🇷🇺 Что нового

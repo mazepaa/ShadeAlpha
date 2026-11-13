@@ -21,7 +21,16 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.2
+## What's new in v3.3
+
+- 🐛 **No more green flash after unlocking:** the keyguard scrims stay at zero for half a second after the lock screen is dismissed, and the window ends as soon as SystemUI finishes the fade.
+- ✅ **Hook status in the app:** one line per hook (shade, lock screen, volume panel, volume slider, recents, app drawer) with a tick, a cross or a question mark — no more digging through the LSPosed log.
+- 🩺 **Diagnostics button:** copies the module version, device, hook states and all slider values, ready to paste into a bug report. Available in Actions and in the About sheet.
+- ♻️ **Reset values:** one confirmed tap deletes every stored value from `Settings.System`.
+- 🔓 **Writes without root** when the "modify system settings" permission is granted; `su` is only needed for the restarts now.
+- 🔄 The scrim role is recomputed on rotation and on foldables; settings are read through a single cache.
+
+## What's new in v3.2 (previous release)
 
 - 🔐 **Lock screen:** a new slider for the background under the PIN / password / pattern keypad. Only that background is affected — the buttons, digits and text stay as in stock.
 - 🔊 **Volume slider fixed:** the dark band at the top of the volume panel is gone. The call-button backdrop has the same colour as the panel background and overlapped it, so with transparency the two layers added up into a darker seam. The backdrop is now painted only above the panel's top edge and the panel stays even, with its rounded top intact.
@@ -29,7 +38,7 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 - 🧩 Settings are organized into collapsible Material 3 cards; Russian and English interface retained.
 - 📱 Android 16 (API 36), versionCode 16, versionName 3.2.
 
-## What's new in v3.1 (previous release)
+## What's new in v3.1
 
 - 🧩 Settings are organized into collapsible Material 3 cards for a cleaner interface.
 - 🔊 Volume panel transparency now has separate controls for the panel background, slider track and slider fill.
@@ -59,7 +68,7 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 
 ## Installation
 
-1. Install `ShadeAlpha-v3.2.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-v3.3.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha** (for status detection). The scope list is recommended automatically; make sure the boxes are ticked.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent.
@@ -67,7 +76,7 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 All releases are signed with the same key, so updates install over the previous version. To check an APK you did not download from Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-v3.2.apk
+apksigner verify --print-certs ShadeAlpha-v3.3.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 
@@ -126,7 +135,16 @@ apksigner verify --print-certs ShadeAlpha-v3.2.apk
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.2
+## Что нового в v3.3
+
+- 🐛 **Зелёный «флеш» после разблокировки убран:** полсекунды после снятия keyguard скримы держатся в нуле, а окно закрывается досрочно, как только SystemUI догасил анимацию.
+- ✅ **Статус хуков в приложении:** по строке на хук (шторка, локскрин, панель громкости, ползунок, недавние, список) с галочкой, крестиком или вопросительным знаком — больше не нужно лезть в журнал LSPosed.
+- 🩺 **Кнопка «Диагностика»:** копирует версию, устройство, состояние хуков и все значения ползунков — готовый блок для issue. Есть в «Действиях» и в шите «О приложении».
+- ♻️ **Сброс значений:** одно подтверждение — и все ключи `Settings.System` удалены.
+- 🔓 **Запись без root** при выданном разрешении «Изменение системных настроек»; `su` теперь нужен только для перезапусков.
+- 🔄 Роль скрима пересчитывается при повороте и на складных экранах; настройки читаются через один кэш.
+
+## Что нового в v3.2 (предыдущая версия)
 
 - 🔐 **Экран блокировки:** новый ползунок прозрачности фона под кнопками PIN / пароля / графического ключа. Меняется только этот фон — сами кнопки, цифры и текст остаются как в системе.
 - 🔊 **Исправлен ползунок громкости:** тёмная полоса в верхней части панели громкости больше не появляется. Подложка ряда кнопок звонка того же цвета, что и фон панели, и перекрывала его — при прозрачности два слоя складывались в тёмный «шов». Теперь подложка рисуется только над верхним краем панели, и панель остаётся ровной, со скруглённым верхом.
@@ -134,7 +152,7 @@ apksigner verify --print-certs ShadeAlpha-v3.2.apk
 - 🧩 Настройки собраны в сворачиваемые карточки Material 3; сохранены русский и английский языки.
 - 📱 Android 16 (API 36), versionCode 16, versionName 3.2.
 
-## Что нового в v3.1 (предыдущая версия)
+## Что нового в v3.1
 
 - 🧩 Настройки собраны в сворачиваемые карточки Material 3 — интерфейс стал компактнее и понятнее.
 - 🔊 Для панели громкости доступны отдельные настройки фона, дорожки и заполнения слайдера.
@@ -164,7 +182,7 @@ apksigner verify --print-certs ShadeAlpha-v3.2.apk
 
 ## Установка
 
-1. Установи `ShadeAlpha-v3.2.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-v3.3.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. LSPosed / Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha** (для определения статуса). Список области предлагается автоматически, проверь, что галочки стоят.
 3. Открой приложение ShadeAlpha и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее.
@@ -172,7 +190,7 @@ apksigner verify --print-certs ShadeAlpha-v3.2.apk
 Все релизы подписаны одним ключом, поэтому обновление встаёт поверх предыдущей версии. Проверить APK, скачанный не из Releases, можно так:
 
 ```
-apksigner verify --print-certs ShadeAlpha-v3.2.apk
+apksigner verify --print-certs ShadeAlpha-v3.3.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 

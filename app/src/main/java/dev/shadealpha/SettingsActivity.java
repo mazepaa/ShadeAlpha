@@ -63,14 +63,12 @@ public class SettingsActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private String lang;
     private TextView status;
-    private Slider topBar;
-    private Slider bottomBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
-        
+
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String def = "ru".equals(Locale.getDefault().getLanguage()) ? "ru" : "en";
         lang = prefs.getString(KEY_LANG, def);
@@ -155,18 +153,18 @@ public class SettingsActivity extends AppCompatActivity {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        
+
         // Уменьшили верхний отступ с 56 до 50dp (чуть ниже)
         root.setPadding(dp(24), dp(35), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        
+
         root.setClipChildren(false);
         root.setClipToPadding(false);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(getApplicationInfo().icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
-        
+
         icon.setOnClickListener(v -> {
             v.animate().cancel();
             v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -183,7 +181,7 @@ public class SettingsActivity extends AppCompatActivity {
         String ver = "";
         try {
             ver = "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (Throwable ignored) { }
+        } catch (Throwable ignored) { /* best effort: falls back to defaults */ }
         TextView version = text(ver, 14, false);
         version.setTextColor(Color.GRAY);
         root.addView(version);
@@ -210,6 +208,21 @@ public class SettingsActivity extends AppCompatActivity {
         linksRow.addView(btnGh, lp2);
 
         root.addView(linksRow);
+
+        MaterialButton btnCopy = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnCopy.setText(t("Скопировать диагностику", "Copy diagnostics"));
+        addPressPhysics(btnCopy);
+        btnCopy.setOnClickListener(v -> new Thread(() -> {
+            String text = buildDiagnostics();
+            runOnUiThread(() -> {
+                copyToClipboard(text);
+                Toast.makeText(this, t("Диагностика скопирована", "Diagnostics copied"), Toast.LENGTH_SHORT).show();
+            });
+        }).start());
+        LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        copyLp.bottomMargin = dp(24);
+        root.addView(btnCopy, copyLp);
 
         MaterialCardView devCard = new MaterialCardView(this);
         devCard.setRadius(dp(16));
@@ -239,13 +252,13 @@ public class SettingsActivity extends AppCompatActivity {
         root.addView(desc);
 
         dialog.setContentView(root);
-        
+
         ViewGroup bottomSheet = (ViewGroup) dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bottomSheet != null) {
             bottomSheet.setClipChildren(false);
             bottomSheet.setClipToPadding(false);
         }
-        
+
         dialog.show();
     }
 
@@ -328,8 +341,8 @@ public class SettingsActivity extends AppCompatActivity {
 
         // ---- Шторка уведомлений ----
         final LinearLayout shadeBox = addGroup(root, t("Шторка уведомлений", "Notification shade"), "shade", true);
-        topBar = addSlider(shadeBox, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
-        bottomBar = addSlider(shadeBox, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
+        addSlider(shadeBox, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
+        addSlider(shadeBox, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
         addSlider(shadeBox, t("Экран блокировки (PIN / пароль)", "Lock screen (PIN / password)"), Keys.BOUNCER);
 
         shadeBox.addView(headerWithHelp(
@@ -363,7 +376,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
         shadeBox.addView(modes, lp(4));
         shadeBox.addView(text(
-                t("После смены режима нажми «Перезапустить SystemUI».", 
+                t("После смены режима нажми «Перезапустить SystemUI».",
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
         // ---- Панель громкости ----
@@ -540,7 +553,7 @@ public class SettingsActivity extends AppCompatActivity {
     private Slider addSlider(LinearLayout root, String label, final String key) {
         final TextView value = text("", 16, false);
         final Slider slider = new Slider(this);
-        
+
         slider.setValueFrom(0f);
         slider.setValueTo(100f);
         slider.setStepSize(5f);
@@ -557,7 +570,7 @@ public class SettingsActivity extends AppCompatActivity {
         slider.addOnChangeListener((s, v, fromUser) -> {
             int p = (int) v;
             value.setText(p + "%");
-            
+
             if (fromUser && Math.abs(v - lastVal[0]) >= 4.9f) {
                 s.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 lastVal[0] = v;
@@ -572,7 +585,7 @@ public class SettingsActivity extends AppCompatActivity {
                 value.setText(p + "%");
             }
         });
-        
+
         slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
             @Override
             public void onStartTrackingTouch(Slider slider) {
@@ -680,15 +693,36 @@ public class SettingsActivity extends AppCompatActivity {
         return Settings.System.canWrite(this);
     }
 
-    /** Builds the block a user can paste into a bug report. */
+    /** Copies the diagnostics block and reports on the main status line. Runs off the UI thread. */
     private void copyDiagnostics() {
+        String text = buildDiagnostics();
+        runOnUiThread(() -> {
+            boolean ok = copyToClipboard(text);
+            status.setText(ok
+                    ? t("Диагностика скопирована в буфер.", "Diagnostics copied to the clipboard.")
+                    : t("Не удалось скопировать.", "Could not copy."));
+        });
+    }
+
+    private boolean copyToClipboard(String text) {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newPlainText("ShadeAlpha diagnostics", text));
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /** Builds the block a user can paste into a bug report. */
+    private String buildDiagnostics() {
         String version = "?";
         long code = -1;
         try {
             android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
             version = pi.versionName;
             code = pi.getLongVersionCode();
-        } catch (Throwable ignored) { }
+        } catch (Throwable ignored) { /* best effort: falls back to defaults */ }
 
         int mask = readSystem(Keys.HOOKS, 0);
         int storedBoot = readSystem(Keys.HOOKS_BOOT, -1);
@@ -721,17 +755,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .append(" mode=").append(readSystem(Keys.MODE, -1)).append('\n');
         sb.append("root=").append(rootAccess() ? "yes" : "no")
                 .append(" writeSettings=").append(canWriteSystem() ? "yes" : "no");
-
-        String text = sb.toString();
-        runOnUiThread(() -> {
-            try {
-                ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                cm.setPrimaryClip(ClipData.newPlainText("ShadeAlpha diagnostics", text));
-                status.setText(t("Диагностика скопирована в буфер.", "Diagnostics copied to the clipboard."));
-            } catch (Throwable e) {
-                status.setText(t("Не удалось скопировать.", "Could not copy."));
-            }
-        });
+        return sb.toString();
     }
 
     private String state(int mask, int bit, boolean reported) {
@@ -804,7 +828,7 @@ public class SettingsActivity extends AppCompatActivity {
                 "🔴 Режим 1 (saveLayerAlpha) — Максимальная совместимость\n" +
                 "Принудительно создает слой для отрисовки. Самый надежный, но и самый тяжелый (двойная отрисовка). Используйте только если остальные не работают.\n\n" +
                 "После смены режима обязательно нажми «Перезапустить SystemUI».",
-                
+
                 "The rendering mode determines how the module makes the background transparent. Visually there is no difference, but there is a difference in battery and GPU load.\n\n" +
                 "🟢 Mode 3 (ScrimView.setViewAlpha) - Lightest\n" +
                 "Directly changes the background color's alpha. Creates no extra layers, minimal load.\n\n" +

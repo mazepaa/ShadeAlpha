@@ -149,14 +149,14 @@ final class BouncerHook {
                                     try {
                                         Object v = XposedHelpers.getObjectField(p.thisObject, "mState");
                                         if (v instanceof Integer) st = (Integer) v;
-                                    } catch (Throwable ignored) {}
+                                    } catch (Throwable t) { logOnce("optional SystemUI field", t); }
                                 }
                                 if (st >= 0) {
                                     statusBarState = st;
                                     if (st == SB_KEYGUARD || st == SB_SHADE_LOCKED) keyguardShowing = true;
                                     XposedBridge.log(TAG + ": STATUS_BAR_STATE " + st);
                                 }
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable t) { logOnce("optional SystemUI field", t); }
                         }
                     });
                 } catch (Throwable t) { logOnce("status bar state hook", t); }
@@ -185,7 +185,7 @@ final class BouncerHook {
                                 if (p.args != null)
                                     for (Object a : p.args)
                                         if (a instanceof Boolean) { keyguardShowing = (Boolean) a; return; }
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable t) { logOnce("optional SystemUI field", t); }
                         }
                     });
                 } catch (Throwable t) { logOnce("keyguard state hook", t); }
@@ -235,7 +235,7 @@ final class BouncerHook {
                     else if (ss.contains("KEYGUARD")) code = STATE_KEYGUARD;
                     else if (ss.contains("UNLOCKED")) code = STATE_UNLOCKED;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) { logOnce("optional SystemUI field", t); }
             if (code != scrimState) {
                 scrimState = code;
                 if (code == STATE_UNLOCKED) {
@@ -249,7 +249,7 @@ final class BouncerHook {
             try {
                 Object f = XposedHelpers.getObjectField(controller, "mIsBouncerToGoneTransitionRunning");
                 if (f instanceof Boolean) bouncerToGoneTransitionRunning = (Boolean) f;
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) { logOnce("optional SystemUI field", t); }
         } catch (Throwable t) {
             if (++errors <= 5) XposedBridge.log(TAG + ": STATE_TRANSITION_ERROR " + t);
         }
@@ -273,14 +273,14 @@ final class BouncerHook {
                                 try {
                                     Object v = XposedHelpers.getObjectField(p.thisObject, "mExpandedFraction");
                                     if (v instanceof Float) f = (Float) v;
-                                } catch (Throwable ignored) {}
+                                } catch (Throwable t) { logOnce("optional SystemUI field", t); }
                                 if (f == null && p.args != null && p.args.length > 0 && p.args[0] instanceof Float)
                                     f = (Float) p.args[0];
                                 if (f != null) {
                                     float v = Math.max(0f, Math.min(1f, f));
                                     if (Math.abs(v - shadeExpansionFraction) >= 0.01f) shadeExpansionFraction = v;
                                 }
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable t) { logOnce("optional SystemUI field", t); }
                         }
                     });
                 } catch (Throwable t) { logOnce("shade expansion hook", t); }

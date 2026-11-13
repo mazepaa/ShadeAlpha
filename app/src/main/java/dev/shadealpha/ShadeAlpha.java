@@ -169,7 +169,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     if (ratio > 0.85f) r = ROLE_TOP;
                     else if (ratio > 0.3f && v.getY() > screenH * 0.15f) r = ROLE_BOTTOM;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { /* best effort: falls back to defaults */ }
         }
         v.setTag(TAG_ROLE, Integer.valueOf(r));
         v.setTag(TAG_ROLE_SIZE, Integer.valueOf(size));

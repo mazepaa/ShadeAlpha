@@ -8,22 +8,18 @@ An LSPosed module that makes the notification shade, the **recents screen**, the
 
 <table align="center">
   <tr>
-    <th align="center">Shade 50%</th>
-    <th align="center">Lock screen 0%</th>
-    <th align="center">Recents 0%</th>
+    <td width="28.6%" align="center" valign="middle"><img src="screenshots/qs50_en.jpg" width="100%" /></td>
+    <td width="28.6%" align="center" valign="middle"><img src="screenshots/pin0_en.jpg" width="100%" /></td>
+    <td width="28.6%" align="center" valign="middle"><img src="screenshots/rec0_en.jpg" width="100%" /></td>
+    <td width="14.2%" align="center" valign="middle"><img src="screenshots/vol_50-50-50.jpg" width="100%" /></td>
   </tr>
   <tr>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/qs50_en.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/pin0_en.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/rec0_en.jpg" width="100%" /></td>
+    <td align="center"><sub><b>1</b> · Shade 50%</sub></td>
+    <td align="center"><sub><b>2</b> · Lock screen 0%</sub></td>
+    <td align="center"><sub><b>3</b> · Recents 0%</sub></td>
+    <td align="center"><sub><b>4</b> · Volume<br />50/50/50</sub></td>
   </tr>
 </table>
-
-<p align="center">
-  <img src="screenshots/vol_50-50-50.jpg" width="18%" />
-  <br />
-  <sub>Volume panel: 50% background, 50% track, 50% fill</sub>
-</p>
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
@@ -97,22 +93,18 @@ apksigner verify --print-certs ShadeAlpha-3.3.apk
 
 <table align="center">
   <tr>
-    <th align="center">Шторка 50%</th>
-    <th align="center">Экран блокировки 0%</th>
-    <th align="center">Недавние 0%</th>
+    <td width="28.6%" align="center" valign="middle"><img src="screenshots/qs50_ru.jpg" width="100%" /></td>
+    <td width="28.6%" align="center" valign="middle"><img src="screenshots/pin0_ru.jpg" width="100%" /></td>
+    <td width="28.6%" align="center" valign="middle"><img src="screenshots/rec0_ru.jpg" width="100%" /></td>
+    <td width="14.2%" align="center" valign="middle"><img src="screenshots/vol_50-50-50.jpg" width="100%" /></td>
   </tr>
   <tr>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/qs50_ru.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/pin0_ru.jpg" width="100%" /></td>
-    <td width="33%" align="center" valign="middle"><img src="screenshots/rec0_ru.jpg" width="100%" /></td>
+    <td align="center"><sub><b>1</b> · Шторка 50%</sub></td>
+    <td align="center"><sub><b>2</b> · Экран блокировки 0%</sub></td>
+    <td align="center"><sub><b>3</b> · Недавние 0%</sub></td>
+    <td align="center"><sub><b>4</b> · Громкость<br />50/50/50</sub></td>
   </tr>
 </table>
-
-<p align="center">
-  <img src="screenshots/vol_50-50-50.jpg" width="18%" />
-  <br />
-  <sub>Панель громкости: фон 50%, дорожка 50%, заполнение 50%</sub>
-</p>
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 

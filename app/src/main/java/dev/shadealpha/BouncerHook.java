@@ -110,7 +110,10 @@ final class BouncerHook {
             installed += reload == null ? 0 : reload.size();
             try {
                 Set<XC_MethodHook.Unhook> draw = XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
-                    @Override protected void beforeHookedMethod(MethodHookParam p) { apply(p); }
+                    @Override protected void beforeHookedMethod(MethodHookParam p) {
+                        trace("onDraw");
+                        apply(p);
+                    }
                 });
                 installed += draw == null ? 0 : draw.size();
             } catch (Throwable t) { logOnce("bouncer onDraw hook", t); }
@@ -129,6 +132,21 @@ final class BouncerHook {
             XposedBridge.log(TAG + ": BOUNCER_HOOK_READY x" + installed);
             // A found class is not a working hook: only report it when something was installed.
             if (installed > 0) HookStatus.mark(HookStatus.BOUNCER);
+
+            // Diagnostic: every method that touches the background, so the editor can tell
+            // which of them the ROM actually calls.
+            for (java.lang.reflect.Method m : cls.getDeclaredMethods()) {
+                if (!m.getName().toLowerCase(java.util.Locale.ROOT).contains("background")) continue;
+                final String name = m.getName();
+                try {
+                    XposedBridge.hookAllMethods(cls, name, new XC_MethodHook() {
+                        @Override protected void beforeHookedMethod(MethodHookParam p) {
+                            trace("method " + name);
+                        }
+                    });
+                    XposedBridge.log(TAG + ": BOUNCER_PROBE " + name);
+                } catch (Throwable t) { logOnce("bouncer probe " + name, t); }
+            }
         } catch (Throwable t) { XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
     }
 

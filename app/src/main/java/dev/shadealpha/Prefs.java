@@ -19,6 +19,8 @@ final class Prefs {
 
     private static final String TAG = "ShadeAlpha";
     private static final long TTL_MS = 300;
+    private static final long LOG_THROTTLE_MS = 1500;
+    private static volatile long lastLogAt = 0;
 
     private static volatile int top = 100;
     private static volatile int bottom = 100;
@@ -98,9 +100,7 @@ final class Prefs {
 
         if (nt != top || nb != bottom || nr != recents || nd != drawer || nv != volume
                 || nvt != volTrack || nvf != volFill || nbo != bouncer || nm != mode) {
-            XposedBridge.log(TAG + ": values top=" + nt + " bottom=" + nb + " recents=" + nr
-                    + " drawer=" + nd + " volume=" + nv + " track=" + nvt + " fill=" + nvf
-                    + " bouncer=" + nbo + " mode=" + nm);
+            logValues(nt, nb, nr, nd, nv, nvt, nvf, nbo, nm);
         }
 
         top = nt;
@@ -112,6 +112,15 @@ final class Prefs {
         volFill = nvf;
         bouncer = nbo;
         mode = nm;
+    }
+
+    private static void logValues(int t, int b, int r, int d, int v, int vt, int vf, int bo, int m) {
+        long now = SystemClock.uptimeMillis();
+        if (now - lastLogAt < LOG_THROTTLE_MS) return;
+        lastLogAt = now;
+        XposedBridge.log(TAG + ": values top=" + t + " bottom=" + b + " recents=" + r
+                + " drawer=" + d + " volume=" + v + " track=" + vt + " fill=" + vf
+                + " bouncer=" + bo + " mode=" + m);
     }
 
     private static int read(Context c, String key) {

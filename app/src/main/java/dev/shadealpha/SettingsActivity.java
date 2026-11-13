@@ -48,6 +48,10 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String GITHUB_LINK = "https://github.com/mazepaa/ShadeAlpha";
     /** Upper bound for one su invocation; a stuck root prompt must not block the worker. */
     private static final int ROOT_TIMEOUT_SEC = 10;
+    private static final String[] ALL_KEYS = {
+            Keys.TOP, Keys.BOTTOM, Keys.BOUNCER, Keys.RECENTS, Keys.APPDRAWER,
+            Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE
+    };
 
     private SharedPreferences prefs;
     private String lang;
@@ -377,6 +381,24 @@ public class SettingsActivity extends AppCompatActivity {
         addButtonRow(actions, showShade, showRecents, 16);
         addButtonRow(actions, restart, restartLauncher, 8);
 
+        MaterialButton reset = actionButton(t("Сбросить значения", "Reset values"), v ->
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(t("Сбросить значения?", "Reset values?"))
+                        .setMessage(t("Все ползунки вернутся к 100%. Значения хранятся в Settings.System и переживают удаление приложения, поэтому их нужно удалять отдельно.",
+                                "All sliders go back to 100%. The values live in Settings.System and survive uninstalling the app, so they are deleted separately."))
+                        .setNegativeButton(t("Отмена", "Cancel"), null)
+                        .setPositiveButton(t("Сбросить", "Reset"), (d, w) -> new Thread(() -> {
+                            for (String key : ALL_KEYS) runRoot("settings delete system " + key);
+                            prefs.edit().clear().apply();
+                            runOnUiThread(() -> {
+                                status.setText(t("Значения сброшены. Перезапусти SystemUI.",
+                                        "Values reset. Restart SystemUI."));
+                                recreate();
+                            });
+                        }).start())
+                        .show());
+        addWideButton(actions, reset, 8);
+
         status = text("", 14, false);
         root.addView(status, lp(12));
 
@@ -408,6 +430,13 @@ public class SettingsActivity extends AppCompatActivity {
         row.addView(left, l);
         row.addView(right, r);
         box.addView(row, lp(topDp));
+    }
+
+    private void addWideButton(LinearLayout box, View button, int topDp) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.topMargin = dp(topDp);
+        box.addView(button, p);
     }
 
     /**
@@ -534,7 +563,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void syncToSystem() {
         new Thread(() -> {
-            for (String key : new String[]{Keys.TOP, Keys.BOTTOM, Keys.BOUNCER, Keys.RECENTS, Keys.APPDRAWER, Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE}) {
+            for (String key : ALL_KEYS) {
                 int want = prefs.getInt(key, -1);
                 if (want < 0) continue;
                 if (readSystem(key, -1) != want) writeSetting(key, want);

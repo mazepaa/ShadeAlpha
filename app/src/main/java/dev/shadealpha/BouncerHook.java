@@ -99,6 +99,7 @@ final class BouncerHook {
                 });
             } catch (Throwable t) { logOnce("bouncer visibility hook", t); }
             XposedBridge.log(TAG + ": BOUNCER_HOOK_READY");
+            HookStatus.mark(HookStatus.BOUNCER, "bouncer");
         } catch (Throwable t) { XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
     }
 

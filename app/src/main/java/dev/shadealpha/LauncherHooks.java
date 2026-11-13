@@ -63,31 +63,36 @@ final class LauncherHooks {
         log("Launcher loaded (" + lpparam.packageName + ")");
 
         // ---- Недавние ----
-        hookScrimColor(cl, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor", false);
-        hookScrimColor(cl, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor", false);
-        hookScrimColor(cl, "com.android.quickstep.fallback.RecentsState", "getScrimColor", false);
-        hookScrimColor(cl, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor", false);
-        hookScrimColor(cl, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", false);
+        int recents = 0;
+        recents += hookScrimColor(cl, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor", false);
+        recents += hookScrimColor(cl, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor", false);
+        recents += hookScrimColor(cl, "com.android.quickstep.fallback.RecentsState", "getScrimColor", false);
+        recents += hookScrimColor(cl, "com.android.launcher3.uioverrides.states.HintState", "getWorkspaceScrimColor", false);
+        recents += hookScrimColor(cl, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", false);
+        if (recents > 0) HookStatus.mark(HookStatus.LAUNCHER, "launcher recents");
 
         // ---- Список приложений ----
-        hookScrimColor(cl, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", true);
-        hookAllApps(cl);
+        int drawer = hookScrimColor(cl, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", true);
+        drawer += hookAllApps(cl);
+        if (drawer > 0) HookStatus.mark(HookStatus.DRAWER, "launcher drawer");
     }
 
     // ------------------------------------------------------------------ state scrims
 
-    private static void hookScrimColor(ClassLoader cl, String className, String method, boolean drawer) {
+    private static int hookScrimColor(ClassLoader cl, String className, String method, boolean drawer) {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(className, cl);
             if (cls == null) {
                 log("skip, class not found: " + className);
-                return;
+                return 0;
             }
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, method,
                     new ScrimColorHook(className + "." + method, drawer));
             log("hooked " + className + "." + method + " x" + (hooks == null ? 0 : hooks.size()));
+            return hooks == null ? 0 : hooks.size();
         } catch (Throwable t) {
             log("failed to hook " + className + ": " + t);
+            return 0;
         }
     }
 
@@ -126,7 +131,7 @@ final class LauncherHooks {
 
     // ------------------------------------------------------------------ all apps sheet
 
-    private static void hookAllApps(ClassLoader cl) {
+    private static int hookAllApps(ClassLoader cl) {
         Class<?> start = null;
         for (String n : ALL_APPS_VIEWS) {
             start = XposedHelpers.findClassIfExists(n, cl);
@@ -134,7 +139,7 @@ final class LauncherHooks {
         }
         if (start == null) {
             log("all apps container class not found");
-            return;
+            return 0;
         }
 
         ColorGetterHook getterHook = new ColorGetterHook();
@@ -154,6 +159,7 @@ final class LauncherHooks {
             total += n;
         }
         if (total == 0) log("all apps: nothing to hook, this launcher version is not supported");
+        return total;
     }
 
     private static int hookNames(Class<?> c, String[] names, XC_MethodHook cb) {

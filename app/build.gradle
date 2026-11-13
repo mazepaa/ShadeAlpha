@@ -23,7 +23,7 @@ android {
         minSdk 31
         targetSdk 36
         versionCode 17
-        versionName "3.3-test2"
+        versionName "3.3-test3"
         resConfigs "en", "ru"
     }
 

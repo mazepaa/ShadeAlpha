@@ -34,6 +34,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static volatile long kgReadAt = 0;
     private static final long KEYGUARD_TTL_MS = 50;
     private static volatile long unlockedAt = 0;
+    private static volatile boolean unlockScrimSeen = false;
     private static final long UNLOCK_WINDOW_MS = 500;
 
     @Override
@@ -106,6 +107,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 }
             });
             XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
+            if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.SHADE, "shade onDraw");
         } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }
 
         try {
@@ -124,6 +126,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                             XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         if ((role == ROLE_TOP || role == ROLE_FRONT) && inUnlockWindow()) {
+                            if (role == ROLE_TOP) noteUnlockScrimAlpha(a);
                             param.args[0] = 0f;
                             return;
                         }
@@ -218,6 +221,10 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             XposedBridge.log(TAG + ": keyguardLocked=" + locked);
             if (!locked && prev != null && prev.booleanValue()) {
                 unlockedAt = now;
+                unlockScrimSeen = false;
+            } else if (locked) {
+                unlockedAt = 0;
+                unlockScrimSeen = false;
             }
         }
         kgLocked = locked;
@@ -233,6 +240,23 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     static boolean inUnlockWindow() {
         long t = unlockedAt;
         return t != 0 && SystemClock.uptimeMillis() - t < UNLOCK_WINDOW_MS;
+    }
+
+    /**
+     * Ends the unlock window as soon as the system has finished fading the keyguard scrim instead
+     * of always waiting for the timer. SystemUI reports the fade through {@code setViewAlpha}:
+     * while it runs the alpha is above zero, and the last call drops it to zero. The timer stays
+     * as the fallback for ROMs that animate the scrim some other way.
+     */
+    static void noteUnlockScrimAlpha(float alpha) {
+        if (alpha > 0.01f) {
+            unlockScrimSeen = true;
+            return;
+        }
+        if (unlockScrimSeen) {
+            unlockedAt = 0;
+            unlockScrimSeen = false;
+        }
     }
 
     /**

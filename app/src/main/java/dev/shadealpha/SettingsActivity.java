@@ -53,6 +53,8 @@ public class SettingsActivity extends AppCompatActivity {
             Keys.VOLUME, Keys.VOL_TRACK, Keys.VOL_FILL, Keys.MODE
     };
 
+    private TextView hooksNote;
+
     private SharedPreferences prefs;
     private String lang;
     private TextView status;
@@ -74,6 +76,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         syncToSystem();
+        updateHookStatus();
     }
 
     private String t(String ru, String en) {
@@ -402,6 +405,9 @@ public class SettingsActivity extends AppCompatActivity {
         status = text("", 14, false);
         root.addView(status, lp(12));
 
+        hooksNote = note("");
+        root.addView(hooksNote, lp(6));
+
         setContentView(scroll);
     }
 
@@ -559,6 +565,28 @@ public class SettingsActivity extends AppCompatActivity {
                 if (!ok) status.performHapticFeedback(HapticFeedbackConstants.REJECT);
             });
         }).start();
+    }
+
+    private void updateHookStatus() {
+        if (hooksNote == null) return;
+        int mask = readSystem(Keys.HOOKS, 0);
+        if (mask == 0) {
+            hooksNote.setText(t("Хуки: нет данных — перезапусти SystemUI и лаунчер",
+                    "Hooks: no data yet — restart SystemUI and the launcher"));
+            return;
+        }
+        String sep = "  ";
+        hooksNote.setText(t("Хуки: ", "Hooks: ")
+                + hookMark(t("шторка", "shade"), HookStatus.SHADE, mask) + sep
+                + hookMark(t("локскрин", "lock screen"), HookStatus.BOUNCER, mask) + sep
+                + hookMark(t("громкость", "volume"), HookStatus.VOLUME, mask) + sep
+                + hookMark(t("ползунок", "slider"), HookStatus.VOLUME_TRACK, mask) + sep
+                + hookMark(t("недавние", "recents"), HookStatus.LAUNCHER, mask) + sep
+                + hookMark(t("список", "drawer"), HookStatus.DRAWER, mask));
+    }
+
+    private String hookMark(String name, int bit, int mask) {
+        return name + ((mask & bit) != 0 ? " ✓" : " ✗");
     }
 
     private void syncToSystem() {

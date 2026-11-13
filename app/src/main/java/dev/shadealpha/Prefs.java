@@ -136,7 +136,7 @@ final class Prefs {
         }
     }
 
-    private static Context appContext() {
+    static Context appContext() {
         try {
             if (currentApplication == null) {
                 Class<?> at = Class.forName("android.app.ActivityThread");

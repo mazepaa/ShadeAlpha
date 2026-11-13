@@ -66,6 +66,7 @@ final class VolumeHook {
                         }
                     });
             XposedBridge.log(TAG + ": hooked volume dialog x" + (hooks == null ? 0 : hooks.size()));
+            if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.VOLUME, "volume dialog");
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": volume hook failed: " + t);
         }
@@ -99,6 +100,7 @@ final class VolumeHook {
                 n += h == null ? 0 : h.size();
             }
             XposedBridge.log(TAG + ": hooked volume slider track x" + n);
+            if (n > 0) HookStatus.mark(HookStatus.VOLUME_TRACK, "volume slider track");
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": volume slider hook failed: " + t);
         }

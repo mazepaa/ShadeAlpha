@@ -10,6 +10,8 @@ public class Keys {
     public static final String VOL_FILL = "shade_alpha_vol_fill_percent";
     public static final String BOUNCER = "shade_alpha_bouncer_percent";
     public static final String MODE = "shade_alpha_mode";
+    /** Bitmask of the hooks that reported a successful install; written by SystemUI. */
+    public static final String HOOKS = "shade_alpha_hooks";
 
     public static final int MODE_LAYER = 0;
     public static final int MODE_VIEW_ALPHA = 1;

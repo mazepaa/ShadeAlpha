@@ -1,19 +1,5 @@
 # ShadeAlpha — Changelog
 
-## v3.3.2
-
-### 🇷🇺 Исправлено
-- **Прозрачность экрана блокировки наконец работает.** На части прошивок (проверено на Evolution X, Android 16) хук цеплялся к методам, которые система не вызывает, и ползунок ничего не менял. Теперь фон PIN / пароля / графического ключа находится по id (keyguard_security_container, keyguard_bouncer_container, keyguard_pin_view) и красится напрямую, всегда от исходного цвета, так что фон не тает по кадрам.
-- **Нет мигания на свайпе.** Обе ветки хука пропускают кадры, пока бонсер закрывается и системная анимация сама ведёт прозрачность.
-- **Сброс значений проверяет все ключи**, а не только верхний; неудачная запись больше не выдаётся за успех.
-- **Статус «Экран блокировки»** отмечается и тогда, когда фон найден по id, а не только через класс контейнера.
-
-### 🇬🇧 Fixed
-- **Lock screen transparency works.** On some ROMs (verified on Evolution X, Android 16) the hook targeted methods the system never calls, so the slider changed nothing. The PIN / password / pattern background is now found by id and painted directly, always from the original colour, so it no longer fades away frame by frame.
-- **No blinking on the swipe:** both hook paths skip frames while the bouncer fades out and the system animates the opacity itself.
-- **Reset verifies every key**, not just the top one, and a failed write is no longer reported as success.
-- **The lock screen status** is also reported when the background was found by id.
-
 ## v3.3
 
 ### 🇷🇺 Что нового
@@ -25,6 +11,12 @@
 - Настройки читаются через один кэш (`Prefs`) вместо двух параллельных.
 - `su` вызывается с таймаутом 10 с, зависший запрос root больше не подвешивает поток.
 
+**🔐 Экран блокировки**
+- Прозрачность фона PIN / пароля / графического ключа теперь действительно работает: на части прошивок хук цеплялся к методам, которые система не вызывает. Фон находится по id (`keyguard_security_container`, `keyguard_bouncer_container`, `keyguard_pin_view`) и красится напрямую, всегда от исходного цвета — фон больше не тает по кадрам.
+- Обе ветки хука пропускают кадры, пока бонсер закрывается, поэтому свайп не мигает.
+- Сброс значений проверяет все ключи, а не только верхний; неудачная запись больше не выдаётся за успех.
+- Статус «Экран блокировки» отмечается и при поиске фона по id.
+
 **✨ Добавлено**
 - **Статус хуков** в приложении: построчно «Шторка / Экран блокировки / Панель громкости / Ползунок громкости / Недавние / Список приложений» с ✅, ❌ или ❓.
 - **Диагностика**: кнопка «Скопировать диагностику» в шите «О приложении» копирует в буфер версию, устройство, состояние хуков и все значения ползунков.
@@ -32,7 +24,7 @@
 - **Запись без root**: при выданном разрешении «Изменение системных настроек» значения пишутся напрямую, `su` остаётся запасным путём.
 
 **🔧 Прочее**
-- `versionCode 18`, `versionName 3.3`.
+- `versionCode 27`, `versionName 3.3`.
 - Сборка по тегу автоматически прикладывает APK к релизу.
 
 ### 🇬🇧 What's new
@@ -43,6 +35,12 @@
 - The scrim role is recomputed when the view size changes (rotation, tablets, foldables).
 - Settings are read through one shared cache instead of two.
 - `su` calls are bounded by a 10 s timeout.
+
+**🔐 Lock screen**
+- Transparency of the PIN / password / pattern background actually works now: on some ROMs the hook targeted methods the system never calls. The background is found by id (`keyguard_security_container`, `keyguard_bouncer_container`, `keyguard_pin_view`) and painted directly, always from the original colour, so it no longer fades away frame by frame.
+- Both hook paths skip frames while the bouncer fades out, so the swipe does not blink.
+- Reset verifies every key, not just the top one, and a failed write is no longer reported as success.
+- The lock screen status is reported when the background is found by id.
 
 **✨ Added**
 - Hook status in the app: one line per hook with ✅, ❌ or ❓.

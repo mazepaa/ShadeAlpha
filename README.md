@@ -23,7 +23,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.3.1
+## What's new in v3.3
 
 - 🐛 **Lock screen background no longer fades out:** the opacity is computed from the original colour instead of the value written on the previous frame.
 - ✅ **Hook status tells the truth:** the lock screen hook is reported only when it actually installed, and reset works without root when the system-settings permission is granted.
@@ -50,7 +50,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 ## Installation
 
-1. Install `ShadeAlpha-3.3.1.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-3.3.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha**.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent. Check the **Hooks:** line — every entry should be ✅.
@@ -58,7 +58,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 All releases are signed with the same key, so updates install over the previous version. To check an APK you did not download from Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.3.1.apk
+apksigner verify --print-certs ShadeAlpha-3.3.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 
@@ -110,7 +110,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.1.apk
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.3.1
+## Что нового в v3.3
 
 - 🐛 **Фон экрана блокировки больше не тает:** прозрачность считается от исходного цвета, а не от значения, записанного на прошлом кадре.
 - ✅ **Статус хуков честнее:** «Экран блокировки» отмечается только при реально установленном хуке, а сброс работает без root при выданном разрешении.
@@ -137,7 +137,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.1.apk
 
 ## Установка
 
-1. Установи `ShadeAlpha-3.3.1.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-3.3.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha**.
 3. Открой приложение и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее. Проверь строку **«Хуки:»** — все пункты должны быть ✅.
@@ -145,7 +145,7 @@ apksigner verify --print-certs ShadeAlpha-3.3.1.apk
 Все релизы подписаны одним ключом, поэтому обновление встаёт поверх. Проверить APK, скачанный не из Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.3.1.apk
+apksigner verify --print-certs ShadeAlpha-3.3.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 

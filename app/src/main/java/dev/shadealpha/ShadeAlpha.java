@@ -30,7 +30,24 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
      * slider value has to be pushed by invalidating the scrims that are currently on screen. */
     private static final java.util.List<java.lang.ref.WeakReference<View>> LIVE =
             java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-    private static final android.os.Handler UI = new android.os.Handler(android.os.Looper.getMainLooper());
+    /**
+     * Created lazily: this class is loaded while SystemUI boots and the main Looper does not
+     * exist yet, so a field initializer here would throw ExceptionInInitializerError and the
+     * whole module would fail to install.
+     */
+    private static android.os.Handler ui;
+    private static volatile boolean repaintScheduled;
+
+    private static android.os.Handler uiHandler() {
+        android.os.Handler h = ui;
+        if (h == null) {
+            android.os.Looper looper = android.os.Looper.getMainLooper();
+            if (looper == null) return null;
+            h = new android.os.Handler(looper);
+            ui = h;
+        }
+        return h;
+    }
 
     private static void rememberLive(View v) {
         synchronized (LIVE) {
@@ -44,7 +61,11 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     }
 
     private static void hookLiveRepaint() {
-        UI.post(new Runnable() {
+        if (repaintScheduled) return;
+        android.os.Handler h = uiHandler();
+        if (h == null) return; // no main looper yet: nothing to deal with, try again on next call
+        repaintScheduled = true;
+        h.post(new Runnable() {
             private long last = 0;
             @Override public void run() {
                 try {
@@ -55,7 +76,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         last = android.os.SystemClock.uptimeMillis();
                     }
                 } catch (Throwable t) { fail("repaint", t); }
-                UI.postDelayed(this, 150);
+                android.os.Handler next = uiHandler();
+                if (next != null) next.postDelayed(this, 150);
             }
         });
     }

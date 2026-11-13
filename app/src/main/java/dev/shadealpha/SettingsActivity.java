@@ -591,11 +591,11 @@ public class SettingsActivity extends AppCompatActivity {
     private String hookLine(String name, int bit, int mask, boolean reported) {
         String state;
         if (!reported) {
-            state = t("нет данных", "no data");
+            state = "❓";
         } else if ((mask & bit) != 0) {
-            state = t("работает", "ok");
+            state = "✅";
         } else {
-            state = t("не найден", "not found");
+            state = "❌";
         }
         return "• " + name + ": " + state;
     }

@@ -62,6 +62,87 @@ final class BouncerHook {
         hookKeyguardState(cl);
         hookShadeExpansion(cl);
         hookContainer(cl);
+        hookKeyguardViews(cl);
+    }
+
+    /**
+     * The keyguard container class differs between ROMs (this one does not call
+     * {@code reloadBackgroundColor} at all), so once the keyguard hierarchy exists the actual
+     * background views are found by id and their own draw is hooked wherever they live.
+     */
+    private static void hookKeyguardViews(ClassLoader cl) {
+        for (final String name : new String[]{"android.view.View", "android.view.ViewGroup"}) {
+            try {
+                Class<?> cls = XposedHelpers.findClassIfExists(name, cl);
+                if (cls == null) continue;
+                XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
+                    @Override protected void beforeHookedMethod(MethodHookParam p) {
+                        try {
+                            View v = (View) p.thisObject;
+                            if (!wantsBouncer(v)) return;
+                            applyTo(v);
+                        } catch (Throwable t) { logOnce("keyguard view draw", t); }
+                    }
+                });
+            } catch (Throwable t) { logOnce("keyguard view hook", t); }
+        }
+        XposedBridge.log(TAG + ": BOUNCER_VIEWS hooked");
+    }
+
+    private static final int TAG_BOUNCER = 0x7ffa0010;
+    private static final String[] BOUNCER_IDS = {
+            "keyguard_security_container", "keyguard_bouncer_container", "keyguard_pin_view"
+    };
+    private static final int MAX_ERRORS = 20;
+    private static int viewErrors;
+
+    /** True when this view is one of the keyguard backgrounds we are allowed to paint. */
+    private static boolean wantsBouncer(View v) {
+        Object tag = v.getTag(TAG_BOUNCER);
+        if (tag instanceof Boolean) return (Boolean) tag;
+        boolean hit = false;
+        int id = v.getId();
+        if (id != View.NO_ID) {
+            try {
+                String entry = v.getResources().getResourceEntryName(id);
+                for (String wanted : BOUNCER_IDS) {
+                    if (wanted.equals(entry)) { hit = true; break; }
+                }
+            } catch (Throwable ignored) { /* not a named resource */ }
+        }
+        if (hit && viewErrors < MAX_ERRORS) {
+            XposedBridge.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
+                    + " id=" + id + " bg=" + (v.getBackground() == null
+                    ? "none" : v.getBackground().getClass().getSimpleName()));
+        }
+        v.setTag(TAG_BOUNCER, Boolean.valueOf(hit));
+        return hit;
+    }
+
+    private static void applyTo(View view) {
+        try {
+            float factor = Math.max(0f, Math.min(1f, Prefs.bouncer(view.getContext())));
+            Drawable bg = view.getBackground();
+            if (bg instanceof ColorDrawable) {
+                ColorDrawable cd = (ColorDrawable) bg;
+                int current = cd.getColor();
+                int base = baseOf(cd, current, BASE_COLOR, APPLIED_COLOR);
+                int next = Color.argb(Math.round(Color.alpha(base) * factor),
+                        Color.red(base), Color.green(base), Color.blue(base));
+                if (current != next) cd.setColor(next);
+                remember(cd, BASE_COLOR, base, APPLIED_COLOR, next);
+                if (viewErrors < MAX_ERRORS) trace("view color cur=" + hex(current) + " next=" + hex(next));
+            } else if (bg != null) {
+                int current = bg.getAlpha();
+                int base = baseOf(bg, current, BASE_ALPHA, APPLIED_ALPHA);
+                int next = Math.round(base * factor);
+                if (current != next) bg.setAlpha(next);
+                remember(bg, BASE_ALPHA, base, APPLIED_ALPHA, next);
+                if (viewErrors < MAX_ERRORS) trace("view alpha cur=" + current + " next=" + next);
+            }
+        } catch (Throwable t) {
+            if (++viewErrors <= 3) XposedBridge.log(TAG + ": BOUNCER_VIEW_ERROR " + t);
+        }
     }
 
     public static int scrimState() { return scrimState; }

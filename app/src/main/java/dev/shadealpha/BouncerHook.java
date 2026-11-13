@@ -55,25 +55,27 @@ final class BouncerHook {
      * background views are found by id and their own draw is hooked wherever they live.
      */
     private static void hookKeyguardViews(ClassLoader cl) {
-        for (final String name : new String[]{"android.view.View", "android.view.ViewGroup"}) {
-            try {
-                Class<?> cls = XposedHelpers.findClassIfExists(name, cl);
-                if (cls == null) continue;
-                XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
-                    @Override protected void beforeHookedMethod(MethodHookParam p) {
-                        try {
-                            View v = (View) p.thisObject;
-                            if (!wantsBouncer(v)) return;
-                            applyTo(v);
-                        } catch (Throwable t) { logOnce("keyguard view draw", t); }
-                    }
-                });
-            } catch (Throwable t) { logOnce("keyguard view hook", t); }
-        }
-        XposedBridge.log(TAG + ": BOUNCER_VIEWS hooked");
-        // The guard hook is the one that actually finds the background on ROMs where the
-        // container methods do nothing, so it counts as a working lock screen hook too.
-        HookStatus.mark(HookStatus.BOUNCER);
+        // View declares onDraw itself; ViewGroup does not, and hooking it would install nothing.
+        try {
+            Class<?> cls = XposedHelpers.findClassIfExists("android.view.View", cl);
+            if (cls == null) {
+                XposedBridge.log(TAG + ": BOUNCER_VIEWS: android.view.View not found");
+                return;
+            }
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    try {
+                        View v = (View) p.thisObject;
+                        if (!wantsBouncer(v)) return;
+                        applyTo(v);
+                    } catch (Throwable t) { logOnce("keyguard view draw", t); }
+                }
+            });
+            XposedBridge.log(TAG + ": BOUNCER_VIEWS hooked x" + (hooks == null ? 0 : hooks.size()));
+            // The real proof is a keyguard background view being found, not the hook installing;
+            // wantsBouncer() reports it the first time one shows up.
+            if (hooks == null || hooks.isEmpty()) return;
+        } catch (Throwable t) { logOnce("keyguard view hook", t); }
     }
 
     private static final int TAG_BOUNCER = 0x7ffa0010;
@@ -101,6 +103,10 @@ final class BouncerHook {
             XposedBridge.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
                     + " id=" + id + " bg=" + (v.getBackground() == null
                     ? "none" : v.getBackground().getClass().getSimpleName()));
+        }
+        if (hit) {
+            // A keyguard background view showing up is the honest "the lock screen hook works".
+            HookStatus.mark(HookStatus.BOUNCER);
         }
         v.setTag(TAG_BOUNCER, Boolean.valueOf(hit));
         return hit;

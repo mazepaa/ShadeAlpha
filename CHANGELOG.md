@@ -14,13 +14,13 @@
 **🔐 Экран блокировки**
 - Прозрачность фона PIN / пароля / графического ключа теперь действительно работает: на части прошивок хук цеплялся к методам, которые система не вызывает. Фон находится по id (`keyguard_security_container`, `keyguard_bouncer_container`, `keyguard_pin_view`) и красится напрямую, всегда от исходного цвета — фон больше не тает по кадрам.
 - Обе ветки хука пропускают кадры, пока бонсер закрывается, поэтому свайп не мигает.
-- Сброс значений проверяет все ключи, а не только верхний; неудачная запись больше не выдаётся за успех.
+- Сброс проверяет результат по каждому ключу; неудачная запись больше не выдаётся за успех.
 - Статус «Экран блокировки» отмечается и при поиске фона по id.
 
 **✨ Добавлено**
 - **Статус хуков** в приложении: построчно «Шторка / Экран блокировки / Панель громкости / Ползунок громкости / Недавние / Список приложений» с ✅, ❌ или ❓.
 - **Диагностика**: кнопка «Скопировать диагностику» в шите «О приложении» копирует в буфер версию, устройство, состояние хуков и все значения ползунков.
-- **Сброс значений**: кнопка с подтверждением удаляет все ключи из `Settings.System`.
+- **Сброс значений**: кнопка с подтверждением возвращает все настройки к значениям по умолчанию (с разрешением записывает 100 и режим по умолчанию, без него удаляет ключи через `su`) и проверяет результат по каждому ключу.
 - **Запись без root**: при выданном разрешении «Изменение системных настроек» значения пишутся напрямую, `su` остаётся запасным путём.
 
 **🔧 Прочее**
@@ -39,13 +39,13 @@
 **🔐 Lock screen**
 - Transparency of the PIN / password / pattern background actually works now: on some ROMs the hook targeted methods the system never calls. The background is found by id (`keyguard_security_container`, `keyguard_bouncer_container`, `keyguard_pin_view`) and painted directly, always from the original colour, so it no longer fades away frame by frame.
 - Both hook paths skip frames while the bouncer fades out, so the swipe does not blink.
-- Reset verifies every key, not just the top one, and a failed write is no longer reported as success.
+- Reset checks the result of every key; a failed write is no longer reported as success.
 - The lock screen status is reported when the background is found by id.
 
 **✨ Added**
 - Hook status in the app: one line per hook with ✅, ❌ or ❓.
 - Diagnostics: the "Copy diagnostics" button in the About sheet copies version, device, hook states and every slider value.
-- Reset values: a confirmed button that deletes every key from `Settings.System`.
+- Reset values: a confirmed button that returns every setting to its default (writes the default value when the system-settings permission is granted, deletes the keys through `su` otherwise) and verifies every key.
 - Root-free writes: with "modify system settings" granted the values are written directly; `su` stays as the fallback.
 
 ## v3.2

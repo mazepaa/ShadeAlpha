@@ -5,11 +5,12 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.DrawableWrapper;
+import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.view.ViewGroup;
 
 import java.lang.reflect.Field;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
@@ -229,24 +230,31 @@ final class VolumeHook {
      * а при полупрозрачности складываются и в зоне перекрытия появляется тёмная полоса.
      * Поэтому при f < 1 рисуем подложку звонка только выше верхнего края фона (колпачок), а фон
      * рисует всё остальное: панель остаётся одним ровным слоем и сохраняет скруглённый верх.
+     *
+     * ВАЖНО: фон ringer_buttons_background нельзя подменять обёрткой (DrawableWrapper и т.п.).
+     * VolumeDialogRingerViewBinder делает {@code background as GradientDrawable} при анимации
+     * переключения режима звонка, и любой другой класс валит SystemUI в ClassCastException.
+     * Поэтому исходный GradientDrawable остаётся на месте, а обрезка делается хуком его draw().
      */
     private static void setupRingerCap(View ringer, View plate, float f) {
         if (ringer == null) return;
         try {
             Drawable d = ringer.getBackground();
             if (d == null) return;
-            CapDrawable cap;
-            if (d instanceof CapDrawable) {
-                cap = (CapDrawable) d;
-            } else if (plate != null) {
-                cap = new CapDrawable(d, ringer, plate);
-                ringer.setBackground(cap);
-            } else {
-                setBackgroundAlpha(ringer, f);
-                return;
-            }
-            cap.clip = f < 0.999f;
             setBackgroundAlpha(ringer, f);
+            // mutate() у GradientDrawable возвращает тот же объект, поэтому ссылка остаётся верной.
+            Drawable target = ringer.getBackground();
+            if (plate != null && target instanceof GradientDrawable) {
+                ensureDrawHook();
+                Cap c = cap;
+                if (c == null || c.drawable.get() != target) {
+                    c = new Cap(target, ringer, plate);
+                    cap = c;
+                }
+                c.clip = f < 0.999f;
+            } else {
+                cap = null;
+            }
             ringer.invalidate();
         } catch (Throwable t) {
             if (++errors <= 3) XposedBridge.log(TAG + ": volume ringer cap failed: " + t);
@@ -258,9 +266,14 @@ final class VolumeHook {
         return plateTopInWindow - ringerTopInWindow;
     }
 
-    private static final class CapDrawable extends DrawableWrapper {
-        private final View ringer;
-        private final View plate;
+    private static volatile Cap cap;
+    private static boolean drawHooked;
+
+    /** Состояние обрезки. Ссылки слабые: статическое поле не должно держать View/Context SystemUI. */
+    private static final class Cap {
+        final WeakReference<Drawable> drawable;
+        private final WeakReference<View> ringer;
+        private final WeakReference<View> plate;
         volatile boolean clip;
         // Reused between frames: draw() runs on every panel frame and must not allocate.
         private final int[] ringerPos = new int[2];
@@ -269,16 +282,19 @@ final class VolumeHook {
         private int cachedRingerTop = Integer.MIN_VALUE;
         private int cachedPlateTop = Integer.MIN_VALUE;
 
-        CapDrawable(Drawable inner, View ringer, View plate) {
-            super(inner);
-            this.ringer = ringer;
-            this.plate = plate;
+        Cap(Drawable d, View ringer, View plate) {
+            this.drawable = new WeakReference<Drawable>(d);
+            this.ringer = new WeakReference<View>(ringer);
+            this.plate = new WeakReference<View>(plate);
         }
 
         /** Positions only change on layout, so the query is skipped while they stay the same. */
-        private int capHeightCached() {
-            ringer.getLocationInWindow(ringerPos);
-            plate.getLocationInWindow(platePos);
+        int capHeightCached() {
+            View r = ringer.get();
+            View p = plate.get();
+            if (r == null || p == null) return 0;
+            r.getLocationInWindow(ringerPos);
+            p.getLocationInWindow(platePos);
             if (ringerPos[1] != cachedRingerTop || platePos[1] != cachedPlateTop) {
                 cachedRingerTop = ringerPos[1];
                 cachedPlateTop = platePos[1];
@@ -286,20 +302,48 @@ final class VolumeHook {
             }
             return cachedHeight;
         }
+    }
 
-        @Override
-        public void draw(Canvas canvas) {
-            if (!clip) {
-                super.draw(canvas);
-                return;
-            }
-            int h = capHeightCached();
-            if (h <= 0) return; // фон панели закрывает всё — подложке звонка рисовать нечего
-            Rect r = getBounds();
-            int save = canvas.save();
-            canvas.clipRect(r.left, r.top, r.right, Math.min(r.bottom, r.top + h));
-            super.draw(canvas);
-            canvas.restoreToCount(save);
+    private static final String EXTRA_SAVE = "shadealpha.capSave";
+
+    /** Один хук на GradientDrawable.draw; срабатывает только для подложки звонка (проверка по ссылке). */
+    private static synchronized void ensureDrawHook() {
+        if (drawHooked) return;
+        drawHooked = true;
+        try {
+            Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(GradientDrawable.class, "draw",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam p) {
+                            try {
+                                Cap c = cap;
+                                if (c == null || !c.clip || p.thisObject != c.drawable.get()) return;
+                                int h = c.capHeightCached();
+                                if (h <= 0) { // фон панели закрывает всё — подложке звонка рисовать нечего
+                                    p.setResult(null);
+                                    return;
+                                }
+                                Canvas canvas = (Canvas) p.args[0];
+                                Rect r = ((Drawable) p.thisObject).getBounds();
+                                int save = canvas.save();
+                                canvas.clipRect(r.left, r.top, r.right, Math.min(r.bottom, r.top + h));
+                                p.setObjectExtra(EXTRA_SAVE, Integer.valueOf(save));
+                            } catch (Throwable t) {
+                                if (++errors <= 3) XposedBridge.log(TAG + ": volume cap draw failed: " + t);
+                            }
+                        }
+
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam p) {
+                            Object save = p.getObjectExtra(EXTRA_SAVE);
+                            if (save instanceof Integer) {
+                                ((Canvas) p.args[0]).restoreToCount((Integer) save);
+                            }
+                        }
+                    });
+            XposedBridge.log(TAG + ": hooked GradientDrawable.draw x" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": volume cap draw hook failed: " + t);
         }
     }
 
@@ -326,4 +370,3 @@ final class VolumeHook {
         }
     }
 }
-

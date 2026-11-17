@@ -56,7 +56,7 @@ final class VolumeHook {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(DIALOG, cl);
             if (cls == null) {
-                XposedBridge.log(TAG + ": volume: " + DIALOG + " not found");
+                Logs.log(TAG + ": volume: " + DIALOG + " not found");
                 return;
             }
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "onStart",
@@ -66,10 +66,10 @@ final class VolumeHook {
                             apply(p.thisObject);
                         }
                     });
-            XposedBridge.log(TAG + ": hooked volume dialog x" + (hooks == null ? 0 : hooks.size()));
+            Logs.log(TAG + ": hooked volume dialog x" + (hooks == null ? 0 : hooks.size()));
             if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.VOLUME);
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": volume hook failed: " + t);
+            Logs.log(TAG + ": volume hook failed: " + t);
         }
         hookSliderTrack(cl);
     }
@@ -83,7 +83,7 @@ final class VolumeHook {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists(TRACK_KT, cl);
             if (cls == null) {
-                XposedBridge.log(TAG + ": volume slider: " + TRACK_KT + " not found");
+                Logs.log(TAG + ": volume slider: " + TRACK_KT + " not found");
                 return;
             }
             Set<String> names = new HashSet<String>();
@@ -100,10 +100,10 @@ final class VolumeHook {
                 });
                 n += h == null ? 0 : h.size();
             }
-            XposedBridge.log(TAG + ": hooked volume slider track x" + n);
+            Logs.log(TAG + ": hooked volume slider track x" + n);
             if (n > 0) HookStatus.mark(HookStatus.VOLUME_TRACK);
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": volume slider hook failed: " + t);
+            Logs.log(TAG + ": volume slider hook failed: " + t);
         }
     }
 
@@ -143,7 +143,7 @@ final class VolumeHook {
             }
             if (!trackLogged) {
                 trackLogged = true;
-                XposedBridge.log(TAG + ": volume slider first hit fill=" + fill + " track=" + track);
+                Logs.log(TAG + ": volume slider first hit fill=" + fill + " track=" + track);
             }
             for (int i = 0; i < 4; i++) {
                 long nv = (f[i] >= 0.999f) ? st[i] : scaleComposeColor(st[i], f[i]);
@@ -151,7 +151,7 @@ final class VolumeHook {
                 st[4 + i] = nv;
             }
         } catch (Throwable t) {
-            if (++errors <= 3) XposedBridge.log(TAG + ": volume slider colors failed: " + t);
+            if (++errors <= 3) Logs.log(TAG + ": volume slider colors failed: " + t);
         }
     }
 
@@ -168,7 +168,7 @@ final class VolumeHook {
             return fs;
         } catch (Throwable t) {
             colorFieldsFailed = true;
-            XposedBridge.log(TAG + ": volume slider: SliderColors fields not found: " + t);
+            Logs.log(TAG + ": volume slider: SliderColors fields not found: " + t);
             return null;
         }
     }
@@ -199,7 +199,7 @@ final class VolumeHook {
             View floating = idFloating != 0 ? d.findViewById(idFloating) : null;
             if (!logged) {
                 logged = true;
-                XposedBridge.log(TAG + ": volume first hit factor=" + f
+                Logs.log(TAG + ": volume first hit factor=" + f
                         + " background=" + (bg != null) + " ringer=" + (ringer != null)
                         + " floating=" + (floating != null));
             }
@@ -220,7 +220,7 @@ final class VolumeHook {
                 for (int i = 0; i < g.getChildCount(); i++) setBackgroundAlpha(g.getChildAt(i), f);
             }
         } catch (Throwable t) {
-            if (++errors <= 3) XposedBridge.log(TAG + ": volume apply failed: " + t);
+            if (++errors <= 3) Logs.log(TAG + ": volume apply failed: " + t);
         }
     }
 
@@ -257,7 +257,7 @@ final class VolumeHook {
             }
             ringer.invalidate();
         } catch (Throwable t) {
-            if (++errors <= 3) XposedBridge.log(TAG + ": volume ringer cap failed: " + t);
+            if (++errors <= 3) Logs.log(TAG + ": volume ringer cap failed: " + t);
         }
     }
 
@@ -329,7 +329,7 @@ final class VolumeHook {
                                 canvas.clipRect(r.left, r.top, r.right, Math.min(r.bottom, r.top + h));
                                 p.setObjectExtra(EXTRA_SAVE, Integer.valueOf(save));
                             } catch (Throwable t) {
-                                if (++errors <= 3) XposedBridge.log(TAG + ": volume cap draw failed: " + t);
+                                if (++errors <= 3) Logs.log(TAG + ": volume cap draw failed: " + t);
                             }
                         }
 
@@ -341,9 +341,9 @@ final class VolumeHook {
                             }
                         }
                     });
-            XposedBridge.log(TAG + ": hooked GradientDrawable.draw x" + (hooks == null ? 0 : hooks.size()));
+            Logs.log(TAG + ": hooked GradientDrawable.draw x" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": volume cap draw hook failed: " + t);
+            Logs.log(TAG + ": volume cap draw hook failed: " + t);
         }
     }
 
@@ -355,7 +355,7 @@ final class VolumeHook {
             idRinger = r.getIdentifier("ringer_buttons_background", "id", PKG);
             idFloating = r.getIdentifier("volume_dialog_floating_sliders_container", "id", PKG);
         } catch (Throwable t) {
-            if (++errors <= 3) XposedBridge.log(TAG + ": volume ids failed: " + t);
+            if (++errors <= 3) Logs.log(TAG + ": volume ids failed: " + t);
         }
     }
 
@@ -366,7 +366,7 @@ final class VolumeHook {
             if (d == null) return;
             d.mutate().setAlpha(Math.max(0, Math.min(255, Math.round(255f * f))));
         } catch (Throwable t) {
-            if (++errors <= 3) XposedBridge.log(TAG + ": volume alpha failed: " + t);
+            if (++errors <= 3) Logs.log(TAG + ": volume alpha failed: " + t);
         }
     }
 }

@@ -36,7 +36,7 @@ final class BouncerHook {
     /** Reports a failure once per site: a silent catch here would hide a hook that never installed. */
     private static void logOnce(String where, Throwable t) {
         if (LOGGED.size() > 64 || !LOGGED.add(where)) return;
-        XposedBridge.log(TAG + ": " + where + " failed: " + t);
+        Logs.log(TAG + ": " + where + " failed: " + t);
     }
 
 
@@ -59,7 +59,7 @@ final class BouncerHook {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists("android.view.View", cl);
             if (cls == null) {
-                XposedBridge.log(TAG + ": BOUNCER_VIEWS: android.view.View not found");
+                Logs.log(TAG + ": BOUNCER_VIEWS: android.view.View not found");
                 return;
             }
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(cls, "onDraw", new XC_MethodHook() {
@@ -71,11 +71,11 @@ final class BouncerHook {
                     } catch (Throwable t) { logOnce("keyguard view draw", t); }
                 }
             });
-            XposedBridge.log(TAG + ": BOUNCER_VIEWS hooked x" + (hooks == null ? 0 : hooks.size()));
+            Logs.log(TAG + ": BOUNCER_VIEWS hooked x" + (hooks == null ? 0 : hooks.size()));
             // The real proof is a keyguard background view being found, not the hook installing;
             // wantsBouncer() reports it the first time one shows up.
             if (hooks == null || hooks.isEmpty()) {
-                XposedBridge.log(TAG + ": BOUNCER_VIEWS: no hooks installed");
+                Logs.log(TAG + ": BOUNCER_VIEWS: no hooks installed");
             }
         } catch (Throwable t) { logOnce("keyguard view hook", t); }
     }
@@ -105,7 +105,7 @@ final class BouncerHook {
             // A keyguard background view showing up is the honest "the lock screen hook works".
             HookStatus.mark(HookStatus.BOUNCER);
             if (Logs.on()) {
-                XposedBridge.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
+                Logs.log(TAG + ": BOUNCER_VIEW " + v.getClass().getName()
                         + " id=" + id + " bg=" + (v.getBackground() == null
                         ? "none" : v.getBackground().getClass().getSimpleName()));
             }
@@ -137,7 +137,7 @@ final class BouncerHook {
                 remember(bg, BASE_ALPHA, base, APPLIED_ALPHA, next);
             }
         } catch (Throwable t) {
-            if (++viewErrors <= 3) XposedBridge.log(TAG + ": BOUNCER_VIEW_ERROR " + t);
+            if (++viewErrors <= 3) Logs.log(TAG + ": BOUNCER_VIEW_ERROR " + t);
         }
     }
 
@@ -176,7 +176,7 @@ final class BouncerHook {
         try {
             Class<?> cls = XposedHelpers.findClassIfExists("com.android.keyguard.KeyguardSecurityContainer", cl);
             if (cls == null) {
-                XposedBridge.log(TAG + ": BOUNCER_HOOK: KeyguardSecurityContainer not found");
+                Logs.log(TAG + ": BOUNCER_HOOK: KeyguardSecurityContainer not found");
                 return;
             }
             int installed = 0;
@@ -205,11 +205,11 @@ final class BouncerHook {
                 });
                 installed += vis == null ? 0 : vis.size();
             } catch (Throwable t) { logOnce("bouncer visibility hook", t); }
-            XposedBridge.log(TAG + ": BOUNCER_HOOK_READY x" + installed);
+            Logs.log(TAG + ": BOUNCER_HOOK_READY x" + installed);
             // A found class is not a working hook: only report it when something was installed.
             if (installed > 0) HookStatus.mark(HookStatus.BOUNCER);
 
-        } catch (Throwable t) { XposedBridge.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
+        } catch (Throwable t) { Logs.log(TAG + ": BOUNCER_HOOK_ERROR " + t); }
     }
 
     /**
@@ -255,7 +255,7 @@ final class BouncerHook {
                 remember(view, BASE_VIEW_ALPHA, base, APPLIED_VIEW_ALPHA, next);
             }
         } catch (Throwable t) {
-            if (++errors <= 5) XposedBridge.log(TAG + ": BOUNCER_APPLY_ERROR " + t);
+            if (++errors <= 5) Logs.log(TAG + ": BOUNCER_APPLY_ERROR " + t);
         }
     }
 
@@ -298,7 +298,7 @@ final class BouncerHook {
                                 if (st >= 0) {
                                     statusBarState = st;
                                     if (st == SB_KEYGUARD || st == SB_SHADE_LOCKED) keyguardShowing = true;
-                                    XposedBridge.log(TAG + ": STATUS_BAR_STATE " + st);
+                                    Logs.log(TAG + ": STATUS_BAR_STATE " + st);
                                 }
                             } catch (Throwable t) { logOnce("optional SystemUI field", t); }
                         }
@@ -306,7 +306,7 @@ final class BouncerHook {
                 } catch (Throwable t) { logOnce("status bar state hook", t); }
             }
         }
-        if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: StatusBarStateController not found");
+        if (!found) Logs.log(TAG + ": BOUNCER_HOOK: StatusBarStateController not found");
     }
 
     private static void hookKeyguardState(ClassLoader cl) {
@@ -335,7 +335,7 @@ final class BouncerHook {
                 } catch (Throwable t) { logOnce("keyguard state hook", t); }
             }
         }
-        if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: KeyguardStateController not found");
+        if (!found) Logs.log(TAG + ": BOUNCER_HOOK: KeyguardStateController not found");
     }
 
     private static void hookScrimState(ClassLoader cl) {
@@ -345,7 +345,7 @@ final class BouncerHook {
             if (cls != null) break;
         }
         if (cls == null) {
-            XposedBridge.log(TAG + ": BOUNCER_HOOK: ScrimController not found");
+            Logs.log(TAG + ": BOUNCER_HOOK: ScrimController not found");
             return;
         }
         for (String method : new String[]{"transitionTo", "setState", "applyState"}) {
@@ -389,13 +389,13 @@ final class BouncerHook {
                     unlockTransitionStartedAt = 0;
                     keyguardShowing = true;
                 }
-                XposedBridge.log(TAG + ": STATE_TRANSITION code=" + code + " keyguard=" + keyguardShowing);            }
+                Logs.log(TAG + ": STATE_TRANSITION code=" + code + " keyguard=" + keyguardShowing);            }
             try {
                 Object f = XposedHelpers.getObjectField(controller, "mIsBouncerToGoneTransitionRunning");
                 if (f instanceof Boolean) bouncerToGoneTransitionRunning = (Boolean) f;
             } catch (Throwable t) { logOnce("optional SystemUI field", t); }
         } catch (Throwable t) {
-            if (++errors <= 5) XposedBridge.log(TAG + ": STATE_TRANSITION_ERROR " + t);
+            if (++errors <= 5) Logs.log(TAG + ": STATE_TRANSITION_ERROR " + t);
         }
     }
 
@@ -430,7 +430,7 @@ final class BouncerHook {
                 } catch (Throwable t) { logOnce("shade expansion hook", t); }
             }
         }
-        if (!found) XposedBridge.log(TAG + ": BOUNCER_HOOK: ShadeExpansionStateManager not found");
+        if (!found) Logs.log(TAG + ": BOUNCER_HOOK: ShadeExpansionStateManager not found");
     }
 }
 

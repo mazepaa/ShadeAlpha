@@ -383,7 +383,7 @@ final class LauncherHooks {
     }
 
     private static void log(String s) {
-        XposedBridge.log(TAG + ": " + s);
+        Logs.log(TAG + ": " + s);
     }
 
     private static void err(String where, Throwable t) {

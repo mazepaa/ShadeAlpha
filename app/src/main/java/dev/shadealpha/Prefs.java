@@ -6,7 +6,6 @@ import android.provider.Settings;
 
 import java.lang.reflect.Method;
 
-import de.robv.android.xposed.XposedBridge;
 
 /**
  * Кэшированное чтение значений из Settings.System внутри процесса SystemUI и лаунчера.
@@ -119,7 +118,7 @@ final class Prefs {
         long now = SystemClock.uptimeMillis();
         if (now - lastLogAt < LOG_THROTTLE_MS) return;
         lastLogAt = now;
-        XposedBridge.log(TAG + ": values top=" + t + " bottom=" + b + " recents=" + r
+        Logs.log(TAG + ": values top=" + t + " bottom=" + b + " recents=" + r
                 + " drawer=" + d + " volume=" + v + " track=" + vt + " fill=" + vf
                 + " bouncer=" + bo + " mode=" + m);
     }

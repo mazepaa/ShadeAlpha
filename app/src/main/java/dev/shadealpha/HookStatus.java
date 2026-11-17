@@ -3,7 +3,6 @@ package dev.shadealpha;
 import android.content.Context;
 import android.provider.Settings;
 
-import de.robv.android.xposed.XposedBridge;
 
 /**
  * Records which hooks actually installed, in a {@code Settings.System} row the app can read.
@@ -89,7 +88,7 @@ final class HookStatus {
             synchronized (LOCK) {
                 written = -1;
             }
-            XposedBridge.log(TAG + ": hook status write failed: " + t);
+            Logs.log(TAG + ": hook status write failed: " + t);
         }
     }
 

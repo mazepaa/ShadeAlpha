@@ -49,16 +49,16 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
             Class<?> keys = XposedHelpers.findClassIfExists(Keys.class.getName(), lpparam.classLoader);
-            if (keys == null) { XposedBridge.log(TAG + ": self hook: Keys class not found"); return; }
+            if (keys == null) { Logs.log(TAG + ": self hook: Keys class not found"); return; }
             XposedBridge.hookAllMethods(keys, "isModuleActive", new XC_MethodReplacement() {
                 @Override protected Object replaceHookedMethod(MethodHookParam param) { return Boolean.TRUE; }
             });
-            XposedBridge.log(TAG + ": self hooked, module active");
-        } catch (Throwable t) { XposedBridge.log(TAG + ": self hook failed: " + t); }
+            Logs.log(TAG + ": self hooked, module active");
+        } catch (Throwable t) { Logs.log(TAG + ": self hook failed: " + t); }
     }
 
     private void hookSystemUI(XC_LoadPackage.LoadPackageParam lpparam) {
-        XposedBridge.log(TAG + ": SystemUI loaded");
+        Logs.log(TAG + ": SystemUI loaded");
         HookStatus.owner(HookStatus.SYSTEM_UI_BITS, HookStatus.REPORTED_SYSTEM_UI);
         VolumeHook.hook(lpparam.classLoader);
         BouncerHook.hook(lpparam.classLoader);
@@ -67,7 +67,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             scrim = XposedHelpers.findClassIfExists(name, lpparam.classLoader);
             if (scrim != null) break;
         }
-        if (scrim == null) { XposedBridge.log(TAG + ": ScrimView not found"); return; }
+        if (scrim == null) { Logs.log(TAG + ": ScrimView not found"); return; }
 
         try {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
@@ -109,9 +109,9 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     } catch (Throwable t) { fail("after onDraw", t); }
                 }
             });
-            XposedBridge.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
+            Logs.log(TAG + ": hooked onDraw, methods=" + (hooks == null ? 0 : hooks.size()));
             if (hooks != null && !hooks.isEmpty()) HookStatus.mark(HookStatus.SHADE);
-        } catch (Throwable t) { XposedBridge.log(TAG + ": onDraw hook failed: " + t); }
+        } catch (Throwable t) { Logs.log(TAG + ": onDraw hook failed: " + t); }
 
         try {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "setViewAlpha", new XC_MethodHook() {
@@ -126,7 +126,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                         float a = (Float) param.args[0];
                         if (!SVA_LOGGED[role]) {
                             SVA_LOGGED[role] = true;
-                            XposedBridge.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
+                            Logs.log(TAG + ": first setViewAlpha role=" + roleName(role) + " value=" + a);
                         }
                         if ((role == ROLE_TOP || role == ROLE_FRONT) && inUnlockWindow()) {
                             if (role == ROLE_TOP) noteUnlockScrimAlpha(a);
@@ -142,8 +142,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     } catch (Throwable t) { fail("setViewAlpha", t); }
                 }
             });
-            XposedBridge.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
-        } catch (Throwable t) { XposedBridge.log(TAG + ": setViewAlpha hook failed: " + t); }
+            Logs.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
+        } catch (Throwable t) { Logs.log(TAG + ": setViewAlpha hook failed: " + t); }
     }
 
     private static int role(View v) {
@@ -174,7 +174,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
         v.setTag(TAG_ROLE, Integer.valueOf(r));
         v.setTag(TAG_ROLE_SIZE, Integer.valueOf(size));
-        XposedBridge.log(TAG + ": scrim view id=" + id + " role=" + roleName(r)
+        Logs.log(TAG + ": scrim view id=" + id + " role=" + roleName(r)
                 + " size=" + v.getWidth() + "x" + v.getHeight());
         return r;
     }
@@ -221,7 +221,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         Boolean prev = lastKeyguardLog;
         if (prev == null || prev.booleanValue() != locked) {
             lastKeyguardLog = Boolean.valueOf(locked);
-            XposedBridge.log(TAG + ": keyguardLocked=" + locked);
+            Logs.log(TAG + ": keyguardLocked=" + locked);
             if (!locked && prev != null && prev.booleanValue()) {
                 unlockedAt = now;
                 unlockScrimSeen = false;
@@ -291,10 +291,10 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     private static void fail(String where, Throwable t) {
         int n = ++failures;
-        if (n <= 3) XposedBridge.log(TAG + ": " + where + " failed: " + t);
+        if (n <= 3) Logs.log(TAG + ": " + where + " failed: " + t);
         if (n >= MAX_FAILURES && !disabled) {
             disabled = true;
-            XposedBridge.log(TAG + ": too many failures, hook disabled");
+            Logs.log(TAG + ": too many failures, hook disabled");
         }
     }
 }

@@ -5,6 +5,7 @@ import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -594,40 +595,36 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * Grows the group body from zero height with a fade, so a tap on the header reads as one
-     * movement instead of a jump cut. Only the body height is animated: the card is already
-     * laid out at its new position, so nothing above it shifts while the body is growing.
+     * Reveals the body with an animated clip rectangle instead of animating its height.
+     *
+     * Height animation needs a layout pass on every frame, and with sliders inside it looks
+     * stepped. Here the body is laid out once at full size, pinned to the card bottom so the
+     * card starts compact, then the clip grows and the body slides up with it: all on the
+     * animation thread without touching layout. Cards below already sit in their final place.
      */
     private void expandBody(final View body) {
         body.animate().cancel();
         body.setVisibility(View.VISIBLE);
         body.setAlpha(0f);
-        body.setTranslationY(-dp(6));
-        // Height is animated through the layout params; the final value is WRAP_CONTENT again.
-        body.getLayoutParams().height = 0;
-        body.requestLayout();
         body.post(() -> {
             final int natural = measureNaturalHeight(body);
             if (natural <= 0) {
-                body.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 body.setAlpha(1f);
                 body.setTranslationY(0f);
-                body.requestLayout();
                 return;
             }
+            body.setTranslationY(natural);
+            applyReveal(body, 0, natural);
             body.animate()
                     .alpha(1f)
                     .translationY(0f)
                     .setDuration(220)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                    .setUpdateListener(a -> {
-                        body.getLayoutParams().height =
-                                (int) (natural * a.getAnimatedFraction());
-                        body.requestLayout();
-                    })
+                    .setUpdateListener(a -> applyReveal(body, (int) (a.getAnimatedFraction() * natural), natural))
                     .withEndAction(() -> {
-                        body.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                        body.requestLayout();
+                        body.setClipBounds(null);
+                        body.setTranslationY(0f);
+                        body.setAlpha(1f);
                     })
                     .start();
         });
@@ -635,31 +632,31 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void collapseBody(final View body) {
         body.animate().cancel();
-        final int start = body.getHeight();
-        if (start <= 0) {
+        final int natural = body.getHeight();
+        if (natural <= 0) {
             body.setVisibility(View.GONE);
             return;
         }
-        body.getLayoutParams().height = start;
-        body.requestLayout();
+        applyReveal(body, natural, natural);
         body.animate()
                 .alpha(0f)
-                .translationY(-dp(6))
+                .translationY(natural)
                 .setDuration(160)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .setUpdateListener(a -> {
-                    body.getLayoutParams().height =
-                            (int) (start * (1f - a.getAnimatedFraction()));
-                    body.requestLayout();
-                })
+                .setUpdateListener(a -> applyReveal(body, (int) ((1f - a.getAnimatedFraction()) * natural), natural))
                 .withEndAction(() -> {
                     body.setVisibility(View.GONE);
-                    body.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    body.setAlpha(1f);
+                    body.setClipBounds(null);
                     body.setTranslationY(0f);
-                    body.requestLayout();
+                    body.setAlpha(1f);
                 })
                 .start();
+    }
+
+    /** Shows the top {@code visiblePx} of a body that is {@code totalPx} tall. */
+    private void applyReveal(View body, int visiblePx, int totalPx) {
+        int w = body.getWidth() > 0 ? body.getWidth() : getWindowWidth();
+        body.setClipBounds(new Rect(0, 0, w, Math.max(0, Math.min(totalPx, visiblePx))));
     }
 
     private int measureNaturalHeight(View view) {
@@ -670,7 +667,6 @@ public class SettingsActivity extends AppCompatActivity {
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
         return view.getMeasuredHeight();
     }
-
     private int getWindowWidth() {
         return getResources().getDisplayMetrics().widthPixels - dp(48);
     }

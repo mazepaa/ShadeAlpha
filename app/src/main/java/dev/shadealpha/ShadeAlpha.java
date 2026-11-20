@@ -28,7 +28,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int MAX_FAILURES = 20;
 
     private static final boolean[] SVA_LOGGED = new boolean[4];
-    /** Resolved once per SystemUI process; NO_ID disables the fast path in the draw hook. */
+    /** Resolved once per SystemUI process; 0 disables the fast path in the draw hook. */
     private static volatile int scrimIdBehind = View.NO_ID;
     private static volatile int scrimIdNotifications = View.NO_ID;
     private static volatile int scrimIdFront = View.NO_ID;
@@ -73,28 +73,40 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
         if (scrim == null) { Logs.log(TAG + ": ScrimView not found"); return; }
 
+        // onDraw runs on every SystemUI view, so non-scrim views must be rejected cheaply.
+        // Resource ids share one table per process, so the scrim class is asked for a Context
+        // through Class.forName instead of a framework-only helper. If nothing resolves, the
+        // fast path stays off and role() falls back to resource entry names.
         try {
-            // onDraw runs on every SystemUI view, so the role check must be free for non-scrim views.
-            android.content.res.Resources res = null;
+            android.content.Context ctx = null;
             try {
-                Object ar = XposedHelpers.callStaticMethod(
-                        XposedHelpers.findClassIfExists("android.app.AndroidResources", scrim.getClassLoader()),
-                        "getSystem");
-                if (ar instanceof android.content.res.Resources) res = (android.content.res.Resources) ar;
-            } catch (Throwable t) { res = null; }
-            if (res != null) {
+                Class<?> at = Class.forName("android.app.ActivityThread");
+                Object app = XposedHelpers.callStaticMethod(at, "currentApplication");
+                if (app instanceof android.content.Context) ctx = (android.content.Context) app;
+            } catch (Throwable t) { ctx = null; }
+            if (ctx != null) {
+                android.content.res.Resources res = ctx.getResources();
                 scrimIdBehind = res.getIdentifier("scrim_behind", "id", "com.android.systemui");
                 scrimIdNotifications = res.getIdentifier("scrim_notifications", "id", "com.android.systemui");
                 scrimIdFront = res.getIdentifier("scrim_in_front", "id", "com.android.systemui");
             }
+            if (scrimIdBehind == 0 && scrimIdNotifications == 0 && scrimIdFront == 0) {
+                Logs.log(TAG + ": scrim ids not resolved, fast path disabled");
+            }
+        } catch (Throwable t) { Logs.log(TAG + ": scrim id lookup failed: " + t); }
+        final boolean fastPath = scrimIdBehind != 0 || scrimIdNotifications != 0 || scrimIdFront != 0;
+        try {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     try {
                         if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
                         View v = (View) param.thisObject;
-                        int rawId = v.getId();
-                        if (rawId != scrimIdBehind && rawId != scrimIdNotifications && rawId != scrimIdFront) return;
+                        if (fastPath) {
+                            int rawId = v.getId();
+                            if (rawId != scrimIdBehind && rawId != scrimIdNotifications
+                                    && rawId != scrimIdFront) return;
+                        }
                         if (HookStatus.pending()) HookStatus.flush(v.getContext());
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);

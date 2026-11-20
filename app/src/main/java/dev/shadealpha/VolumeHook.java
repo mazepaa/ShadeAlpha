@@ -43,6 +43,8 @@ final class VolumeHook {
     private static Field[] colorFields;
     private static boolean colorFieldsFailed;
     private static volatile boolean trackLogged;
+    /** Extra-instance field holding {base colour, last written colour} for a GradientDrawable. */
+    private static final String BASE_KEY = "shadealpha_fillAlpha";
 
     private static volatile int idBackground;
     private static volatile int idRinger;
@@ -313,14 +315,16 @@ final class VolumeHook {
                                 Canvas canvas = (Canvas) p.args[0];
                                 if (canvas == null) return;
                                 Rect r = ((Drawable) p.thisObject).getBounds();
+                                // Record the save id before anything else can throw: the restore in
+                                // afterHookedMethod only runs when this extra is present.
                                 int save = canvas.save();
+                                p.setObjectExtra(EXTRA_SAVE, Integer.valueOf(save));
                                 // Move the canvas to the drawable origin so the overlap rect applies.
                                 canvas.translate(r.left, r.top);
                                 if (c.overlap(overlapRect)) {
                                     canvas.clipOutRect(overlapRect[0], overlapRect[1],
                                             overlapRect[2], overlapRect[3]);
                                 }
-                                p.setObjectExtra(EXTRA_SAVE, Integer.valueOf(save));
                             } catch (Throwable t) {
                                 if (++errors <= 3) Logs.log(TAG + ": volume cap draw failed: " + t);
                             }
@@ -372,26 +376,47 @@ final class VolumeHook {
         }
     }
 
-    /** Square "cap" of the panel behind the ringer row: it has a fill colour, not a solid one. */
+    /**
+     * Scales the fill colour of a GradientDrawable, which is where its opacity actually lives.
+     *
+     * The original colour ("base") and the value we last wrote ("applied") are kept on the
+     * drawable: when nobody else touched the colour, the base still applies to the new alpha,
+     * so moving the slider from 100% to 50% to 30% gives 30% instead of compounding. If the
+     * system changed the colour in between, that colour becomes the new base. Gradients have no
+     * fill colour and keep the native alpha path.
+     */
     private static void applyAlphaToColor(GradientDrawable g, int alpha) {
         try {
             Drawable.ConstantState cs = g.getConstantState();
             if (cs == null) return;
+            // A gradient drawable has no fill colour to scale; leave it on the native alpha path.
+            try {
+                Field grad = cs.getClass().getDeclaredField("mGradient");
+                grad.setAccessible(true);
+                if (grad.get(cs) != null) return;
+            } catch (NoSuchFieldException ignored) {
+                // Older builds have no such field; the fill colour path below is still valid.
+            }
             Field f = cs.getClass().getDeclaredField("mFillColor");
             f.setAccessible(true);
             Object v = f.get(cs);
             if (!(v instanceof android.content.res.ColorStateList)) return;
             android.content.res.ColorStateList list = (android.content.res.ColorStateList) v;
-            int color = list.getDefaultColor();
-            if (color == 0) return;
-            int base = (Integer) XposedHelpers.getAdditionalInstanceField(g, "shadealpha_fillBase") == null
-                    ? color : (Integer) XposedHelpers.getAdditionalInstanceField(g, "shadealpha_fillBase");
-            XposedHelpers.setAdditionalInstanceField(g, "shadealpha_fillBase", Integer.valueOf(base));
+            int cur = list.getDefaultColor();
+            if ((cur >>> 24) == 0 && (cur & 0x00FFFFFF) == 0) return;
+            int[] st = (int[]) XposedHelpers.getAdditionalInstanceField(g, BASE_KEY);
+            if (st == null || cur != st[1]) {
+                // First call, or the system replaced the colour: that colour is the new base.
+                st = new int[] {cur, cur};
+            }
+            int base = st[0];
             int na = (base >>> 24) * alpha / 255;
-            int next = (color & 0x00FFFFFF) | (na << 24);
-            if (next != color) g.setColor(android.content.res.ColorStateList.valueOf(next));
-        } catch (Throwable ignored) {
-            // Field names differ between builds; leaving the native alpha path is acceptable.
+            int next = (cur & 0x00FFFFFF) | (na << 24);
+            st[1] = next;
+            XposedHelpers.setAdditionalInstanceField(g, BASE_KEY, st);
+            if (next != cur) g.setColor(android.content.res.ColorStateList.valueOf(next));
+        } catch (Throwable t) {
+            if (++errors <= 3) Logs.log(TAG + ": volume fill alpha failed: " + t);
         }
     }
 }

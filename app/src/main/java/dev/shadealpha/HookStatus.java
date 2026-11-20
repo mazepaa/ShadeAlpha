@@ -41,6 +41,11 @@ final class HookStatus {
     private static int reportedFlag = 0;
     /** Last value this process wrote; -1 means it has not written yet. */
     private static int written = -1;
+    /**
+     * Try writing even without {@code canWrite}: on some builds the check lies about SystemUI and
+     * the row actually lands. Only a failed write turns this off for the rest of the process.
+     */
+    private static boolean probeWithoutPermission = true;
 
     private HookStatus() {}
 
@@ -73,6 +78,9 @@ final class HookStatus {
         }
         try {
             android.content.ContentResolver cr = c.getContentResolver();
+            if (!Settings.System.canWrite(c)) {
+                if (!probeWithoutPermission) return;
+            }
             int boot = bootCount(cr);
             int storedBoot = Settings.System.getInt(cr, Keys.HOOKS_BOOT, -1);
             int current = Settings.System.getInt(cr, Keys.HOOKS, 0);
@@ -86,7 +94,10 @@ final class HookStatus {
             Settings.System.putInt(cr, Keys.HOOKS_BOOT, boot);
         } catch (Throwable t) {
             synchronized (LOCK) {
-                written = -1;
+                // Stay silent for the rest of the process: a SecurityException on every frame
+                // would be far more expensive than losing the row.
+                written = -2;
+                probeWithoutPermission = false;
             }
             Logs.log(TAG + ": hook status write failed: " + t);
         }
@@ -105,5 +116,4 @@ final class HookStatus {
         synchronized (LOCK) {
             return bits != written;
         }
-    }
-}
+    }}

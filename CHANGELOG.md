@@ -2,43 +2,41 @@
 
 ## v3.5
 
-### 🇷🇺 Что нового
+### Что нового
 
-**🐛 Исправлено**
-- **Панель громкости больше не падает при смене режима звонка.** Подложка кнопок звонка снова остаётся настоящим `GradientDrawable`: раньше её подменяла обёртка, а системный `VolumeDialogRingerViewBinder` при анимации делает приведение к `GradientDrawable` — SystemUI падал с `ClassCastException`.
-- **Подложка звонка больше не обрезается у раскрытого ряда.** Раньше она обрезалась по высоте панели на всю ширину, и когда ряд кнопок раскрывался влево, у подложки срезался край. Теперь вычитается только та область, где подложка реально перекрыта фоном панели, поэтому выступающая часть рисуется целиком со скруглением, а тёмная полоса от двойного слоя не возвращается.
-- **Прозрачность фона панели громкости действительно применяется.** У `GradientDrawable` альфа хранится в цвете заливки, где `setAlpha` ничего не делает — теперь цвет масштабируется явно.
-- **Убран эффект «застрявшего» фона экрана блокировки.** Если после снятия блокировки система перестаёт сообщать состояние перехода, флаг сам сбрасывается через 1.5 с, и фон продолжает перекрашиваться.
-- **Слайдеры не рассинхронизируются при неудачной записи.** Если значение не удалось записать в `Settings.System`, ползунок возвращается к исходному положению, а не остаётся на новом.
+**Исправлено**
+- SystemUI больше не падает при смене режима звонка (звук / вибрация / без звука). Подложка кнопок звонка снова остаётся настоящим `GradientDrawable`: обёртка над ним ломала системное приведение типа при анимации.
+- Подложка звонка больше не обрезается у раскрытого ряда кнопок. Вычитается только та область, где подложку перекрывает фон панели, поэтому выступающая часть рисуется целиком, со скруглением, и тёмная полоса от двойного слоя не возвращается.
+- Прозрачность фона панели громкости действительно применяется: у `GradientDrawable` прозрачность хранится в цвете заливки, и прежний вызов её не менял.
+- Фон экрана блокировки больше не «застревает», если система перестала сообщать состояние перехода: флаг сбрасывается сам через 1.5 с.
+- Если значение ползунка не удалось записать в систему, ползунок возвращается к прежнему положению вместо рассинхрона.
 
-**✨ Изменено**
-- **У слайдеров нет всплывающих пузырьков с числом.** Процент остаётся строкой под названием и обновляется в реальном времени — лишний слой над дорожкой убран.
-- **Раскрытие групп в настройках стала плавнее и предсказуемее** (карточка растёт, содержимое проявляется, 180 мс).
-- **Роль скрима определяется только по id** (`scrim_behind`, `scrim_notifications`, `scrim_in_front`), без угадывания по геометрии — на планшетах и складных устройствах не перепутается верх и низ.
-- **Меньше накладных расходов на кадр:** глобальный хук `onDraw` сразу отсекает вьюхи не-скримов по id, а не пересчитывает роль.
-- **Все комментарии в коде переведены на короткий английский** — так модуль проще сопровождать. Русские строки интерфейса остались на месте.
+**Изменено**
+- У слайдеров больше нет всплывающих пузырьков с числом: процент показывается строкой под названием и обновляется на лету.
+- Роль скрима определяется по id (`scrim_behind`, `scrim_notifications`, `scrim_in_front`) без угадывания по геометрии — на планшетах и складных экранах верх и низ не перепутаются.
+- Меньше работы на кадр: глобальный хук `onDraw` сразу отбрасывает вьюхи, которые не являются скримами.
 
-**🔧 Прочее**
+**Прочее**
 - `versionCode 55`, `versionName 3.5`.
+- Комментарии в коде переведены на английский, русские строки интерфейса сохранены.
 
-### 🇬🇧 What's new
+### What's new
 
-**🐛 Fixed**
-- **The volume panel no longer crashes when switching the ringer mode.** The call-button backdrop stays a real `GradientDrawable`: a wrapper used to replace it, and the system's `VolumeDialogRingerViewBinder` casts that background while animating, which took SystemUI down with a `ClassCastException`.
-- **The ringer backdrop is no longer cut off when the row is expanded.** It used to be clipped by the panel height across the full width, so the part sticking out beside the panel lost its edge. Now only the area actually covered by the panel background is removed, so the protruding part is drawn whole with its rounded corners, and the dark band from the double layer does not come back.
-- **Panel background transparency now really applies.** A `GradientDrawable` keeps opacity in its fill colour, where `setAlpha` is a no-op - the colour is now scaled explicitly.
-- **No more stuck lock-screen background.** If the system stops reporting the bouncer transition, the flag clears itself after 1.5 s and the background keeps repainting.
-- **Sliders no longer desynchronise on a failed write.** When the value cannot be written to `Settings.System`, the slider rolls back to its original position instead of staying on the new one.
+**Fixed**
+- SystemUI no longer crashes when switching the ringer mode (sound / vibration / silent). The call-button backdrop stays a real `GradientDrawable`; the wrapper around it broke the system's own cast during the animation.
+- The ringer backdrop is no longer cut off when the button row is expanded. Only the area covered by the panel background is removed, so the protruding part is drawn whole with its rounded corners, and the dark band from the double layer does not come back.
+- Panel background transparency really applies now: a `GradientDrawable` keeps its opacity in the fill colour, which the previous call never changed.
+- The lock-screen background no longer gets stuck when the system stops reporting the transition state: the flag clears itself after 1.5 s.
+- When a slider value cannot be written to the system, the slider rolls back to its previous position instead of drifting out of sync.
 
-**✨ Changed**
-- **No more floating value bubbles above the sliders.** The percentage stays as a line under the label and updates live.
-- **Group opening in the settings is smoother and more predictable** (the card grows, the content fades in, 180 ms).
-- **The scrim role comes from the view id only** (`scrim_behind`, `scrim_notifications`, `scrim_in_front`), no geometry guessing, so tablets and foldables cannot get top and bottom swapped.
-- **Less per-frame work:** the global `onDraw` hook rejects non-scrim views by id instead of recomputing a role.
-- **All code comments are short English** to make the module easier to maintain. Russian UI strings are untouched.
+**Changed**
+- Sliders no longer show floating value bubbles: the percentage is a line under the label, updated live.
+- The scrim role comes from the view id (`scrim_behind`, `scrim_notifications`, `scrim_in_front`) with no geometry guessing, so tablets and foldables cannot swap top and bottom.
+- Less per-frame work: the global `onDraw` hook rejects views that are not scrims right away.
 
-**🔧 Other**
+**Other**
 - `versionCode 55`, `versionName 3.5`.
+- Code comments are in English; the Russian UI strings are unchanged.
 
 ## v3.4
 
@@ -56,7 +54,7 @@
 ### 🇷🇺 Что нового
 
 **🐛 Исправлено**
-- Убран зелёный «флеш» скрима сразу после разблокировки: 500 мс после снятия keyguard скримы `scrim_behind` / `scrim_in_front` держатся в нуле, и окно закрывается досрочно, как только система догасила анимацию.
+- Убран «флеш» скрима сразу после разблокировки: 500 мс после снятия keyguard скримы `scrim_behind` / `scrim_in_front` держатся в нуле, и окно закрывается досрочно, как только система догасила анимацию.
 - Статус хуков больше не «залипает» после перезагрузки: рядом с маской пишется `boot_count`, после ребута показывается «статус устарел».
 - Роль скрима пересчитывается при изменении размера View (поворот, планшет, складной экран).
 - Настройки читаются через один кэш (`Prefs`) вместо двух параллельных.
@@ -81,7 +79,7 @@
 ### 🇬🇧 What's new
 
 **🐛 Fixed**
-- The green scrim flash right after unlocking is gone: `scrim_behind` / `scrim_in_front` stay at zero for 500 ms after the keyguard is dismissed, and the window ends as soon as the system finishes the fade.
+- The scrim flash right after unlocking is gone: `scrim_behind` / `scrim_in_front` stay at zero for 500 ms after the keyguard is dismissed, and the window ends as soon as the system finishes the fade.
 - The hook status no longer survives a reboot as truth: the mask is stored together with `boot_count` and a different boot is reported as stale.
 - The scrim role is recomputed when the view size changes (rotation, tablets, foldables).
 - Settings are read through one shared cache instead of two.

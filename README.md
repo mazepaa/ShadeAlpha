@@ -25,11 +25,11 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 ## What's new in v3.5
 
-- 🐛 **The volume panel no longer crashes when switching the ringer mode:** the call-button backdrop stays a real `GradientDrawable`, so the system's own cast keeps working through a sound / vibration / silent switch.
-- 🐛 **The ringer backdrop is no longer cut off:** it is drawn whole and only the area covered by the panel background is removed, so the rounded corners survive when the row expands and the dark band does not come back.
-- 🐛 **Panel background transparency now really applies** (the `GradientDrawable` fill colour is scaled, since `setAlpha` does nothing on it).
-- ✨ **No floating value bubbles above the sliders** — the percentage is a line under the label.
-- ✨ **Smoother group opening** in the settings, with the scrim role taken from the view id instead of guessing by geometry.
+- **No SystemUI crash on the ringer mode switch.** Changing between sound, vibration and silent no longer restarts the system UI: the call-button backdrop stays the system's own drawable and is only clipped while drawing.
+- **The ringer backdrop is no longer cut off** when the button row expands: only the part covered by the panel is removed, so the protruding edge keeps its rounded corner and the dark band does not come back.
+- **The panel background slider now really works** - it used to write a value the system ignored.
+- **No floating number bubbles above the sliders** - the percentage stays as a line under the label.
+- **Smaller fixes:** a slider rolls back if its value cannot be saved, the lock screen background no longer sticks, and the scrim role is taken from the view id instead of guessing by geometry.
 
 ## Features
 
@@ -110,11 +110,11 @@ apksigner verify --print-certs ShadeAlpha-3.5.apk
 
 ## Что нового в v3.5
 
-- 🐛 **SystemUI больше не падает при смене режима звонка:** подложка кнопок звонка остаётся настоящим `GradientDrawable`, поэтому собственный каст системы продолжает работать при переключении звук / вибрация / без звука.
-- 🐛 **Подложка звонка больше не обрезается:** она рисуется целиком, а вычитается только область под фоном панели — скругление сохраняется в раскрытом ряду, тёмная полоса не возвращается.
-- 🐛 **Прозрачность фона панели теперь действительно применяется** (масштабируется цвет заливки `GradientDrawable`, потому что `setAlpha` на нём ничего не делает).
-- ✨ **У слайдеров нет всплывающих пузырьков с числом** — процент остаётся строкой под названием.
-- ✨ **Плавнее раскрываются группы в настройках**, а роль скрима берётся по id, без угадывания по геометрии.
+- **SystemUI не перезапускается при смене режима звонка.** Переключение между звуком, вибрацией и без звука больше не роняет системный интерфейс: подложка кнопок звонка остаётся родной, плагин только подрезает её при отрисовке.
+- **Подложка звонка не обрезается**, когда ряд кнопок раскрывается: вырезается только место под панелью, поэтому выступающий край сохраняет скругление и тёмная полоса не возвращается.
+- **Ползунок «Фон панели» теперь действительно работает** — раньше он записывал значение, которое система игнорировала.
+- **Над слайдерами больше нет всплывающих кружков с числом** — процент остаётся строкой под названием.
+- **Мелочи:** ползунок возвращается назад, если значение не сохранилось; фон экрана блокировки больше не застревает; роль скрима определяется по id, без угадывания по геометрии.
 
 ## Возможности
 

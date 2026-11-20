@@ -586,120 +586,64 @@ public class SettingsActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
 
             if (open[0]) {
-                expandBody(card, header, body);
+                revealSliders(card, header, body);
             } else {
-                collapseBody(card, header, body);
+                hideSliders(card, body);
             }
         });
         return body;
     }
 
     /**
-     * Reveals the body by animating the card height with a clip, never touching layout.
-     *
-     * The previous attempts traded one artefact for another: a height animation needs a layout
-     * pass per frame (stepped), a clip inside the body moved the content relative to the clip
-     * (the header seemed to pass through). Here the body is laid out once at full size and
-     * pushed down inside the card, whose own height is animated. The clip lives on the card and
-     * starts exactly below the header, so the header never moves and the content is uncovered
-     * line by line underneath it.
+     * Tap on the header: the body appears instantly and the rows slide out from behind the
+     * header on their own, one after another. Nothing fades and the height does not change, so
+     * the layout never re-measures during the motion. The card clips them while they travel, so
+     * each row is really uncovered from under the header instead of floating over it.
      */
-    private void expandBody(final View card, final View header, final View body) {
+    private void revealSliders(final View card, final View header, final View body) {
         body.animate().cancel();
-        card.animate().cancel();
+        body.setAlpha(1f);
+        body.setTranslationY(0f);
         body.setVisibility(View.VISIBLE);
-        body.setAlpha(0f);
         card.post(() -> {
-            final int headerH = header.getHeight();
-            final int natural = measureNaturalHeight(body);
-            if (natural <= 0) {
-                body.setAlpha(1f);
-                return;
+            int headerBottom = header.getHeight();
+            int cardH = card.getHeight();
+            card.setClipBounds(new Rect(0, 0,
+                    card.getWidth() > 0 ? card.getWidth() : cardH, cardH));
+            int bodyTop = headerBottom;
+            final int n = body.getChildCount();
+            for (int i = 0; i < n; i++) {
+                View child = body.getChildAt(i);
+                child.animate().cancel();
+                child.setAlpha(1f);
+                // Push the row above the header line: the card clip hides it there.
+                child.setTranslationY(-(child.getTop() + bodyTop + child.getHeight()));
             }
-            final int target = headerH + natural;
-            card.getLayoutParams().height = headerH;
-            card.requestLayout();
-            card.post(() -> {
-                applyCardReveal(card, headerH, headerH);
-                body.setTranslationY(natural / 2f);
-                body.animate()
-                        .alpha(1f)
+            // Keep the whole cascade under ~340 ms whatever the number of rows.
+            long step = Math.max(25L, Math.min(55L, 240L / Math.max(1, n)));
+            for (int i = 0; i < n; i++) {
+                final View child = body.getChildAt(i);
+                child.animate()
                         .translationY(0f)
-                        .setDuration(200)
+                        .setStartDelay(40L + i * step)
+                        .setDuration(240)
                         .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                        .setUpdateListener(a -> body.setTranslationY((natural / 2f) * (1f - a.getAnimatedFraction())))
                         .start();
-                card.animate()
-                        .setDuration(220)
-                        .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                        .setUpdateListener(a -> {
-                            float f = a.getAnimatedFraction();
-                            int h = (int) (headerH + (target - headerH) * f);
-                            card.getLayoutParams().height = h;
-                            card.requestLayout();
-                            applyCardReveal(card, headerH, h);
-                        })
-                        .withEndAction(() -> {
-                            card.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                            card.setClipBounds(null);
-                            card.requestLayout();
-                            body.setAlpha(1f);
-                            body.setTranslationY(0f);
-                        })
-                        .start();
-            });
+            }
         });
     }
-
-    private void collapseBody(final View card, final View header, final View body) {
+    /** Collapse: rows are hidden at once, no animation. */
+    private void hideSliders(final View card, final View body) {
+        card.setClipBounds(null);
         body.animate().cancel();
-        card.animate().cancel();
-        final int headerH = header.getHeight();
-        final int start = card.getHeight();
-        if (start <= headerH) {
-            body.setVisibility(View.GONE);
-            return;
+        for (int i = 0; i < body.getChildCount(); i++) {
+            View child = body.getChildAt(i);
+            child.animate().cancel();
+            child.setTranslationY(0f);
+            child.setAlpha(1f);
         }
-        card.getLayoutParams().height = start;
-        card.requestLayout();
-        card.animate()
-                .setDuration(160)
-                .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .setUpdateListener(a -> {
-                    float f = a.getAnimatedFraction();
-                    int h = (int) (start - (start - headerH) * f);
-                    card.getLayoutParams().height = h;
-                    card.requestLayout();
-                    applyCardReveal(card, headerH, h);
-                })
-                .withEndAction(() -> {
-                    body.setVisibility(View.GONE);
-                    card.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    card.setClipBounds(null);
-                    card.requestLayout();
-                    body.setAlpha(1f);
-                    body.setTranslationY(0f);
-                })
-                .start();
+        body.setVisibility(View.GONE);
     }
-
-    /** Clips the card to everything above the body start, i.e. the header plus what has opened. */
-    private void applyCardReveal(View card, int headerHeight, int cardHeight) {
-        int w = card.getWidth() > 0 ? card.getWidth() : getWindowWidth();
-        card.setClipBounds(new Rect(0, 0, w, Math.max(headerHeight, cardHeight)));
-    }
-    private int measureNaturalHeight(View view) {
-        int width = view.getWidth();
-        if (width <= 0) width = getWindowWidth();
-        view.measure(
-                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-        return view.getMeasuredHeight();
-    }
-    private int getWindowWidth() {
-        return getResources().getDisplayMetrics().widthPixels - dp(48);
-    }
-
     private Slider addSlider(LinearLayout root, String label, final String key) {
         final TextView value = text("", 16, false);
         final Slider slider = new Slider(this);

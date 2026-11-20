@@ -22,7 +22,7 @@ android {
         applicationId "dev.shadealpha"
         minSdk 31
         targetSdk 36
-        versionCode 45
+        versionCode 46
         versionName "3.5"
         resConfigs "en", "ru"
     }

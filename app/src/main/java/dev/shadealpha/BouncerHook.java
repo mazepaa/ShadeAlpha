@@ -220,7 +220,7 @@ final class BouncerHook {
      *
      * {@code onDraw} runs on every frame, so the alpha must always be computed from the original
      * colour: multiplying the current value again would fade the background to nothing within a
-     * few frames (255 → 128 → 64 → …). The original value is remembered on the drawable itself and
+     * few frames (255 -> 128 -> 64 -> ...). The original value is remembered on the drawable itself and
      * re-read whenever the system replaces the colour.
      */
     static void apply(XC_MethodHook.MethodHookParam param) {

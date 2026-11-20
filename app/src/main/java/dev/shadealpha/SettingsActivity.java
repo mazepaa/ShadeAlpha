@@ -745,7 +745,7 @@ public class SettingsActivity extends AppCompatActivity {
         StringBuilder sb = new StringBuilder(t("Хуки:", "Hooks:"));
         sb.append('\n').append(hookLine(t("Шторка", "Shade"), HookStatus.SHADE, mask, sysUi));
         // The lock screen background can only be found once it has been drawn, so a reported
-        // process without the bit is not a failure: show ❓ until the first lock screen show.
+        // process without the bit is not a failure: show the question mark until the first lock screen.
         sb.append('\n').append(hookLine(t("Экран блокировки", "Lock screen"), HookStatus.BOUNCER, mask, sysUi, true));
         sb.append('\n').append(hookLine(t("Панель громкости", "Volume panel"), HookStatus.VOLUME, mask, sysUi));
         sb.append('\n').append(hookLine(t("Ползунок громкости", "Volume slider"), HookStatus.VOLUME_TRACK, mask, sysUi));

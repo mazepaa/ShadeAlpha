@@ -273,7 +273,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
 
     /**
      * PIN slider drives TOP/FRONT only while the device keyguard is locked.
-     * Unlocked home / QS always use the TOP slider — never the PIN value.
+     * Unlocked home / QS always use the TOP slider, never the PIN value.
      */
     private static boolean useBouncerForTop(Context c) {
         return isKeyguardLocked(c);

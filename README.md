@@ -23,13 +23,13 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.5
+## What's new in v3.5 hotfix
 
-- **No SystemUI crash on the ringer mode switch.** Changing between sound, vibration and silent no longer restarts the system UI: the call-button backdrop stays the system's own drawable and is only clipped while drawing.
-- **The ringer backdrop is no longer cut off** when the button row expands: only the part covered by the panel is removed, so the protruding edge keeps its rounded corner and the dark band does not come back.
-- **The panel background slider now really works** - it used to write a value the system ignored.
-- **No floating number bubbles above the sliders** - the percentage stays as a line under the label.
-- **Smaller fixes:** a slider rolls back if its value cannot be saved, the lock screen background no longer sticks, and the scrim role is taken from the view id instead of guessing by geometry.
+- **Panel background alpha no longer stacks.** Moving the slider from 100% to 50% and then to 30% now gives exactly 30%: the original colour and the written value are tracked together, so the panel cannot stay on an old value any more.
+- **The shade keeps working on ROMs without the internal resource class.** Resource ids now come from the app context; if they cannot be resolved the fast path is switched off with a log line instead of silently skipping every scrim.
+- **The hook-status row cannot hammer the system.** Without write permission it is written at most once per process instead of on every frame.
+- **Safer drawing.** The canvas is saved before the clip, so a failing frame can never leave the state behind.
+- Everything from 3.5 stays: the ringer-mode crash is gone, the backdrop is not cut off, the panel background slider works, and the value bubbles are not shown.
 
 ## Features
 
@@ -48,7 +48,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 ## Installation
 
-1. Install `ShadeAlpha-3.5.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-3.5.1.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha**.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent. Check the **Hooks:** line — every entry should be ✅.
@@ -56,7 +56,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 All releases are signed with the same key, so updates install over the previous version. To check an APK you did not download from Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.5.apk
+apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 
@@ -108,13 +108,13 @@ apksigner verify --print-certs ShadeAlpha-3.5.apk
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.5
+## Что нового в v3.5 hotfix
 
-- **SystemUI не перезапускается при смене режима звонка.** Переключение между звуком, вибрацией и без звука больше не роняет системный интерфейс: подложка кнопок звонка остаётся родной, плагин только подрезает её при отрисовке.
-- **Подложка звонка не обрезается**, когда ряд кнопок раскрывается: вырезается только место под панелью, поэтому выступающий край сохраняет скругление и тёмная полоса не возвращается.
-- **Ползунок «Фон панели» теперь действительно работает** — раньше он записывал значение, которое система игнорировала.
-- **Над слайдерами больше нет всплывающих кружков с числом** — процент остаётся строкой под названием.
-- **Мелочи:** ползунок возвращается назад, если значение не сохранилось; фон экрана блокировки больше не застревает; роль скрима определяется по id, без угадывания по геометрии.
+- **Прозрачность фона панели больше не накапливается.** Ползунок 100% → 50% → 30% даёт ровно 30%: исходный цвет и записанное значение хранятся вместе, панель больше не застревает на старом проценте.
+- **Шторка работает и на прошивках без внутреннего класса ресурсов.** Id теперь берутся из контекста приложения; если их не удалось получить, быстрый отбор отключается с записью в лог, а не молча пропускает все скримы.
+- **Строка статуса хуков больше не долбит систему.** Без разрешения на запись она пишется не чаще одного раза за процесс, а не каждый кадр.
+- **Безопаснее отрисовка.** Canvas сохраняется до обрезки, поэтому сбойный кадр не оставит после себя изменённое состояние.
+- Всё из 3.5 на месте: падение при смене режима звонка убрано, подложка не обрезается, ползунок фона панели работает, всплывающих кружков с числом нет.
 
 ## Возможности
 
@@ -133,7 +133,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.apk
 
 ## Установка
 
-1. Установи `ShadeAlpha-3.5.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-3.5.1.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha**.
 3. Открой приложение и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее. Проверь строку **«Хуки:»** — все пункты должны быть ✅.
@@ -141,7 +141,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.apk
 Все релизы подписаны одним ключом, поэтому обновление встаёт поверх. Проверить APK, скачанный не из Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.5.apk
+apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 

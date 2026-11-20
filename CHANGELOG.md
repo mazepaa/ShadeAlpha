@@ -1,5 +1,31 @@
 # ShadeAlpha — Changelog
 
+## v3.5 hotfix
+
+### Что нового
+
+**Исправлено**
+- Прозрачность фона панели громкости больше не накапливается: раньше исходный цвет запоминался один раз, и после 100% → 50% → 30% панель оставалась на промежуточном значении. Теперь исходный цвет и записанное значение хранятся вместе, и ползунок каждый раз даёт ровно заданный процент.
+- Шторка не пропадает на прошивках, где не находится внутренний класс ресурсов: id скримов теперь берутся из контекста приложения, а при неудаче быстрый отбор отключается с записью в лог вместо тихого пропуска всех скримов.
+- Строка статуса хуков больше не пытается писать в систему на каждом кадре: без разрешения на запись — не чаще одного раза за процесс.
+- Отрисовка подложки звонка безопаснее: состояние canvas сохраняется до обрезки, поэтому сбойный кадр не оставляет после себя изменённое состояние.
+
+**Прочее**
+- `versionCode 56`, `versionName 3.5.1`.
+- Всё из 3.5 сохранено: смена режима звонка не роняет SystemUI, подложка звонка не обрезается, ползунок фона панели работает, всплывающих кружков с числом над слайдерами нет.
+
+### What's new
+
+**Fixed**
+- Panel background alpha no longer stacks: the original colour used to be remembered once, so 100% -> 50% -> 30% left the panel on an intermediate value. The original colour and the written value are now tracked together, and the slider always produces exactly the chosen percentage.
+- The shade no longer disappears on ROMs where the internal resource class cannot be found: the scrim ids are taken from the application context, and if that fails the fast path is switched off with a log line instead of silently skipping every scrim.
+- The hook-status row no longer tries to write to the system on every frame: without write permission it is written at most once per process.
+- Drawing the ringer backdrop is safer: the canvas state is saved before the clip, so a failing frame cannot leave modified state behind.
+
+**Other**
+- `versionCode 56`, `versionName 3.5.1`.
+- Everything from 3.5 stays: the ringer-mode switch does not crash SystemUI, the backdrop is not cut off, the panel background slider works, and the value bubbles are not shown.
+
 ## v3.5
 
 ### Что нового

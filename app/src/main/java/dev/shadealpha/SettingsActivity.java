@@ -5,7 +5,6 @@ import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -13,6 +12,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.transition.AutoTransition;
+import android.transition.TransitionManager;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -585,68 +586,13 @@ public class SettingsActivity extends AppCompatActivity {
             prefs.edit().putBoolean(prefKey, open[0]).apply();
             v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
 
-            if (open[0]) {
-                revealSliders(card, header, body);
-            } else {
-                hideSliders(card, body);
-            }
+            // Fade + slide handled by the platform transition: the card grows, content fades in.
+            TransitionManager.beginDelayedTransition(root, new AutoTransition().setDuration(180));
+            body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
         });
         return body;
     }
 
-    /**
-     * Tap on the header: the body appears at once and the rows slide down from under the header,
-     * one after another. Nothing fades and the height does not change, so the layout never
-     * re-measures during the motion. The body clips its own content with a rectangle that starts
-     * at zero height and grows, which hides every row until its turn to slide in.
-     */
-    private void revealSliders(final View card, final View header, final ViewGroup body) {
-        body.animate().cancel();
-        body.setAlpha(1f);
-        body.setTranslationY(0f);
-        body.setVisibility(View.VISIBLE);
-        card.post(() -> {
-            final int n = body.getChildCount();
-            final int clipWidth = body.getWidth() > 0 ? body.getWidth() : card.getWidth();
-            // Every row starts above the clipping edge, so nothing is on screen yet.
-            for (int i = 0; i < n; i++) {
-                View child = body.getChildAt(i);
-                child.animate().cancel();
-                child.setAlpha(1f);
-                child.setTranslationY(-(child.getTop() + child.getHeight() + dp(24)));
-            }
-            body.setClipBounds(new Rect(0, 0, clipWidth, 0));
-            final long step = Math.max(25L, Math.min(55L, 240L / Math.max(1, n)));
-            final long total = 40L + step * n + 240L;
-            body.animate()
-                    .setDuration(total)
-                    .setInterpolator(new android.view.animation.LinearInterpolator())
-                    .setUpdateListener(a -> body.setClipBounds(new Rect(0, 0, clipWidth,
-                            (int) (body.getHeight() * a.getAnimatedFraction()))))
-                    .withEndAction(() -> body.setClipBounds(null))
-                    .start();
-            for (int i = 0; i < n; i++) {
-                body.getChildAt(i).animate()
-                        .translationY(0f)
-                        .setStartDelay(40L + i * step)
-                        .setDuration(240)
-                        .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                        .start();
-            }
-        });
-    }
-    /** Collapse: rows are hidden at once, no animation. */
-    private void hideSliders(final View card, final ViewGroup body) {
-        body.animate().cancel();
-        body.setClipBounds(null);
-        for (int i = 0; i < body.getChildCount(); i++) {
-            View child = body.getChildAt(i);
-            child.animate().cancel();
-            child.setTranslationY(0f);
-            child.setAlpha(1f);
-        }
-        body.setVisibility(View.GONE);
-    }
     private Slider addSlider(LinearLayout root, String label, final String key) {
         final TextView value = text("", 16, false);
         final Slider slider = new Slider(this);

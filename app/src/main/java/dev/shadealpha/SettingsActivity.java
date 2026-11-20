@@ -595,10 +595,10 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * Tap on the header: the body appears instantly and the rows slide out from behind the
-     * header on their own, one after another. Nothing fades and the height does not change, so
-     * the layout never re-measures during the motion. The card clips them while they travel, so
-     * each row is really uncovered from under the header instead of floating over it.
+     * Tap on the header: the body appears at once and the rows slide down from under the header,
+     * one after another. Nothing fades and the height does not change, so the layout never
+     * re-measures during the motion. The body clips its own content with a rectangle that starts
+     * at zero height and grows, which hides every row until its turn to slide in.
      */
     private void revealSliders(final View card, final View header, final View body) {
         body.animate().cancel();
@@ -606,24 +606,27 @@ public class SettingsActivity extends AppCompatActivity {
         body.setTranslationY(0f);
         body.setVisibility(View.VISIBLE);
         card.post(() -> {
-            int headerBottom = header.getHeight();
-            int cardH = card.getHeight();
-            card.setClipBounds(new Rect(0, 0,
-                    card.getWidth() > 0 ? card.getWidth() : cardH, cardH));
-            int bodyTop = headerBottom;
             final int n = body.getChildCount();
+            final int clipWidth = body.getWidth() > 0 ? body.getWidth() : card.getWidth();
+            // Every row starts above the clipping edge, so nothing is on screen yet.
             for (int i = 0; i < n; i++) {
                 View child = body.getChildAt(i);
                 child.animate().cancel();
                 child.setAlpha(1f);
-                // Push the row above the header line: the card clip hides it there.
-                child.setTranslationY(-(child.getTop() + bodyTop + child.getHeight()));
+                child.setTranslationY(-(child.getTop() + child.getHeight() + dp(24)));
             }
-            // Keep the whole cascade under ~340 ms whatever the number of rows.
-            long step = Math.max(25L, Math.min(55L, 240L / Math.max(1, n)));
+            body.setClipBounds(new Rect(0, 0, clipWidth, 0));
+            final long step = Math.max(25L, Math.min(55L, 240L / Math.max(1, n)));
+            final long total = 40L + step * n + 240L;
+            body.animate()
+                    .setDuration(total)
+                    .setInterpolator(new android.view.animation.LinearInterpolator())
+                    .setUpdateListener(a -> body.setClipBounds(new Rect(0, 0, clipWidth,
+                            (int) (body.getHeight() * a.getAnimatedFraction()))))
+                    .withEndAction(() -> body.setClipBounds(null))
+                    .start();
             for (int i = 0; i < n; i++) {
-                final View child = body.getChildAt(i);
-                child.animate()
+                body.getChildAt(i).animate()
                         .translationY(0f)
                         .setStartDelay(40L + i * step)
                         .setDuration(240)
@@ -634,8 +637,8 @@ public class SettingsActivity extends AppCompatActivity {
     }
     /** Collapse: rows are hidden at once, no animation. */
     private void hideSliders(final View card, final View body) {
-        card.setClipBounds(null);
         body.animate().cancel();
+        body.setClipBounds(null);
         for (int i = 0; i < body.getChildCount(); i++) {
             View child = body.getChildAt(i);
             child.animate().cancel();

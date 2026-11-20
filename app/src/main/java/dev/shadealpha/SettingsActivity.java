@@ -12,8 +12,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.transition.AutoTransition;
-import android.transition.TransitionManager;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -584,11 +582,97 @@ public class SettingsActivity extends AppCompatActivity {
         header.setOnClickListener(v -> {
             open[0] = !open[0];
             prefs.edit().putBoolean(prefKey, open[0]).apply();
-            TransitionManager.beginDelayedTransition(root, new AutoTransition().setDuration(180));
-            body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
             v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+
+            if (open[0]) {
+                expandBody(body);
+            } else {
+                collapseBody(body);
+            }
         });
         return body;
+    }
+
+    /**
+     * Grows the group body from zero height with a fade, so a tap on the header reads as one
+     * movement instead of a jump cut. Only the body height is animated: the card is already
+     * laid out at its new position, so nothing above it shifts while the body is growing.
+     */
+    private void expandBody(final View body) {
+        body.animate().cancel();
+        body.setVisibility(View.VISIBLE);
+        body.setAlpha(0f);
+        body.setTranslationY(-dp(6));
+        // Height is animated through the layout params; the final value is WRAP_CONTENT again.
+        body.getLayoutParams().height = 0;
+        body.requestLayout();
+        body.post(() -> {
+            final int natural = measureNaturalHeight(body);
+            if (natural <= 0) {
+                body.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                body.setAlpha(1f);
+                body.setTranslationY(0f);
+                body.requestLayout();
+                return;
+            }
+            body.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .setUpdateListener(a -> {
+                        body.getLayoutParams().height =
+                                (int) (natural * a.getAnimatedFraction());
+                        body.requestLayout();
+                    })
+                    .withEndAction(() -> {
+                        body.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                        body.requestLayout();
+                    })
+                    .start();
+        });
+    }
+
+    private void collapseBody(final View body) {
+        body.animate().cancel();
+        final int start = body.getHeight();
+        if (start <= 0) {
+            body.setVisibility(View.GONE);
+            return;
+        }
+        body.getLayoutParams().height = start;
+        body.requestLayout();
+        body.animate()
+                .alpha(0f)
+                .translationY(-dp(6))
+                .setDuration(160)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .setUpdateListener(a -> {
+                    body.getLayoutParams().height =
+                            (int) (start * (1f - a.getAnimatedFraction()));
+                    body.requestLayout();
+                })
+                .withEndAction(() -> {
+                    body.setVisibility(View.GONE);
+                    body.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    body.setAlpha(1f);
+                    body.setTranslationY(0f);
+                    body.requestLayout();
+                })
+                .start();
+    }
+
+    private int measureNaturalHeight(View view) {
+        int width = view.getWidth();
+        if (width <= 0) width = getWindowWidth();
+        view.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        return view.getMeasuredHeight();
+    }
+
+    private int getWindowWidth() {
+        return getResources().getDisplayMetrics().widthPixels - dp(48);
     }
 
     private Slider addSlider(LinearLayout root, String label, final String key) {
@@ -600,7 +684,7 @@ public class SettingsActivity extends AppCompatActivity {
         slider.setStepSize(5f);
         slider.setTickVisible(false);
         slider.setTrackStopIndicatorSize(0);
-        slider.setLabelBehavior(com.google.android.material.slider.LabelFormatter.LABEL_VISIBLE);
+        slider.setLabelBehavior(com.google.android.material.slider.LabelFormatter.LABEL_GONE);
 
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));

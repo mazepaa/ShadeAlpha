@@ -20,6 +20,9 @@ final class BouncerHook {
     private static volatile WeakReference<View> containerRef;
     private static volatile int scrimState = STATE_OTHER, statusBarState;
     private static volatile boolean keyguardShowing, containerVisible, bouncerToGoneTransitionRunning;
+    /** When the flag was last seen true; a stuck flag is cleared after {@link #BOUNCER_TO_GONE_MAX_MS}. */
+    private static volatile long bouncerToGoneAt;
+    private static final long BOUNCER_TO_GONE_MAX_MS = 1500;
     private static volatile float shadeExpansionFraction;
     private static volatile long unlockTransitionStartedAt;
     private static int errors;
@@ -392,7 +395,16 @@ final class BouncerHook {
                 Logs.log(TAG + ": STATE_TRANSITION code=" + code + " keyguard=" + keyguardShowing);            }
             try {
                 Object f = XposedHelpers.getObjectField(controller, "mIsBouncerToGoneTransitionRunning");
-                if (f instanceof Boolean) bouncerToGoneTransitionRunning = (Boolean) f;
+                // A missing field must not freeze the flag at true, or the lock screen never repaints again.
+                if (f instanceof Boolean) {
+                    bouncerToGoneTransitionRunning = (Boolean) f;
+                    if (bouncerToGoneTransitionRunning) bouncerToGoneAt = SystemClock.uptimeMillis();
+                } else {
+                    long age = SystemClock.uptimeMillis() - bouncerToGoneAt;
+                    if (bouncerToGoneTransitionRunning && age > BOUNCER_TO_GONE_MAX_MS) {
+                        bouncerToGoneTransitionRunning = false;
+                    }
+                }
             } catch (Throwable t) { logOnce("optional SystemUI field", t); }
         } catch (Throwable t) {
             if (++errors <= 5) Logs.log(TAG + ": STATE_TRANSITION_ERROR " + t);

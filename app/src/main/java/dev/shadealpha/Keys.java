@@ -24,6 +24,6 @@ public class Keys {
     public static final int MODE_VIEW_ALPHA = 1;
     public static final int MODE_SCRIM_ALPHA = 2;
 
-    /** Подменяется хуком в процессе самого приложения (нужно включить ShadeAlpha в области модуля). */
+    /** Replaced by a hook inside the app process (requires ShadeAlpha in the module scope). */
     public static boolean isModuleActive() { return Boolean.parseBoolean(System.getProperty("shadealpha.never")); }
 }

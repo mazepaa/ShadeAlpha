@@ -6,10 +6,10 @@ import android.provider.Settings;
 /**
  * The single switch for everything this module writes to the Vector log.
  *
- * The settings screen writes a {@code Settings.System} flag; {@link #log} and {@link #logAlways}
- * are the only places that call {@code XposedBridge.log}, so with the switch off the module
- * writes nothing at all. A cached boolean is refreshed at most once a second, which is much
- * cheaper than formatting a message that will be thrown away.
+ * The settings screen writes a {@code Settings.System} flag; {@link #log} is the only place that
+ * calls {@code XposedBridge.log}, so with the switch off the module writes nothing at all.
+ * A cached boolean is refreshed at most once a second, which is much cheaper than formatting
+ * a message that will be thrown away.
  *
  * While the flag has never been read (the very first frames after SystemUI starts) the module
  * stays silent as well: a missing answer must not turn into a burst of logs.
@@ -40,13 +40,5 @@ final class Logs {
     /** Writes only when the switch is on. */
     static void log(String message) {
         if (on()) de.robv.android.xposed.XposedBridge.log(message);
-    }
-
-    /**
-     * Writes only when the switch is on; kept as a named alternative for call sites that used to
-     * be unconditional, so the intent ("this one matters") stays readable in the source.
-     */
-    static void logAlways(String message) {
-        log(message);
     }
 }

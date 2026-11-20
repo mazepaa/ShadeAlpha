@@ -28,6 +28,10 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int MAX_FAILURES = 20;
 
     private static final boolean[] SVA_LOGGED = new boolean[4];
+    /** Resolved once per SystemUI process; NO_ID disables the fast path in the draw hook. */
+    private static volatile int scrimIdBehind = View.NO_ID;
+    private static volatile int scrimIdNotifications = View.NO_ID;
+    private static volatile int scrimIdFront = View.NO_ID;
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
@@ -70,12 +74,27 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         if (scrim == null) { Logs.log(TAG + ": ScrimView not found"); return; }
 
         try {
+            // onDraw runs on every SystemUI view, so the role check must be free for non-scrim views.
+            android.content.res.Resources res = null;
+            try {
+                Object ar = XposedHelpers.callStaticMethod(
+                        XposedHelpers.findClassIfExists("android.app.AndroidResources", scrim.getClassLoader()),
+                        "getSystem");
+                if (ar instanceof android.content.res.Resources) res = (android.content.res.Resources) ar;
+            } catch (Throwable t) { res = null; }
+            if (res != null) {
+                scrimIdBehind = res.getIdentifier("scrim_behind", "id", "com.android.systemui");
+                scrimIdNotifications = res.getIdentifier("scrim_notifications", "id", "com.android.systemui");
+                scrimIdFront = res.getIdentifier("scrim_in_front", "id", "com.android.systemui");
+            }
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     try {
                         if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
                         View v = (View) param.thisObject;
+                        int rawId = v.getId();
+                        if (rawId != scrimIdBehind && rawId != scrimIdNotifications && rawId != scrimIdFront) return;
                         if (HookStatus.pending()) HookStatus.flush(v.getContext());
                         if (disabled) { resetViewAlpha(v); return; }
                         int role = role(v);
@@ -119,7 +138,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 protected void beforeHookedMethod(MethodHookParam param) {
                     try {
                         if (disabled) return;
-                                    if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
+                        if (param.args.length != 1 || !(param.args[0] instanceof Float)) return;
                         View v = (View) param.thisObject;
                         int role = role(v);
                         if (role == ROLE_OTHER) return;
@@ -161,17 +180,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                 || id.endsWith("_notifications")) r = ROLE_BOTTOM;
         else if ("scrim_in_front".equals(id) || "scrimInFront".equals(id)
                 || id.endsWith("_front") || "scrim_front".equals(id)) r = ROLE_FRONT;
-        else if (!"(no-id)".equals(id) && !"(unknown)".equals(id)) {
-            try {
-                int h = v.getHeight();
-                int screenH = v.getResources().getDisplayMetrics().heightPixels;
-                if (h > 0 && screenH > 0) {
-                    float ratio = (float) h / screenH;
-                    if (ratio > 0.85f) r = ROLE_TOP;
-                    else if (ratio > 0.3f && v.getY() > screenH * 0.15f) r = ROLE_BOTTOM;
-                }
-            } catch (Throwable ignored) { /* best effort: falls back to defaults */ }
-        }
+        // No geometry guessing: a mis-detected role would make the wrong side translucent on tablets.
         v.setTag(TAG_ROLE, Integer.valueOf(r));
         v.setTag(TAG_ROLE_SIZE, Integer.valueOf(size));
         Logs.log(TAG + ": scrim view id=" + id + " role=" + roleName(r)

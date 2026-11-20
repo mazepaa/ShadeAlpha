@@ -20,14 +20,14 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 /**
- * Прозрачность панели громкости (новая реализация Android 16, com.android.systemui.volume.dialog).
+ * Volume panel transparency (Android 16 dialog implementation).
  *
- * Фон панели, подложка ряда кнопок звонка и «плавающих» слайдеров — это обычные View с
- * GradientDrawable. Достаточно выставить альфу самого drawable (View.alpha не трогаем,
- * её анимирует система). Сами дорожки слайдеров рисует Compose, их этот хук не затрагивает.
+ * The panel background, the ringer backdrop and the floating sliders are plain
+ * views with a GradientDrawable; only their drawable alpha is touched, never
+ * View.alpha, which the system animates. The slider tracks are drawn by Compose
+ * and are recoloured separately.
  *
- * Применяется при каждом показе панели (VolumeDialog.onStart), поэтому значение слайдера
- * подхватывается сразу. Плавающие слайдеры создаются позже, их ловим по добавлению в контейнер.
+ * Applied on every VolumeDialog.onStart, so a new value is picked up on the next show.
  */
 final class VolumeHook {
 
@@ -75,9 +75,9 @@ final class VolumeHook {
     }
 
     /**
-     * Дорожку и заполнение слайдера рисует Compose (Material3 Slider). Цвета приходят в SliderTrack(...)
-     * внутри объекта SliderColors (поля типа long — упакованный Compose Color). Имя функции содержит
-     * хэш сигнатуры, поэтому ищем все методы, начинающиеся с "SliderTrack".
+     * Slider track colours come as packed longs inside a SliderColors object.
+     * The Compose function name carries a signature hash, so every method starting
+     * with "SliderTrack" is hooked.
      */
     private static void hookSliderTrack(ClassLoader cl) {
         try {
@@ -117,7 +117,7 @@ final class VolumeHook {
         }
     }
 
-    /** Меняет альфу цветов дорожки/заполнения. Оригиналы помним на объекте — повторные вызовы не накапливаются. */
+    /** Scales the track/fill alpha. Originals are kept per object, so calls never compound. */
     static void applyColors(Object sc) {
         try {
             Field[] fs = colorFields(sc.getClass());
@@ -138,7 +138,7 @@ final class VolumeHook {
                 XposedHelpers.setAdditionalInstanceField(sc, "shadealpha_slider", st);
             } else {
                 for (int i = 0; i < 4; i++) {
-                    if (cur[i] != st[4 + i]) st[i] = cur[i]; // цвет поменяла система: это новый оригинал
+                    if (cur[i] != st[4 + i]) st[i] = cur[i]; // system changed it: that is the new original
                 }
             }
             if (!trackLogged) {
@@ -173,7 +173,7 @@ final class VolumeHook {
         }
     }
 
-    /** Compose Color упакован в Long: sRGB = a8 r8 g8 b8 в старших 32 битах, иначе альфа — 10 бит в позициях 6..15. */
+    /** Packed Compose Color: sRGB keeps alpha in the top 8 bits, otherwise 10 bits at 6..15. */
     static long scaleComposeColor(long v, float f) {
         if ((v & 0x3FL) == 0L) {
             int a = (int) ((v >>> 56) & 0xFFL);
@@ -208,15 +208,8 @@ final class VolumeHook {
             setupRingerCap(ringer, bg, f);
             if (floating instanceof ViewGroup) {
                 ViewGroup g = (ViewGroup) floating;
-                g.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
-                    @Override
-                    public void onChildViewAdded(View parent, View child) {
-                        setBackgroundAlpha(child, Prefs.volume(child.getContext()));
-                    }
-
-                    @Override
-                    public void onChildViewRemoved(View parent, View child) { }
-                });
+                // onStart runs again for every show; a fresh listener replaces the old one.
+                g.setOnHierarchyChangeListener(new SliderChildListener());
                 for (int i = 0; i < g.getChildCount(); i++) setBackgroundAlpha(g.getChildAt(i), f);
             }
         } catch (Throwable t) {
@@ -224,26 +217,31 @@ final class VolumeHook {
         }
     }
 
+    /** Alpha for sliders that appear after the panel is already up. */
+    private static final class SliderChildListener implements ViewGroup.OnHierarchyChangeListener {
+        @Override
+        public void onChildViewAdded(View parent, View child) {
+            setBackgroundAlpha(child, Prefs.volume(child.getContext()));
+        }
+
+        @Override
+        public void onChildViewRemoved(View parent, View child) { }
+    }
+
     /**
-     * Подложка ряда кнопок звонка того же цвета, что и фон панели. Она рисует скруглённый «колпачок»
-     * панели вокруг кнопки и частично лежит прямо на фоне. В стоке два непрозрачных слоя сливаются,
-     * а при полупрозрачности складываются и в зоне перекрытия появляется тёмная полоса.
-     * Поэтому при f < 1 рисуем подложку звонка только выше верхнего края фона (колпачок), а фон
-     * рисует всё остальное: панель остаётся одним ровным слоем и сохраняет скруглённый верх.
+     * The ringer backdrop has the same colour as the panel background and partly lies on top of it.
+     * Opaque they merge; translucent they add up and a dark band shows in the overlap.
      *
-     * ВАЖНО: фон ringer_buttons_background нельзя подменять обёрткой (DrawableWrapper и т.п.).
-     * VolumeDialogRingerViewBinder делает {@code background as GradientDrawable} при анимации
-     * переключения режима звонка, и любой другой класс валит SystemUI в ClassCastException.
-     * Поэтому исходный GradientDrawable остаётся на месте, а обрезка делается хуком его draw().
+     * Important: ringer_buttons_background must stay a real GradientDrawable. The system's
+     * VolumeDialogRingerViewBinder casts that background to GradientDrawable while animating a
+     * ringer-mode change, so any wrapper crashes SystemUI with a ClassCastException.
      */
     private static void setupRingerCap(View ringer, View plate, float f) {
         if (ringer == null) return;
         try {
-            Drawable d = ringer.getBackground();
-            if (d == null) return;
-            setBackgroundAlpha(ringer, f);
-            // mutate() у GradientDrawable возвращает тот же объект, поэтому ссылка остаётся верной.
             Drawable target = ringer.getBackground();
+            if (target == null) return;
+            setBackgroundAlpha(ringer, f);
             if (plate != null && target instanceof GradientDrawable) {
                 ensureDrawHook();
                 Cap c = cap;
@@ -261,15 +259,10 @@ final class VolumeHook {
         }
     }
 
-    /** Высота «колпачка»: от верха подложки звонка до верха фона панели (в координатах окна). */
-    static int capHeight(int ringerTopInWindow, int plateTopInWindow) {
-        return plateTopInWindow - ringerTopInWindow;
-    }
-
     private static volatile Cap cap;
     private static boolean drawHooked;
 
-    /** Состояние обрезки. Ссылки слабые: статическое поле не должно держать View/Context SystemUI. */
+    /** Weak refs so a SystemUI restart cannot be held back by this static holder. */
     private static final class Cap {
         final WeakReference<Drawable> drawable;
         private final WeakReference<View> ringer;
@@ -278,9 +271,6 @@ final class VolumeHook {
         // Reused between frames: draw() runs on every panel frame and must not allocate.
         private final int[] ringerPos = new int[2];
         private final int[] platePos = new int[2];
-        private int cachedHeight = -1;
-        private int cachedRingerTop = Integer.MIN_VALUE;
-        private int cachedPlateTop = Integer.MIN_VALUE;
 
         Cap(Drawable d, View ringer, View plate) {
             this.drawable = new WeakReference<Drawable>(d);
@@ -288,28 +278,30 @@ final class VolumeHook {
             this.plate = new WeakReference<View>(plate);
         }
 
-        /** Positions only change on layout, so the query is skipped while they stay the same. */
-        int capHeightCached() {
+        /**
+         * Computes the panel-background rectangle relative to the ringer view origin.
+         * Callers clip out only that area, so the part of the backdrop sticking out beside the
+         * panel (an expanded ringer row) is still drawn whole, rounded corners included.
+         */
+        boolean overlap(int[] out) {
             View r = ringer.get();
             View p = plate.get();
-            if (r == null || p == null) return 0;
+            if (r == null || p == null) return false;
             r.getLocationInWindow(ringerPos);
             p.getLocationInWindow(platePos);
-            if (ringerPos[1] != cachedRingerTop || platePos[1] != cachedPlateTop) {
-                cachedRingerTop = ringerPos[1];
-                cachedPlateTop = platePos[1];
-                cachedHeight = capHeight(cachedRingerTop, cachedPlateTop);
-            }
-            return cachedHeight;
+            out[0] = platePos[0] - ringerPos[0];
+            out[1] = platePos[1] - ringerPos[1];
+            out[2] = out[0] + p.getWidth();
+            out[3] = out[1] + p.getHeight();
+            return true;
         }
     }
 
     private static final String EXTRA_SAVE = "shadealpha.capSave";
 
-    /** Один хук на GradientDrawable.draw; срабатывает только для подложки звонка (проверка по ссылке). */
+    /** One hook on GradientDrawable.draw; acts only on the ringer backdrop (identity check). */
     private static synchronized void ensureDrawHook() {
         if (drawHooked) return;
-        drawHooked = true;
         try {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(GradientDrawable.class, "draw",
                     new XC_MethodHook() {
@@ -318,15 +310,16 @@ final class VolumeHook {
                             try {
                                 Cap c = cap;
                                 if (c == null || !c.clip || p.thisObject != c.drawable.get()) return;
-                                int h = c.capHeightCached();
-                                if (h <= 0) { // фон панели закрывает всё — подложке звонка рисовать нечего
-                                    p.setResult(null);
-                                    return;
-                                }
                                 Canvas canvas = (Canvas) p.args[0];
+                                if (canvas == null) return;
                                 Rect r = ((Drawable) p.thisObject).getBounds();
                                 int save = canvas.save();
-                                canvas.clipRect(r.left, r.top, r.right, Math.min(r.bottom, r.top + h));
+                                // Move the canvas to the drawable origin so the overlap rect applies.
+                                canvas.translate(r.left, r.top);
+                                if (c.overlap(overlapRect)) {
+                                    canvas.clipOutRect(overlapRect[0], overlapRect[1],
+                                            overlapRect[2], overlapRect[3]);
+                                }
                                 p.setObjectExtra(EXTRA_SAVE, Integer.valueOf(save));
                             } catch (Throwable t) {
                                 if (++errors <= 3) Logs.log(TAG + ": volume cap draw failed: " + t);
@@ -341,11 +334,16 @@ final class VolumeHook {
                             }
                         }
                     });
-            Logs.log(TAG + ": hooked GradientDrawable.draw x" + (hooks == null ? 0 : hooks.size()));
+            int n = hooks == null ? 0 : hooks.size();
+            Logs.log(TAG + ": hooked GradientDrawable.draw x" + n);
+            // Only latch on success: a throwing hook must be retried on the next show.
+            if (n > 0) drawHooked = true;
         } catch (Throwable t) {
             Logs.log(TAG + ": volume cap draw hook failed: " + t);
         }
     }
+
+    private static final int[] overlapRect = new int[4];
 
     private static void resolveIds(Context ctx) {
         if (idBackground != 0) return;
@@ -364,9 +362,36 @@ final class VolumeHook {
         try {
             Drawable d = v.getBackground();
             if (d == null) return;
-            d.mutate().setAlpha(Math.max(0, Math.min(255, Math.round(255f * f))));
+            int a = Math.max(0, Math.min(255, Math.round(255f * f)));
+            // GradientDrawable keeps its opacity in the fill colour, where setAlpha is a no-op,
+            // so the colour has to be scaled instead.
+            if (d instanceof GradientDrawable) applyAlphaToColor((GradientDrawable) d, a);
+            d.mutate().setAlpha(a);
         } catch (Throwable t) {
             if (++errors <= 3) Logs.log(TAG + ": volume alpha failed: " + t);
+        }
+    }
+
+    /** Square "cap" of the panel behind the ringer row: it has a fill colour, not a solid one. */
+    private static void applyAlphaToColor(GradientDrawable g, int alpha) {
+        try {
+            Drawable.ConstantState cs = g.getConstantState();
+            if (cs == null) return;
+            Field f = cs.getClass().getDeclaredField("mFillColor");
+            f.setAccessible(true);
+            Object v = f.get(cs);
+            if (!(v instanceof android.content.res.ColorStateList)) return;
+            android.content.res.ColorStateList list = (android.content.res.ColorStateList) v;
+            int color = list.getDefaultColor();
+            if (color == 0) return;
+            int base = (Integer) XposedHelpers.getAdditionalInstanceField(g, "shadealpha_fillBase") == null
+                    ? color : (Integer) XposedHelpers.getAdditionalInstanceField(g, "shadealpha_fillBase");
+            XposedHelpers.setAdditionalInstanceField(g, "shadealpha_fillBase", Integer.valueOf(base));
+            int na = (base >>> 24) * alpha / 255;
+            int next = (color & 0x00FFFFFF) | (na << 24);
+            if (next != color) g.setColor(android.content.res.ColorStateList.valueOf(next));
+        } catch (Throwable ignored) {
+            // Field names differ between builds; leaving the native alpha path is acceptable.
         }
     }
 }

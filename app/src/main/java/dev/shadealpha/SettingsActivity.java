@@ -163,7 +163,7 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
 
-        // Уменьшили верхний отступ с 56 до 50dp (чуть ниже)
+        // Pulled the top padding down from 56dp to 35dp
         root.setPadding(dp(24), dp(35), dp(24), dp(32));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
 
@@ -343,7 +343,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
         root.addView(moduleText, lp(2));
 
-        // ---- Шторка уведомлений ----
+        // ---- shade ----
         final LinearLayout shadeBox = addGroup(root, t("Шторка уведомлений", "Notification shade"), "shade", true);
         addSlider(shadeBox, t("Верхняя часть (панели быстрых настроек)", "Top area (Quick Settings panels)"), Keys.TOP);
         addSlider(shadeBox, t("Нижняя часть (уведомления)", "Bottom area (notifications)"), Keys.BOTTOM);
@@ -383,7 +383,7 @@ public class SettingsActivity extends AppCompatActivity {
                 t("После смены режима нажми «Перезапустить SystemUI».",
                         "After changing the rendering mode, tap \"Restart SystemUI\"."), 13, false), lp(4));
 
-        // ---- Панель громкости ----
+        // ---- volume panel ----
         LinearLayout volBox = addGroup(root, t("Панель громкости", "Volume panel"), "volume", false);
         addSlider(volBox, t("Фон панели", "Panel background"), Keys.VOLUME);
         addSlider(volBox, t("Слайдер: дорожка", "Slider: track"), Keys.VOL_TRACK);
@@ -392,7 +392,7 @@ public class SettingsActivity extends AppCompatActivity {
                 "Дорожка — неактивная часть слайдера, заполнение — активная. Применяется при следующем показе панели. После первого включения нажми «Перезапустить SystemUI».",
                 "Track is the inactive part of the slider, fill is the active part. Applied the next time the panel is shown. After enabling it for the first time, tap \"Restart SystemUI\".")), lp(8));
 
-        // ---- Лаунчер ----
+        // ---- launcher ----
         LinearLayout launcherBox = addGroup(root, t("Лаунчер (Pixel Launcher)", "Launcher (Pixel Launcher)"), "launcher", false);
         addSlider(launcherBox, t("Недавние приложения", "Recents apps"), Keys.RECENTS);
         addSlider(launcherBox, t("Список приложений", "App drawer"), Keys.APPDRAWER);
@@ -400,7 +400,7 @@ public class SettingsActivity extends AppCompatActivity {
                 "Работает при включённом модуле для Pixel Launcher в LSPosed. После первого включения нажми «Перезапустить лаунчер».",
                 "Needs the module enabled for Pixel Launcher in LSPosed. After enabling it for the first time, tap \"Restart launcher\".")), lp(8));
 
-        // ---- Действия ----
+        // ---- actions ----
         LinearLayout actions = addGroup(root, t("Действия", "Actions"), "actions", true);
 
         MaterialButton showShade = actionButton(t("Показать шторку", "Show shade"), v -> new Thread(() -> {
@@ -538,8 +538,8 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * Сворачиваемая карточка-группа (Material 3, filled card). Возвращает контейнер для содержимого.
-     * Состояние «открыта/закрыта» запоминается между запусками.
+     * Collapsible group card (Material 3 filled card); returns the content container.
+     * The open/closed state is remembered between launches.
      */
     private LinearLayout addGroup(final LinearLayout root, String title, String id, boolean defaultOpen) {
         final MaterialCardView card = new MaterialCardView(this);
@@ -600,12 +600,14 @@ public class SettingsActivity extends AppCompatActivity {
         slider.setStepSize(5f);
         slider.setTickVisible(false);
         slider.setTrackStopIndicatorSize(0);
-        slider.setLabelBehavior(2);
+        slider.setLabelBehavior(com.google.android.material.slider.LabelFormatter.LABEL_VISIBLE);
 
         int cur = prefs.getInt(key, -1);
         if (cur < 0) cur = Math.max(0, Math.min(100, readSystem(key, 100)));
         slider.setValue((float) cur);
         value.setText(cur + "%");
+        // Keep the value the UI was opened with, so a failed write can undo the move.
+        final int initial = cur;
 
         final float[] lastVal = {cur};
         slider.addOnChangeListener((s, v, fromUser) -> {
@@ -618,7 +620,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
 
             boolean showWarning = key.equals(Keys.TOP) || key.equals(Keys.BOTTOM);
-                if (p < 20 && fromUser && showWarning) {
+            if (p < 20 && fromUser && showWarning) {
                 value.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, 0xFFF44336));
                 value.setText(p + "% " + t("(текст нечитаем)", "(unreadable)"));
             } else {
@@ -635,7 +637,7 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public void onStopTrackingTouch(Slider slider) {
                 slider.animate().scaleY(1f).setDuration(100).start();
-                save(key, (int) slider.getValue());
+                save(key, (int) slider.getValue(), () -> slider.setValue((float) initial));
             }
         });
 
@@ -646,6 +648,11 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void save(final String key, final int p) {
+        save(key, p, null);
+    }
+
+    /** Keeps the prefs cache and the system row in step; a failed write rolls the UI back. */
+    private void save(final String key, final int p, final Runnable onFailure) {
         prefs.edit().putInt(key, p).apply();
         new Thread(() -> {
             final boolean ok = writeSetting(key, p);
@@ -654,7 +661,10 @@ public class SettingsActivity extends AppCompatActivity {
                 status.setText(ok
                         ? t("Сохранено: ", "Saved: ") + shown
                         : t("Ошибка записи. Проверьте root.", "Write error. Check root."));
-                if (!ok) status.performHapticFeedback(HapticFeedbackConstants.REJECT);
+                if (!ok) {
+                    status.performHapticFeedback(HapticFeedbackConstants.REJECT);
+                    if (onFailure != null) onFailure.run();
+                }
             });
         }).start();
     }

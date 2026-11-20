@@ -17,17 +17,13 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 /**
- * Прозрачность «Недавних» и «Списка приложений» в Pixel Launcher / Launcher3.
+ * Recents and app-drawer transparency in Pixel Launcher / Launcher3.
  *
- * Недавние: подменяем альфу цвета скрима у состояний лаунчера (OverviewState и др.).
- *
- * Список приложений:
- *  - скрим-цвет за шторкой (AllAppsState.getWorkspaceScrimColor);
- *  - сама шторка (ActivityAllAppsContainerView). Здесь две ветки:
- *      A) старые версии: у view есть поле mScrimColor — меняем цвета напрямую;
- *      B) Android 15/16: поля нет, фон рисуется в drawOnScrim* — оборачиваем
- *         отрисовку в saveLayerAlpha.
- *    Ветки взаимоисключающие, чтобы прозрачность не применялась дважды.
+ * Recents: the scrim colour alpha of the launcher states is replaced.
+ * App drawer: the state scrim colour plus the drawer view itself. The view is
+ * handled by one of two mutually exclusive branches: older builds expose an
+ * {@code mScrimColor} field that can be touched directly, newer ones paint in
+ * {@code drawOnScrim*} and get a saveLayerAlpha wrapper instead.
  */
 final class LauncherHooks {
 
@@ -63,7 +59,7 @@ final class LauncherHooks {
         log("Launcher loaded (" + lpparam.packageName + ")");
         HookStatus.owner(HookStatus.LAUNCHER_BITS, HookStatus.REPORTED_LAUNCHER);
 
-        // ---- Недавние ----
+        // ---- recents ----
         int recents = 0;
         recents += hookScrimColor(cl, "com.android.launcher3.uioverrides.states.OverviewState", "getWorkspaceScrimColor", false);
         recents += hookScrimColor(cl, "com.android.launcher3.uioverrides.states.QuickSwitchState", "getWorkspaceScrimColor", false);
@@ -72,7 +68,7 @@ final class LauncherHooks {
         recents += hookScrimColor(cl, "com.android.launcher3.states.HintState", "getWorkspaceScrimColor", false);
         if (recents > 0) HookStatus.mark(HookStatus.LAUNCHER);
 
-        // ---- Список приложений ----
+        // ---- app drawer ----
         int drawer = hookScrimColor(cl, "com.android.launcher3.uioverrides.states.AllAppsState", "getWorkspaceScrimColor", true);
         drawer += hookAllApps(cl);
         if (drawer > 0) HookStatus.mark(HookStatus.DRAWER);
@@ -149,7 +145,7 @@ final class LauncherHooks {
         DrawHook drawHook = new DrawHook();
 
         int total = 0;
-        // methods hookAllMethods() ловит только объявленные в самом классе → идём по иерархии
+        // hookAllMethods sees only methods declared on the class itself, so walk the hierarchy
         for (Class<?> c = start;
              c != null && c.getName().startsWith("com.android.launcher3.");
              c = c.getSuperclass()) {
@@ -177,7 +173,7 @@ final class LauncherHooks {
         return n;
     }
 
-    /** Ветка A: геттеры цветов (старые версии, где есть поле mScrimColor). */
+    /** Branch A: colour getters for older builds that expose mScrimColor. */
     private static final class ColorGetterHook extends XC_MethodHook {
         @Override
         protected void beforeHookedMethod(MethodHookParam p) {
@@ -204,7 +200,7 @@ final class LauncherHooks {
         }
     }
 
-    /** Ветка A: цвет полосы заголовка после прокрутки. */
+    /** Branch A: header strip colour after scrolling. */
     private static final class HeaderHook extends XC_MethodHook {
         @Override
         protected void afterHookedMethod(MethodHookParam p) {
@@ -214,16 +210,16 @@ final class LauncherHooks {
                 applyField(p.thisObject, "mHeaderColor", f);
                 try {
                     XposedHelpers.callMethod(p.thisObject, "invalidateHeader");
-                } catch (Throwable ignored) { /* метода может не быть */ }
+                } catch (Throwable ignored) { /* method may be absent */ }
             } catch (Throwable t) {
                 err("header", t);
             }
         }
     }
 
-    /** Ветка B: оборачиваем рисование фона шторки в слой с альфой. */
+    /** Branch B: wrap the drawer background draw in an alpha layer. */
     private static final class DrawHook extends XC_MethodHook {
-        // [0] = глубина вложенности, [1] = номер сохранённого слоя (или -1)
+        // [0] = nesting depth, [1] = saved layer id (or -1)
         private static final ThreadLocal<int[]> STATE = new ThreadLocal<int[]>() {
             @Override
             protected int[] initialValue() {
@@ -236,13 +232,13 @@ final class LauncherHooks {
         protected void beforeHookedMethod(MethodHookParam p) {
             int[] s = STATE.get();
             s[0]++;
-            if (s[0] != 1) return; // вложенный вызов: слой уже открыт снаружи
+            if (s[0] != 1) return; // nested call: the layer is already open
             s[1] = -1;
             try {
                 if (!(p.thisObject instanceof View)) return;
                 float f = Prefs.drawer(((View) p.thisObject).getContext());
                 if (usesColorField(p.thisObject)) {
-                    applyField(p.thisObject, "mScrimColor", f); // ветка A
+                    applyField(p.thisObject, "mScrimColor", f); // branch A
                     return;
                 }
                 if (!logged) {
@@ -252,7 +248,7 @@ final class LauncherHooks {
                 if (f >= 0.999f) return;
                 if (p.args == null || p.args.length == 0 || !(p.args[0] instanceof Canvas)) return;
                 if (f <= 0.004f) {
-                    p.setResult(null); // полностью прозрачно: фон вообще не рисуем
+                    p.setResult(null); // fully transparent: skip the draw entirely
                     return;
                 }
                 s[1] = ((Canvas) p.args[0]).saveLayerAlpha(null, Math.round(255f * f));
@@ -291,7 +287,7 @@ final class LauncherHooks {
             Field f = null;
             try {
                 f = XposedHelpers.findFieldIfExists(c, name);
-            } catch (Throwable ignored) { /* нет поля */ }
+            } catch (Throwable ignored) { /* no such field */ }
             if (f != null && f.getType() != int.class) f = null;
             v = (f != null) ? (Object) f : NONE;
             FIELDS.put(key, v);
@@ -300,8 +296,8 @@ final class LauncherHooks {
     }
 
     /**
-     * Меняет int-поле цвета. Оригинальное значение запоминаем на экземпляре, поэтому повторные
-     * вызовы не «накапливают» прозрачность, а смена ползунка применяется сразу.
+     * Replaces an int colour field. The original is stored on the instance, so repeated
+     * calls never compound and a slider change applies on the next draw.
      */
     private static void applyField(Object o, String name, float f) {
         try {
@@ -314,7 +310,7 @@ final class LauncherHooks {
                 st = new int[]{cur, cur};
                 XposedHelpers.setAdditionalInstanceField(o, key, st);
             } else if (cur != st[1]) {
-                st[0] = cur; // значение изменила сама система → это новый оригинал
+                st[0] = cur; // the system changed it, so this is the new original
             }
             int nv = (f >= 0.999f) ? st[0] : capAlpha(st[0], f);
             if (cur != nv) fld.setInt(o, nv);
@@ -324,21 +320,21 @@ final class LauncherHooks {
         }
     }
 
-    /** Умножает альфу цвета на f. 100% = как в системе, 0% = прозрачно. */
+    /** Scales the colour alpha by f: 1 = stock, 0 = fully transparent. */
     private static int scaleAlpha(int color, float f) {
         int a = Math.round(Color.alpha(color) * f);
         a = Math.max(0, Math.min(255, a));
         return (color & 0x00FFFFFF) | (a << 24);
     }
 
-    /** Ограничивает альфу сверху (идемпотентно, никогда не делает цвет плотнее оригинала). */
+    /** Clamps alpha from above: idempotent, never denser than the original. */
     private static int capAlpha(int color, float f) {
         int cap = Math.max(0, Math.min(255, Math.round(255f * f)));
         int a = Math.min(Color.alpha(color), cap);
         return (color & 0x00FFFFFF) | (a << 24);
     }
 
-    /** Новые версии Launcher3 возвращают ScrimColors(background, foreground) вместо Int. */
+    /** Newer Launcher3 returns ScrimColors(background, foreground) instead of an int. */
     private static Object rebuildScrimColors(Object scrim, float f) {
         try {
             Class<?> cls = scrim.getClass();

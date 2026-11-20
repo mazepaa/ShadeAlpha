@@ -8,11 +8,9 @@ import java.lang.reflect.Method;
 
 
 /**
- * Кэшированное чтение значений из Settings.System внутри процесса SystemUI и лаунчера.
- * Значения пишет приложение ShadeAlpha (через root), хуки только читают.
- *
- * Один кэш на все хуки: шторка, экран блокировки, панель громкости и лаунчер читают из него,
- * поэтому при отрисовке не бывает похода в ContentResolver на каждый кадр.
+ * Cached read of the Settings.System values inside SystemUI and the launcher.
+ * The app writes them; the hooks only read. One cache per process, so drawing
+ * a frame never touches the ContentResolver.
  */
 final class Prefs {
 

@@ -586,84 +586,108 @@ public class SettingsActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
 
             if (open[0]) {
-                expandBody(body);
+                expandBody(card, header, body);
             } else {
-                collapseBody(body);
+                collapseBody(card, header, body);
             }
         });
         return body;
     }
 
     /**
-     * Reveals the body with an animated clip rectangle instead of animating its height.
+     * Reveals the body by animating the card height with a clip, never touching layout.
      *
-     * Animating layoutParams.height needs a layout pass per frame, and with sliders inside it
-     * looks stepped. Here the body is laid out once at full size and the clip grows downwards
-     * from the header, while the body slides down by the clipped amount:
-     * translationY = -visible height keeps the visible edge aligned with the header, so the
-     * content appears to be uncovered top-to-bottom instead of sliding up from underneath the
-     * growing edge. Cards below already sit in their final place.
+     * The previous attempts traded one artefact for another: a height animation needs a layout
+     * pass per frame (stepped), a clip inside the body moved the content relative to the clip
+     * (the header seemed to pass through). Here the body is laid out once at full size and
+     * pushed down inside the card, whose own height is animated. The clip lives on the card and
+     * starts exactly below the header, so the header never moves and the content is uncovered
+     * line by line underneath it.
      */
-    private void expandBody(final View body) {
+    private void expandBody(final View card, final View header, final View body) {
         body.animate().cancel();
+        card.animate().cancel();
         body.setVisibility(View.VISIBLE);
         body.setAlpha(0f);
-        body.post(() -> {
+        card.post(() -> {
+            final int headerH = header.getHeight();
             final int natural = measureNaturalHeight(body);
             if (natural <= 0) {
                 body.setAlpha(1f);
-                body.setTranslationY(0f);
-                body.setClipBounds(null);
                 return;
             }
-            applyReveal(body, 0, natural);
-            body.animate()
-                    .alpha(1f)
-                    .setDuration(220)
-                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                    .setUpdateListener(a -> applyReveal(body, (int) (a.getAnimatedFraction() * natural), natural))
-                    .withEndAction(() -> {
-                        body.setClipBounds(null);
-                        body.setTranslationY(0f);
-                        body.setAlpha(1f);
-                    })
-                    .start();
+            final int target = headerH + natural;
+            card.getLayoutParams().height = headerH;
+            card.requestLayout();
+            card.post(() -> {
+                applyCardReveal(card, headerH, headerH);
+                body.setTranslationY(natural / 2f);
+                body.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(200)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                        .setUpdateListener(a -> body.setTranslationY((natural / 2f) * (1f - a.getAnimatedFraction())))
+                        .start();
+                card.animate()
+                        .setDuration(220)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                        .setUpdateListener(a -> {
+                            float f = a.getAnimatedFraction();
+                            int h = (int) (headerH + (target - headerH) * f);
+                            card.getLayoutParams().height = h;
+                            card.requestLayout();
+                            applyCardReveal(card, headerH, h);
+                        })
+                        .withEndAction(() -> {
+                            card.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                            card.setClipBounds(null);
+                            card.requestLayout();
+                            body.setAlpha(1f);
+                            body.setTranslationY(0f);
+                        })
+                        .start();
+            });
         });
     }
 
-    private void collapseBody(final View body) {
+    private void collapseBody(final View card, final View header, final View body) {
         body.animate().cancel();
-        final int natural = body.getHeight();
-        if (natural <= 0) {
+        card.animate().cancel();
+        final int headerH = header.getHeight();
+        final int start = card.getHeight();
+        if (start <= headerH) {
             body.setVisibility(View.GONE);
             return;
         }
-        applyReveal(body, natural, natural);
-        body.animate()
-                .alpha(0f)
+        card.getLayoutParams().height = start;
+        card.requestLayout();
+        card.animate()
                 .setDuration(160)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .setUpdateListener(a -> applyReveal(body, (int) ((1f - a.getAnimatedFraction()) * natural), natural))
+                .setUpdateListener(a -> {
+                    float f = a.getAnimatedFraction();
+                    int h = (int) (start - (start - headerH) * f);
+                    card.getLayoutParams().height = h;
+                    card.requestLayout();
+                    applyCardReveal(card, headerH, h);
+                })
                 .withEndAction(() -> {
                     body.setVisibility(View.GONE);
-                    body.setClipBounds(null);
-                    body.setTranslationY(0f);
+                    card.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    card.setClipBounds(null);
+                    card.requestLayout();
                     body.setAlpha(1f);
+                    body.setTranslationY(0f);
                 })
                 .start();
     }
 
-    /**
-     * Shows the top {@code visiblePx} of a body that is {@code totalPx} tall, and shifts the
-     * body so its visible part stays put: the clip uncovers the content downwards.
-     */
-    private void applyReveal(View body, int visiblePx, int totalPx) {
-        int w = body.getWidth() > 0 ? body.getWidth() : getWindowWidth();
-        int visible = Math.max(0, Math.min(totalPx, visiblePx));
-        body.setClipBounds(new Rect(0, 0, w, visible));
-        body.setTranslationY(-(totalPx - visible));
+    /** Clips the card to everything above the body start, i.e. the header plus what has opened. */
+    private void applyCardReveal(View card, int headerHeight, int cardHeight) {
+        int w = card.getWidth() > 0 ? card.getWidth() : getWindowWidth();
+        card.setClipBounds(new Rect(0, 0, w, Math.max(headerHeight, cardHeight)));
     }
-
     private int measureNaturalHeight(View view) {
         int width = view.getWidth();
         if (width <= 0) width = getWindowWidth();

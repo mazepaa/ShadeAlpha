@@ -600,7 +600,7 @@ public class SettingsActivity extends AppCompatActivity {
      * re-measures during the motion. The body clips its own content with a rectangle that starts
      * at zero height and grows, which hides every row until its turn to slide in.
      */
-    private void revealSliders(final View card, final View header, final View body) {
+    private void revealSliders(final View card, final View header, final ViewGroup body) {
         body.animate().cancel();
         body.setAlpha(1f);
         body.setTranslationY(0f);
@@ -636,7 +636,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
     /** Collapse: rows are hidden at once, no animation. */
-    private void hideSliders(final View card, final View body) {
+    private void hideSliders(final View card, final ViewGroup body) {
         body.animate().cancel();
         body.setClipBounds(null);
         for (int i = 0; i < body.getChildCount(); i++) {

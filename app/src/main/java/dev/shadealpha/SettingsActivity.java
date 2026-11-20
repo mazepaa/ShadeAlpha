@@ -597,10 +597,12 @@ public class SettingsActivity extends AppCompatActivity {
     /**
      * Reveals the body with an animated clip rectangle instead of animating its height.
      *
-     * Height animation needs a layout pass on every frame, and with sliders inside it looks
-     * stepped. Here the body is laid out once at full size, pinned to the card bottom so the
-     * card starts compact, then the clip grows and the body slides up with it: all on the
-     * animation thread without touching layout. Cards below already sit in their final place.
+     * Animating layoutParams.height needs a layout pass per frame, and with sliders inside it
+     * looks stepped. Here the body is laid out once at full size and the clip grows downwards
+     * from the header, while the body slides down by the clipped amount:
+     * translationY = -visible height keeps the visible edge aligned with the header, so the
+     * content appears to be uncovered top-to-bottom instead of sliding up from underneath the
+     * growing edge. Cards below already sit in their final place.
      */
     private void expandBody(final View body) {
         body.animate().cancel();
@@ -611,13 +613,12 @@ public class SettingsActivity extends AppCompatActivity {
             if (natural <= 0) {
                 body.setAlpha(1f);
                 body.setTranslationY(0f);
+                body.setClipBounds(null);
                 return;
             }
-            body.setTranslationY(natural);
             applyReveal(body, 0, natural);
             body.animate()
                     .alpha(1f)
-                    .translationY(0f)
                     .setDuration(220)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator())
                     .setUpdateListener(a -> applyReveal(body, (int) (a.getAnimatedFraction() * natural), natural))
@@ -640,7 +641,6 @@ public class SettingsActivity extends AppCompatActivity {
         applyReveal(body, natural, natural);
         body.animate()
                 .alpha(0f)
-                .translationY(natural)
                 .setDuration(160)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator())
                 .setUpdateListener(a -> applyReveal(body, (int) ((1f - a.getAnimatedFraction()) * natural), natural))
@@ -653,10 +653,15 @@ public class SettingsActivity extends AppCompatActivity {
                 .start();
     }
 
-    /** Shows the top {@code visiblePx} of a body that is {@code totalPx} tall. */
+    /**
+     * Shows the top {@code visiblePx} of a body that is {@code totalPx} tall, and shifts the
+     * body so its visible part stays put: the clip uncovers the content downwards.
+     */
     private void applyReveal(View body, int visiblePx, int totalPx) {
         int w = body.getWidth() > 0 ? body.getWidth() : getWindowWidth();
-        body.setClipBounds(new Rect(0, 0, w, Math.max(0, Math.min(totalPx, visiblePx))));
+        int visible = Math.max(0, Math.min(totalPx, visiblePx));
+        body.setClipBounds(new Rect(0, 0, w, visible));
+        body.setTranslationY(-(totalPx - visible));
     }
 
     private int measureNaturalHeight(View view) {

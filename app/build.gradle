@@ -22,8 +22,8 @@ android {
         applicationId "dev.shadealpha"
         minSdk 31
         targetSdk 36
-        versionCode 56
-        versionName "3.5.1"
+        versionCode 57
+        versionName "3.6.0"
         resConfigs "en", "ru"
     }
 
@@ -34,6 +34,10 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+    buildFeatures {
+        // BootGuard stores the module's versionCode so that a new build re-arms the guard.
+        buildConfig true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

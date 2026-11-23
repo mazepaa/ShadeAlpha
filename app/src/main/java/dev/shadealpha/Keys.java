@@ -16,6 +16,11 @@ public class Keys {
     public static final String HOOKS_BOOT = "shade_alpha_hooks_boot";
     /** Verbose logging for the hooks, toggled from the settings screen (1 = on). */
     public static final String DEBUG_LOGS = "shade_alpha_debug_logs";
+    /**
+     * Bitmask of the guarded packages whose boot-loop guard has tripped ({@link BootGuard#SYSTEM_UI},
+     * {@link BootGuard#LAUNCHER}); written by the hooked process, cleared by the app's "Re-enable".
+     */
+    public static final String GUARD = "shade_alpha_guard";
     /** Retired: only listed so a reset removes rows left by older builds. */
     public static final String LEGACY_EXPERIMENT = "shade_alpha_experiment";
     public static final String LEGACY_VOLUME_EXPANDED = "shade_alpha_volume_expanded_percent";

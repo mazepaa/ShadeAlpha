@@ -1,5 +1,33 @@
 # ShadeAlpha — Changelog
 
+## v3.6
+
+### Что нового
+
+**Добавлено**
+- Защита от бутлупа (`BootGuard`). Каждый запуск SystemUI и лаунчера записывается в файл `shadealpha_guard` в их device-protected каталоге; запуск считается «стабильным» после 60 секунд работы. Три ранних падения подряд (в пределах 10 минут) отключают установку хуков в этом пакете до тех пор, пока пользователь не нажмёт «Включить хуки снова» (нужен root) или не поставит новую сборку модуля. Любая ошибка самой защиты ведёт к обычной установке хуков, а не к блокировке. Срабатывание всегда пишется в журнал Vector.
+- В приложении: баннер ⚠️ в блоке хуков, кнопка «Включить хуки снова», поле `guard=` в диагностике.
+
+**Исправлено**
+- Id скримов определяются при первой отрисовке скрима через его собственные `Resources`. Раньше значение по умолчанию (`View.NO_ID`, то есть -1) при отсутствии Application выглядело как «id найдены» и могло отбрасывать все скримы быстрым отбором.
+
+**Изменено**
+- `HookStatus.pending()` без блокировки: вызывается на пути отрисовки.
+- `versionCode 57`, `versionName 3.6.0`; в `app/build.gradle` включён `buildConfig`.
+
+### What's new
+
+**Added**
+- Boot-loop guard (`BootGuard`). Every start of SystemUI and the launcher is recorded in a `shadealpha_guard` file in their device-protected data directory; a start counts as stable after 60 seconds alive. Three early deaths in a row (within 10 minutes) stop the module from installing hooks in that package until the user taps "Re-enable hooks" (root needed) or installs a new build of the module. Any failure of the guard itself falls back to normal hooking instead of blocking. A trip is always written to the Vector log.
+- In the app: a ⚠️ banner in the hooks block, a "Re-enable hooks" button, and a `guard=` field in the diagnostics.
+
+**Fixed**
+- Scrim ids are resolved on the first scrim draw through the view's own `Resources`. Before, the default value (`View.NO_ID`, i.e. -1) looked like "ids found" when no Application existed, and the fast path could reject every scrim.
+
+**Changed**
+- `HookStatus.pending()` is lock-free: it is called on the draw path.
+- `versionCode 57`, `versionName 3.6.0`; `buildConfig` is enabled in `app/build.gradle`.
+
 ## v3.5 hotfix
 
 ### Что нового

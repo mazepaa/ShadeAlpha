@@ -36,11 +36,11 @@ final class HookStatus {
     private static final String TAG = "ShadeAlpha";
     private static final Object LOCK = new Object();
 
-    private static int bits = 0;
+    private static volatile int bits = 0;
     private static int ownerMask = 0;
     private static int reportedFlag = 0;
     /** Last value this process wrote; -1 means it has not written yet. */
-    private static int written = -1;
+    private static volatile int written = -1;
     /**
      * Try writing even without {@code canWrite}: on some builds the check lies about SystemUI and
      * the row actually lands. Only a failed write turns this off for the rest of the process.
@@ -111,9 +111,11 @@ final class HookStatus {
         }
     }
 
-    /** True when a flush would write something new, so callers can skip fetching a Context. */
+    /**
+     * True when a flush would write something new, so callers can skip fetching a Context.
+     * Called from the draw path: two volatile reads, no lock.
+     */
     static boolean pending() {
-        synchronized (LOCK) {
-            return bits != written;
-        }
-    }}
+        return bits != written;
+    }
+}

@@ -1,0 +1,30 @@
+name: Bug report / Сообщение об ошибке
+description: Something does not look or work right / Что-то выглядит или работает неправильно
+labels: [bug]
+body:
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / Диагностика
+      description: In the app tap "Copy diagnostics" and paste the result. / В приложении нажми «Скопировать диагностику» и вставь результат.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: rom
+    attributes:
+      label: ROM, Android version, device / Прошивка, версия Android, устройство
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Vector log / Журнал Vector
+      description: "Lines containing `ShadeAlpha` from Vector → Logs → Modules. / Строки с `ShadeAlpha` из Vector → Журналы → Модули."
+      render: text
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened / Что произошло
+    validations:
+      required: true

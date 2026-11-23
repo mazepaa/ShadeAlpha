@@ -61,6 +61,7 @@ public class SettingsActivity extends AppCompatActivity {
     };
 
     private TextView hooksNote;
+    private MaterialButton guardButton;
     private MaterialButton grantButton;
     private TextView grantNote;
 
@@ -440,6 +441,32 @@ public class SettingsActivity extends AppCompatActivity {
                         .show());
         addWideButton(actions, reset, 8);
 
+        // Shown only while the boot-loop guard has switched the hooks off.
+        guardButton = actionButton(t("Включить хуки снова", "Re-enable hooks"), v ->
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(t("Включить хуки снова?", "Re-enable hooks?"))
+                        .setMessage(t("Защита отключила хуки после нескольких быстрых падений подряд. Если причина не устранена, она сработает снова.",
+                                "The guard switched the hooks off after several quick crashes in a row. If the cause is still there it will trip again."))
+                        .setNegativeButton(t("Отмена", "Cancel"), null)
+                        .setPositiveButton(t("Включить", "Re-enable"), (d, w) -> new Thread(() -> {
+                            final boolean rootOk = checkRoot();
+                            if (rootOk) {
+                                runRoot(BootGuard.rearmCommand());
+                                writeSetting(Keys.GUARD, 0);
+                            }
+                            runOnUiThread(() -> {
+                                status.setText(rootOk
+                                        ? t("Защита сброшена. Перезапусти SystemUI и лаунчер.",
+                                            "Guard cleared. Restart SystemUI and the launcher.")
+                                        : t("Нужен root, чтобы сбросить защиту.",
+                                            "Root is needed to clear the guard."));
+                                updateHookStatus();
+                            });
+                        }).start())
+                        .show());
+        guardButton.setVisibility(View.GONE);
+        addWideButton(actions, guardButton, 8);
+
         if (!canWriteSystem()) {
             grantButton = actionButton(t("Разрешить запись без root", "Allow writing without root"), v -> {
                 try {
@@ -673,6 +700,11 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void updateHookStatus() {
         if (hooksNote == null) return;
+        int guard = readSystem(Keys.GUARD, 0);
+        if (guardButton != null) guardButton.setVisibility(guard != 0 ? View.VISIBLE : View.GONE);
+        String warning = guard == 0 ? "" : "⚠️ " + t("Защита от бутлупа отключила хуки: ",
+                "Boot-loop guard switched the hooks off: ") + guardNames(guard) + "\n\n";
+
         int mask = readSystem(Keys.HOOKS, 0);
         int storedBoot = readSystem(Keys.HOOKS_BOOT, -1);
         int currentBoot = HookStatus.bootCount(getContentResolver());
@@ -680,15 +712,15 @@ public class SettingsActivity extends AppCompatActivity {
         boolean sysUi = fresh && (mask & HookStatus.REPORTED_SYSTEM_UI) != 0;
         boolean launcher = fresh && (mask & HookStatus.REPORTED_LAUNCHER) != 0;
         if (!sysUi && !launcher) {
-            hooksNote.setText(fresh
+            hooksNote.setText(warning + (fresh
                     ? t("Хуки: нет данных — перезапусти SystemUI и лаунчер",
                         "Hooks: no data yet — restart SystemUI and the launcher")
                     : t("Хуки: статус устарел после перезагрузки — перезапусти SystemUI и лаунчер",
-                        "Hooks: status is from before the reboot — restart SystemUI and the launcher"));
+                        "Hooks: status is from before the reboot — restart SystemUI and the launcher")));
             return;
         }
 
-        StringBuilder sb = new StringBuilder(t("Хуки:", "Hooks:"));
+        StringBuilder sb = new StringBuilder(warning).append(t("Хуки:", "Hooks:"));
         sb.append('\n').append(hookLine(t("Шторка", "Shade"), HookStatus.SHADE, mask, sysUi));
         // The lock screen background can only be found once it has been drawn, so a reported
         // process without the bit is not a failure: show the question mark until the first lock screen.
@@ -698,6 +730,16 @@ public class SettingsActivity extends AppCompatActivity {
         sb.append('\n').append(hookLine(t("Недавние", "Recents"), HookStatus.LAUNCHER, mask, launcher));
         sb.append('\n').append(hookLine(t("Список приложений", "App drawer"), HookStatus.DRAWER, mask, launcher));
         hooksNote.setText(sb.toString());
+    }
+
+    private String guardNames(int guard) {
+        StringBuilder sb = new StringBuilder();
+        if ((guard & BootGuard.SYSTEM_UI) != 0) sb.append("SystemUI");
+        if ((guard & BootGuard.LAUNCHER) != 0) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(t("лаунчер", "launcher"));
+        }
+        return sb.toString();
     }
 
     private String hookLine(String name, int bit, int mask, boolean reported) {
@@ -829,7 +871,8 @@ public class SettingsActivity extends AppCompatActivity {
                 .append(" track=").append(state(mask, HookStatus.VOLUME_TRACK, sysUi))
                 .append(" launcher=").append(state(mask, HookStatus.LAUNCHER, launcher))
                 .append(" drawer=").append(state(mask, HookStatus.DRAWER, launcher)).append('\n');
-        sb.append("boot=").append(currentBoot).append(fresh ? " fresh" : " stale").append('\n');
+        sb.append("boot=").append(currentBoot).append(fresh ? " fresh" : " stale")
+                .append(" guard=").append(readSystem(Keys.GUARD, 0)).append('\n');
         sb.append("top=").append(readSystem(Keys.TOP, -1))
                 .append(" bottom=").append(readSystem(Keys.BOTTOM, -1))
                 .append(" bouncer=").append(readSystem(Keys.BOUNCER, -1))

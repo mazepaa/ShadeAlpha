@@ -23,13 +23,12 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.5 hotfix
+## What's new in v3.6
 
-- **Panel background alpha no longer stacks.** Moving the slider from 100% to 50% and then to 30% now gives exactly 30%: the original colour and the written value are tracked together, so the panel cannot stay on an old value any more.
-- **The shade keeps working on ROMs without the internal resource class.** Resource ids now come from the app context; if they cannot be resolved the fast path is switched off with a log line instead of silently skipping every scrim.
-- **The hook-status row cannot hammer the system.** Without write permission it is written at most once per process instead of on every frame.
-- **Safer drawing.** The canvas is saved before the clip, so a failing frame can never leave the state behind.
-- Everything from 3.5 stays: the ringer-mode crash is gone, the backdrop is not cut off, the panel background slider works, and the value bubbles are not shown.
+- **Boot-loop guard.** If SystemUI or the launcher dies within a minute of starting three times in a row, the module stops installing hooks in that package, so the phone boots and runs as stock. The app shows a warning and a **Re-enable hooks** button. Installing a new build of the module re-arms the guard automatically.
+- **Scrim detection no longer depends on timing.** The scrim view ids are now resolved from the first scrim that draws, instead of from an Application that does not exist yet when the hooks are installed. If the ids cannot be found, the fast path is switched off and the shade keeps working.
+- **Cheaper draw path.** The hook-status check on every scrim frame is now two volatile reads without a lock.
+- Everything from 3.5.1 stays.
 
 ## Features
 
@@ -38,6 +37,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 - **Volume panel:** transparency for the panel background, the call-button backdrop and the floating sliders, plus separate opacity for the slider track and fill.
 - **Launcher:** recents and app drawer scrims (Pixel Launcher and Launcher3).
 - **Three rendering modes** for ROMs with different SystemUI builds: layer, view alpha, and scrim colour alpha.
+- **Boot-loop guard:** hooks switch themselves off after repeated early crashes of SystemUI or the launcher.
 - Hook status, diagnostics and a reset button, so a missing hook is visible without digging through the Vector log.
 
 ## Requirements
@@ -48,7 +48,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 ## Installation
 
-1. Install `ShadeAlpha-3.5.1.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Install `ShadeAlpha-3.6.0.apk` from [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Modules → ShadeAlpha → enable it, scope: **System UI**, **Pixel Launcher** (or **Launcher3**) and **ShadeAlpha**.
 3. Open the ShadeAlpha app and tap **Restart SystemUI** and **Restart launcher**.
 4. Move the sliders: 100% = stock look, lower = more transparent. Check the **Hooks:** line — every entry should be ✅.
@@ -56,7 +56,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 All releases are signed with the same key, so updates install over the previous version. To check an APK you did not download from Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.5.1.apk
+apksigner verify --print-certs ShadeAlpha-3.6.0.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 
@@ -75,6 +75,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 - For a bug report, use **Copy diagnostics** and add the `ShadeAlpha` lines from Vector → Logs → Modules.
 - No `Launcher loaded` line = the launcher is not ticked in the module scope (or was not restarted).
 - A ❌ next to a hook in the app means this SystemUI build does not have the class that hook needs.
+- A ⚠️ banner in the app means the boot-loop guard has tripped: tap **Re-enable hooks** (needs root), or run `su -c "rm -f /data/user_de/*/com.android.systemui/shadealpha_guard"` (and the same for the launcher package), then restart SystemUI. Clearing the package's data also works.
 
 ## Known limitations
 
@@ -108,13 +109,12 @@ apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.5 hotfix
+## Что нового в v3.6
 
-- **Прозрачность фона панели больше не накапливается.** Ползунок 100% → 50% → 30% даёт ровно 30%: исходный цвет и записанное значение хранятся вместе, панель больше не застревает на старом проценте.
-- **Шторка работает и на прошивках без внутреннего класса ресурсов.** Id теперь берутся из контекста приложения; если их не удалось получить, быстрый отбор отключается с записью в лог, а не молча пропускает все скримы.
-- **Строка статуса хуков больше не долбит систему.** Без разрешения на запись она пишется не чаще одного раза за процесс, а не каждый кадр.
-- **Безопаснее отрисовка.** Canvas сохраняется до обрезки, поэтому сбойный кадр не оставит после себя изменённое состояние.
-- Всё из 3.5 на месте: падение при смене режима звонка убрано, подложка не обрезается, ползунок фона панели работает, всплывающих кружков с числом нет.
+- **Защита от бутлупа.** Если SystemUI или лаунчер три раза подряд падают в первую минуту после запуска, модуль перестаёт ставить хуки в этом пакете, и телефон загружается как стоковый. В приложении появляется предупреждение и кнопка **«Включить хуки снова»**. Установка новой сборки модуля сама снимает защиту.
+- **Поиск скримов больше не зависит от момента запуска.** Id скримов берутся из первого отрисованного скрима, а не из Application, которого ещё нет при установке хуков. Если id не найдены, быстрый отбор отключается, и шторка продолжает работать.
+- **Дешевле путь отрисовки.** Проверка статуса хуков на каждом кадре скрима теперь два чтения volatile без блокировки.
+- Всё из 3.5.1 сохранено.
 
 ## Возможности
 
@@ -123,6 +123,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 - **Панель громкости:** прозрачность фона панели, подложки кнопок звонка и плавающих слайдеров, плюс отдельные ползунки дорожки и заполнения.
 - **Лаунчер:** скримы недавних и списка приложений (Pixel Launcher и Launcher3).
 - **Три режима отрисовки** для разных сборок SystemUI: слой, alpha вьюхи и alpha цвета скрима.
+- **Защита от бутлупа:** хуки сами отключаются после повторных ранних падений SystemUI или лаунчера.
 - Статус хуков, диагностика и сброс — чтобы пропавший хук было видно без журнала Vector.
 
 ## Требования
@@ -133,7 +134,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 
 ## Установка
 
-1. Установи `ShadeAlpha-3.5.1.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
+1. Установи `ShadeAlpha-3.6.0.apk` из [Releases](https://github.com/mazepaa/ShadeAlpha/releases/latest).
 2. Vector → Модули → ShadeAlpha → включить, область: **System UI**, **Pixel Launcher** (или **Launcher3**) и **ShadeAlpha**.
 3. Открой приложение и нажми **«Перезапустить SystemUI»** и **«Перезапустить лаунчер»**.
 4. Двигай ползунки: 100% = как в системе, меньше = прозрачнее. Проверь строку **«Хуки:»** — все пункты должны быть ✅.
@@ -141,7 +142,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 Все релизы подписаны одним ключом, поэтому обновление встаёт поверх. Проверить APK, скачанный не из Releases:
 
 ```
-apksigner verify --print-certs ShadeAlpha-3.5.1.apk
+apksigner verify --print-certs ShadeAlpha-3.6.0.apk
 # SHA-256 digest: 48:66:2C:20:50:60:A3:98:E4:CB:64:26:92:43:98:CB:D9:E8:B2:2E:75:BA:E4:EF:52:42:FC:A2:FD:EB:98:3F
 ```
 
@@ -160,6 +161,7 @@ apksigner verify --print-certs ShadeAlpha-3.5.1.apk
 - Для багрепорта нажми **«Скопировать диагностику»** и приложи строки `ShadeAlpha` из Vector → Журналы → Модули.
 - Нет строки `Launcher loaded` — лаунчер не отмечен в области модуля (или не был перезапущен).
 - ❌ рядом с хуком означает, что в этой сборке SystemUI нет нужного класса.
+- Баннер ⚠️ в приложении означает, что сработала защита от бутлупа: нажми **«Включить хуки снова»** (нужен root) или выполни `su -c "rm -f /data/user_de/*/com.android.systemui/shadealpha_guard"` (и то же для пакета лаунчера), затем перезапусти SystemUI. Помогает и очистка данных пакета.
 
 ## Ограничения
 

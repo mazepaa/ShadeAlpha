@@ -28,10 +28,16 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     private static final int MAX_FAILURES = 20;
 
     private static final boolean[] SVA_LOGGED = new boolean[4];
-    /** Resolved once per SystemUI process; 0 disables the fast path in the draw hook. */
-    private static volatile int scrimIdBehind = View.NO_ID;
-    private static volatile int scrimIdNotifications = View.NO_ID;
-    private static volatile int scrimIdFront = View.NO_ID;
+    /**
+     * Scrim view ids, resolved lazily from the first scrim that draws (there is no Application,
+     * and so no Resources, when the hooks are installed). 0 = not found. The fast path in the
+     * draw hook is on only when at least one id was found.
+     */
+    private static volatile int scrimIdBehind = 0;
+    private static volatile int scrimIdNotifications = 0;
+    private static volatile int scrimIdFront = 0;
+    private static volatile boolean idsResolved = false;
+    private static volatile boolean fastPath = false;
     private static volatile boolean disabled = false;
     private static int failures = 0;
     private static volatile Boolean lastKeyguardLog = null;
@@ -45,9 +51,13 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
         String pkg = lpparam.packageName;
-        if ("com.android.systemui".equals(pkg)) hookSystemUI(lpparam);
-        else if (LauncherHooks.isLauncher(pkg)) LauncherHooks.hook(lpparam);
-        else if ("dev.shadealpha".equals(pkg)) hookSelf(lpparam);
+        if ("com.android.systemui".equals(pkg)) {
+            if (BootGuard.allow(lpparam, BootGuard.SYSTEM_UI)) hookSystemUI(lpparam);
+        } else if (LauncherHooks.isLauncher(pkg)) {
+            if (BootGuard.allow(lpparam, BootGuard.LAUNCHER)) LauncherHooks.hook(lpparam);
+        } else if ("dev.shadealpha".equals(pkg)) {
+            hookSelf(lpparam);
+        }
     }
 
     private void hookSelf(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -73,28 +83,8 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
         if (scrim == null) { Logs.log(TAG + ": ScrimView not found"); return; }
 
-        // onDraw runs on every SystemUI view, so non-scrim views must be rejected cheaply.
-        // Resource ids share one table per process, so the scrim class is asked for a Context
-        // through Class.forName instead of a framework-only helper. If nothing resolves, the
-        // fast path stays off and role() falls back to resource entry names.
-        try {
-            android.content.Context ctx = null;
-            try {
-                Class<?> at = Class.forName("android.app.ActivityThread");
-                Object app = XposedHelpers.callStaticMethod(at, "currentApplication");
-                if (app instanceof android.content.Context) ctx = (android.content.Context) app;
-            } catch (Throwable t) { ctx = null; }
-            if (ctx != null) {
-                android.content.res.Resources res = ctx.getResources();
-                scrimIdBehind = res.getIdentifier("scrim_behind", "id", "com.android.systemui");
-                scrimIdNotifications = res.getIdentifier("scrim_notifications", "id", "com.android.systemui");
-                scrimIdFront = res.getIdentifier("scrim_in_front", "id", "com.android.systemui");
-            }
-            if (scrimIdBehind == 0 && scrimIdNotifications == 0 && scrimIdFront == 0) {
-                Logs.log(TAG + ": scrim ids not resolved, fast path disabled");
-            }
-        } catch (Throwable t) { Logs.log(TAG + ": scrim id lookup failed: " + t); }
-        final boolean fastPath = scrimIdBehind != 0 || scrimIdNotifications != 0 || scrimIdFront != 0;
+        // onDraw runs on every SystemUI view, so non-scrim views are rejected by id first;
+        // the ids are resolved on the first scrim draw (see resolveScrimIds).
         try {
             Set<XC_MethodHook.Unhook> hooks = XposedBridge.hookAllMethods(scrim, "onDraw", new XC_MethodHook() {
                 @Override
@@ -102,6 +92,7 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
                     try {
                         if (param.args.length != 1 || !(param.args[0] instanceof Canvas)) return;
                         View v = (View) param.thisObject;
+                        if (!idsResolved) resolveScrimIds(v);
                         if (fastPath) {
                             int rawId = v.getId();
                             if (rawId != scrimIdBehind && rawId != scrimIdNotifications
@@ -175,6 +166,26 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
             });
             Logs.log(TAG + ": hooked setViewAlpha, methods=" + (hooks == null ? 0 : hooks.size()));
         } catch (Throwable t) { Logs.log(TAG + ": setViewAlpha hook failed: " + t); }
+    }
+
+    /**
+     * Looks the scrim ids up through the view's own Resources. Runs once; if nothing resolves the
+     * fast path stays off and role() falls back to resource entry names.
+     */
+    private static void resolveScrimIds(View v) {
+        try {
+            android.content.res.Resources res = v.getResources();
+            String pkg = v.getContext().getPackageName();
+            scrimIdBehind = res.getIdentifier("scrim_behind", "id", pkg);
+            scrimIdNotifications = res.getIdentifier("scrim_notifications", "id", pkg);
+            scrimIdFront = res.getIdentifier("scrim_in_front", "id", pkg);
+            fastPath = scrimIdBehind != 0 || scrimIdNotifications != 0 || scrimIdFront != 0;
+            if (!fastPath) Logs.log(TAG + ": scrim ids not resolved, fast path disabled");
+        } catch (Throwable t) {
+            fastPath = false;
+            Logs.log(TAG + ": scrim id lookup failed: " + t);
+        }
+        idsResolved = true;
     }
 
     private static int role(View v) {
@@ -319,4 +330,3 @@ public class ShadeAlpha implements IXposedHookLoadPackage {
         }
     }
 }
-

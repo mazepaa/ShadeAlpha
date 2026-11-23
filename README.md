@@ -23,7 +23,7 @@ A Vector module that makes the notification shade, the **recents screen**, the *
 
 **Download:** see [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## What's new in v3.6
+## What's new in v3.6.0
 
 - **Boot-loop guard.** If SystemUI or the launcher dies within a minute of starting three times in a row, the module stops installing hooks in that package, so the phone boots and runs as stock. The app shows a warning and a **Re-enable hooks** button. Installing a new build of the module re-arms the guard automatically.
 - **Scrim detection no longer depends on timing.** The scrim view ids are now resolved from the first scrim that draws, instead of from an Application that does not exist yet when the hooks are installed. If the ids cannot be found, the fast path is switched off and the shade keeps working.
@@ -109,7 +109,7 @@ apksigner verify --print-certs ShadeAlpha-3.6.0.apk
 
 **Скачать:** см. [Releases](https://github.com/mazepaa/ShadeAlpha/releases).
 
-## Что нового в v3.6
+## Что нового в v3.6.0
 
 - **Защита от бутлупа.** Если SystemUI или лаунчер три раза подряд падают в первую минуту после запуска, модуль перестаёт ставить хуки в этом пакете, и телефон загружается как стоковый. В приложении появляется предупреждение и кнопка **«Включить хуки снова»**. Установка новой сборки модуля сама снимает защиту.
 - **Поиск скримов больше не зависит от момента запуска.** Id скримов берутся из первого отрисованного скрима, а не из Application, которого ещё нет при установке хуков. Если id не найдены, быстрый отбор отключается, и шторка продолжает работать.

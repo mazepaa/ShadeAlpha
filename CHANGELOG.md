@@ -1,6 +1,6 @@
 # ShadeAlpha — Changelog
 
-## v3.6
+## v3.6.0
 
 ### Что нового
 
